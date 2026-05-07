@@ -6,42 +6,42 @@
 
 @layer base {
   :root {
-    /* shadcn CSS variables — mapped to the project's violet/gray palette */
+    /* shadcn CSS variables — mapped to Mochi design system tokens */
     --background:   0 0% 100%;
-    --foreground:   222 47% 11%;
+    --foreground:   215 28% 17%;       /* slate-900 #0F172A */
 
     --card:         0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 215 28% 17%;
 
     --popover:      0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 215 28% 17%;
 
-    /* violet-600 */
-    --primary:      262 83% 58%;
+    /* Mochi purple-600 #6D41E8 */
+    --primary:      264 78% 57%;
     --primary-foreground: 0 0% 100%;
 
-    /* gray-100 */
-    --secondary:    220 14% 96%;
-    --secondary-foreground: 215 19% 27%;
+    /* slate-100 #F1F5F9 */
+    --secondary:    214 32% 97%;
+    --secondary-foreground: 215 25% 27%;
 
-    /* gray-100 */
-    --muted:        220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    /* slate-100 */
+    --muted:        214 32% 97%;
+    --muted-foreground: 215 16% 47%;   /* slate-500 */
 
-    /* violet-50 */
-    --accent:       250 100% 97%;
-    --accent-foreground: 262 83% 58%;
+    /* violet-50 #F4EFFE */
+    --accent:       264 93% 97%;
+    --accent-foreground: 264 78% 57%;
 
     /* red-600 */
     --destructive:  0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* gray-200 */
-    --border:       220 13% 91%;
-    /* gray-200 */
-    --input:        220 13% 91%;
-    /* violet-400 */
-    --ring:         262 83% 71%;
+    /* slate-200 #E2E8F0 */
+    --border:       214 32% 91%;
+    /* slate-200 */
+    --input:        214 32% 91%;
+    /* Mochi purple ring at ~35% opacity */
+    --ring:         264 78% 57%;
 
     --radius: 0.5rem;
   }
@@ -68,7 +68,7 @@
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background-color: #f9fafb;
-  color: #111827;
+  background-color: #F8FAFC; /* slate-50 */
+  color: #0F172A;             /* slate-900 */
   -webkit-font-smoothing: antialiased;
 }

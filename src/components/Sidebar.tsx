@@ -54,15 +54,15 @@ function NavItem({
         'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
         active
           ? 'bg-violet-50 text-violet-700 font-medium'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
       ].join(' ')}
     >
-      <span className={active ? 'text-violet-600' : 'text-gray-400'}>{icon}</span>
+      <span className={active ? 'text-violet-600' : 'text-slate-400'}>{icon}</span>
       <span className="flex-1 text-left">{label}</span>
       {expandable && (
         expanded
-          ? <CaretDown  size={12} className="text-gray-400 transition-transform" />
-          : <CaretRight size={12} className="text-gray-400 transition-transform" />
+          ? <CaretDown  size={12} className="text-slate-400 transition-transform" />
+          : <CaretRight size={12} className="text-slate-400 transition-transform" />
       )}
     </button>
   );
@@ -86,10 +86,10 @@ function SubNavItem({
         'w-full flex items-center gap-2 pl-9 pr-3 py-1.5 rounded-lg text-xs transition-colors',
         active
           ? 'bg-violet-50 text-violet-700 font-medium'
-          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800',
+          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
       ].join(' ')}
     >
-      <span className={active ? 'text-violet-500' : 'text-gray-400'}>{icon}</span>
+      <span className={active ? 'text-violet-500' : 'text-slate-400'}>{icon}</span>
       {label}
     </button>
   );
@@ -107,16 +107,16 @@ export function Sidebar() {
     currentPage === 'manage-bills' || currentPage === 'bill';
 
   return (
-    <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+    <aside className="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0">
+      <div className="flex items-center justify-between px-5 h-14 border-b border-slate-100">
         <img src={mochiLogo} alt="Mochi" className="h-7 w-auto" />
-        <CaretDown size={14} className="text-gray-400 shrink-0" />
+        <CaretDown size={14} className="text-slate-400 shrink-0" />
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
-        <NavItem icon={<House size={16} />}      label="Dashboard" />
+      <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+        <NavItem icon={<House size={18} />}      label="Dashboard" />
         <NavItem
-          icon={<Users size={16} />}
+          icon={<Users size={18} />}
           label="Customers"
           active={['list', 'create', 'detail', 'view'].includes(currentPage)}
           onClick={() => navigate('list')}
@@ -124,7 +124,7 @@ export function Sidebar() {
 
         {/* ── Billing (expandable) ── */}
         <NavItem
-          icon={<CreditCard size={16} />}
+          icon={<CreditCard size={18} />}
           label="Billing"
           active={billingActive}
           expandable
@@ -148,21 +148,21 @@ export function Sidebar() {
           </div>
         )}
 
-        <NavItem icon={<ShoppingBag size={16} />} label="Orders"    expandable />
-        <NavItem icon={<Cube size={16} />}        label="Catalog"   expandable />
-        <NavItem icon={<FileText size={16} />}    label="Forms" />
-        <NavItem icon={<ChartLine size={16} />}   label="Reports" />
-        <NavItem icon={<Graph size={16} />}       label="Workflows" />
-        <NavItem icon={<Gear size={16} />}        label="Settings" />
+        <NavItem icon={<ShoppingBag size={18} />} label="Orders"    expandable />
+        <NavItem icon={<Cube size={18} />}        label="Catalog"   expandable />
+        <NavItem icon={<FileText size={18} />}    label="Forms" />
+        <NavItem icon={<ChartLine size={18} />}   label="Reports" />
+        <NavItem icon={<Graph size={18} />}       label="Workflows" />
+        <NavItem icon={<Gear size={18} />}        label="Settings" />
       </nav>
 
-      <div className="border-t border-gray-100 px-3 py-3 flex items-center gap-2">
-        <Avatar initials="JD" color="#6366f1" size={30} />
+      <div className="border-t border-slate-100 px-3 py-3 flex items-center gap-2">
+        <Avatar initials="JD" color="#6D41E8" size={32} />
         <div className="min-w-0">
-          <p className="text-xs font-medium text-gray-900 truncate">Juan A. Dela Cruz</p>
-          <p className="text-xs text-gray-500 truncate">juandelacruz@gmail.com</p>
+          <p className="text-xs font-medium text-slate-900 truncate">Juan A. Dela Cruz</p>
+          <p className="text-xs text-slate-500 truncate">juandelacruz@gmail.com</p>
         </div>
-        <CaretDown size={14} className="ml-auto text-gray-400 shrink-0" />
+        <CaretDown size={14} className="ml-auto text-slate-400 shrink-0" />
       </div>
     </aside>
   );

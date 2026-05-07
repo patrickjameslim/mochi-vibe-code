@@ -47,14 +47,14 @@ function FileTypeIcon({ name }: { name: string }) {
   if (['xls', 'xlsx'].includes(ext))          return <FileXls  size={20} className="text-green-600 shrink-0" />;
   if (ext === 'csv')                          return <FileCsv  size={20} className="text-green-500 shrink-0" />;
   if (['zip', 'rar', '7z'].includes(ext))     return <FileZip  size={20} className="text-yellow-600 shrink-0" />;
-  return                                             <FileIcon size={20} className="text-gray-400 shrink-0" />;
+  return                                             <FileIcon size={20} className="text-slate-400 shrink-0" />;
 }
 
 function FieldLabel({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-1.5 mb-1">
-      {icon && <span className="text-gray-400">{icon}</span>}
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{children}</p>
+      {icon && <span className="text-slate-400">{icon}</span>}
+      <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{children}</p>
     </div>
   );
 }
@@ -62,8 +62,8 @@ function FieldLabel({ children, icon }: { children: React.ReactNode; icon?: Reac
 function FieldValue({ children }: { children: React.ReactNode }) {
   const empty = !children || (typeof children === 'string' && children.trim() === '');
   return (
-    <p className="text-sm text-gray-800 leading-relaxed">
-      {empty ? <span className="text-gray-400 italic">Not set</span> : children}
+    <p className="text-sm text-slate-800 leading-relaxed">
+      {empty ? <span className="text-slate-400 italic">Not set</span> : children}
     </p>
   );
 }
@@ -122,31 +122,31 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
 
   return (
     <TooltipProvider>
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ── Header ── */}
-        <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <header className="shrink-0 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
             >
               <ArrowLeft size={14} weight="bold" />
             </button>
-            <nav className="flex items-center gap-1.5 text-sm text-gray-500">
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
               <span>Dashboard</span>
               <CaretRight size={12} />
-              <button onClick={onBack} className="hover:text-gray-700 transition-colors">
+              <button onClick={onBack} className="hover:text-slate-700 transition-colors">
                 Customers
               </button>
               <CaretRight size={12} />
-              <span className="text-gray-900 font-medium">{customer.name}</span>
+              <span className="text-slate-900 font-medium">{customer.name}</span>
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
               <BellSimple size={16} />
             </button>
           </div>
@@ -159,7 +159,7 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
           className="flex-1 flex flex-col overflow-hidden"
         >
           {/* Tab nav row */}
-          <div className="shrink-0 bg-white border-b border-gray-200 px-6 flex items-center justify-between">
+          <div className="shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
             <TabsList className="gap-0 bg-transparent p-0 h-auto rounded-none">
               <TabsTrigger value="General">General</TabsTrigger>
               <TabsTrigger value="Receivables">Receivables</TabsTrigger>
@@ -205,18 +205,18 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <h2 className="text-xl font-bold text-gray-900 truncate leading-tight">
+                          <h2 className="text-xl font-bold text-slate-900 truncate leading-tight">
                             {customer.name}
                           </h2>
                           {/* ID row */}
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                            <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                               {customer.id}
                             </span>
                             <Tooltip content={copied ? 'Copied!' : 'Copy ID'}>
                               <button
                                 onClick={copyId}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                className="text-slate-400 hover:text-slate-600 transition-colors"
                               >
                                 {copied
                                   ? <Check size={13} weight="bold" className="text-green-500" />
@@ -245,8 +245,8 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                       {/* Contact info row */}
                       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
                         {customer.email && (
-                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <Envelope size={14} className="text-gray-400 shrink-0" />
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                            <Envelope size={14} className="text-slate-400 shrink-0" />
                             <TooltipRoot
                               open={copiedEmail || undefined}
                               delayDuration={400}
@@ -275,14 +275,14 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                           </div>
                         )}
                         {customer.phoneNumber && (
-                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <Phone size={14} className="text-gray-400 shrink-0" />
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                            <Phone size={14} className="text-slate-400 shrink-0" />
                             {customer.phoneNumber}
                           </div>
                         )}
                         {customer.address && (
-                          <div className="flex items-center gap-1.5 text-sm text-gray-600 max-w-sm">
-                            <MapPin size={14} className="text-gray-400 shrink-0 mt-px" />
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600 max-w-sm">
+                            <MapPin size={14} className="text-slate-400 shrink-0 mt-px" />
                             <span className="line-clamp-1">{customer.address}</span>
                           </div>
                         )}
@@ -291,11 +291,11 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                       {/* Groups */}
                       {groups.length > 0 && (
                         <div className="mt-3 flex items-center gap-2 flex-wrap">
-                          <UsersFour size={14} className="text-gray-400 shrink-0" />
+                          <UsersFour size={14} className="text-slate-400 shrink-0" />
                           {groups.map((g) => (
                             <Badge
                               key={g}
-                              className="bg-gray-100 text-gray-600 border-gray-200 text-xs px-2 py-0.5 rounded-full border"
+                              className="bg-slate-100 text-slate-600 border-slate-200 text-xs px-2 py-0.5 rounded-full border"
                             >
                               {g}
                             </Badge>
@@ -307,7 +307,7 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
 
                   {/* Timestamps */}
                   <Separator className="my-4" />
-                  <div className="flex items-center gap-6 text-xs text-gray-400">
+                  <div className="flex items-center gap-6 text-xs text-slate-400">
                     <div className="flex items-center gap-1.5">
                       <CalendarBlank size={12} />
                       <span>Created {customer.dateCreated}</span>
@@ -374,8 +374,8 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                         { label: 'Avg. days to pay', value: '—' },
                       ].map(({ label, value }) => (
                         <div key={label} className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">{label}</span>
-                          <span className="text-sm font-medium text-gray-800">{value}</span>
+                          <span className="text-xs text-slate-500">{label}</span>
+                          <span className="text-sm font-medium text-slate-800">{value}</span>
                         </div>
                       ))}
                     </CardContent>
@@ -403,12 +403,12 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                 <Card>
                   <CardHeader className="py-4">
                     <CardTitle className="flex items-center gap-2">
-                      <Note size={16} className="text-gray-400" />
+                      <Note size={16} className="text-slate-400" />
                       Notes
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pb-5">
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                       {customer.notes}
                     </p>
                   </CardContent>
@@ -419,18 +419,18 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
               <Card>
                 <CardHeader className="py-4 flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
-                    <FileIcon size={16} className="text-gray-400" />
+                    <FileIcon size={16} className="text-slate-400" />
                     Supporting documents
                   </CardTitle>
-                  <Badge className="bg-gray-100 text-gray-600 border-gray-200 border text-xs px-2 py-0.5 rounded-full">
+                  <Badge className="bg-slate-100 text-slate-600 border-slate-200 border text-xs px-2 py-0.5 rounded-full">
                     {docs.length} {docs.length === 1 ? 'file' : 'files'}
                   </Badge>
                 </CardHeader>
                 <CardContent className="pb-5">
                   {docs.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">No documents attached.</p>
+                    <p className="text-sm text-slate-400 italic">No documents attached.</p>
                   ) : (
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-slate-100">
                       {docs.map((doc) => (
                         <div
                           key={doc.id}
@@ -438,9 +438,9 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                         >
                           <FileTypeIcon name={doc.name} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
+                            <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
                             {doc.size && (
-                              <p className="text-xs text-gray-400">{doc.size}</p>
+                              <p className="text-xs text-slate-400">{doc.size}</p>
                             )}
                           </div>
                           {doc.url && (
@@ -448,7 +448,7 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
                               href={doc.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-violet-600"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-violet-600"
                             >
                               <ArrowSquareOut size={15} />
                             </a>
@@ -478,9 +478,9 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
             <div className="max-w-5xl mx-auto">
               <Card>
                 <CardContent className="p-16 flex flex-col items-center justify-center text-center">
-                  <FileIcon size={40} className="text-gray-200 mb-3" />
-                  <p className="text-gray-500 font-medium">Reports coming soon</p>
-                  <p className="text-sm text-gray-400 mt-1">
+                  <FileIcon size={40} className="text-slate-200 mb-3" />
+                  <p className="text-slate-500 font-medium">Reports coming soon</p>
+                  <p className="text-sm text-slate-400 mt-1">
                     Customer-specific reports and analytics will appear here.
                   </p>
                 </CardContent>

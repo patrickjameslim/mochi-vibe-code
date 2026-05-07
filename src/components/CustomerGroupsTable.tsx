@@ -65,10 +65,10 @@ function Avatar({ initials, color, size = 26 }: { initials: string; color: strin
 
 function SortTh({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap select-none">
-      <button className="inline-flex items-center gap-1 hover:text-gray-700 transition-colors">
+    <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
+      <button className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors">
         {children}
-        <ArrowsDownUp size={12} weight="bold" className="text-gray-400" />
+        <ArrowsDownUp size={12} weight="bold" className="text-slate-400" />
       </button>
     </th>
   );
@@ -165,12 +165,12 @@ export default function CustomerGroupsTable({
   return (
     <div className="overflow-x-hidden">
       <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b border-gray-100">
+        <thead className="bg-slate-50 border-b border-slate-100">
           <tr>
             <th className="w-10 px-3 py-2.5 text-center">
               <button
                 onClick={toggleAll}
-                className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
               >
                 <CaretDown
                   size={14}
@@ -186,15 +186,15 @@ export default function CustomerGroupsTable({
             <SortTh>Total customers</SortTh>
             <SortTh>Amount collected</SortTh>
             <SortTh>Total amount due</SortTh>
-            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
+            <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
               Quick actions
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-slate-100">
           {rows.length === 0 && (
             <tr>
-              <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+              <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
                 No customer groups match your search.
               </td>
             </tr>
@@ -209,15 +209,15 @@ export default function CustomerGroupsTable({
                 {/* Group row */}
                 <tr
                   className={[
-                    'transition-colors hover:bg-gray-50',
-                    expanded ? 'bg-gray-50' : '',
+                    'transition-colors hover:bg-slate-50',
+                    expanded ? 'bg-slate-50' : '',
                   ].join(' ')}
                 >
                   {/* Caret toggle */}
                   <td className="px-3 py-2.5 text-center">
                     <button
                       onClick={() => toggleGroup(group.name)}
-                      className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
                     >
                       <CaretDown
                         size={14}
@@ -231,29 +231,29 @@ export default function CustomerGroupsTable({
                   </td>
 
                   {/* Group name */}
-                  <td className="px-4 py-2.5 font-medium text-gray-900 whitespace-nowrap">
+                  <td className="px-4 py-2.5 font-medium text-slate-900 whitespace-nowrap">
                     <Highlight text={group.name} query={q} />
                   </td>
 
                   {/* Total customers */}
-                  <td className="px-4 py-2.5 text-gray-600">
+                  <td className="px-4 py-2.5 text-slate-600">
                     {groupCustomers.length}
                   </td>
 
                   {/* Amount collected */}
-                  <td className="px-4 py-2.5 text-gray-600">
+                  <td className="px-4 py-2.5 text-slate-600">
                     {group.amountCollected}
                   </td>
 
                   {/* Total amount due */}
-                  <td className="px-4 py-2.5 text-gray-600 font-medium">
+                  <td className="px-4 py-2.5 text-slate-600 font-medium">
                     {group.totalAmountDue}
                   </td>
 
                   {/* Quick actions */}
                   <td className="px-4 py-2.5">
                     <Tooltip content="Download">
-                      <button className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+                      <button className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
                         <DownloadSimple size={15} />
                       </button>
                     </Tooltip>
@@ -265,7 +265,7 @@ export default function CustomerGroupsTable({
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-4 text-center text-sm text-gray-400 bg-gray-50/60"
+                      className="px-4 py-4 text-center text-sm text-slate-400 bg-slate-50/60"
                     >
                       No customers in this group yet.
                     </td>
@@ -316,15 +316,15 @@ function CustomerSubRow({
       </td>
 
       {/* Type */}
-      <td className="px-4 py-2.5 text-gray-600 text-sm">{customer.type}</td>
+      <td className="px-4 py-2.5 text-slate-600 text-sm">{customer.type}</td>
 
       {/* Email */}
-      <td className="px-4 py-2.5 text-gray-600 text-sm">
+      <td className="px-4 py-2.5 text-slate-600 text-sm">
         <Highlight text={customer.email} query={query} />
       </td>
 
       {/* Phone */}
-      <td className="px-4 py-2.5 text-gray-600 text-sm">
+      <td className="px-4 py-2.5 text-slate-600 text-sm">
         <Highlight text={customer.phoneNumber} query={query} />
       </td>
 
@@ -332,25 +332,25 @@ function CustomerSubRow({
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-1.5">
           <Tooltip content="Duplicate">
-            <button className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+            <button className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
               <Copy size={14} />
             </button>
           </Tooltip>
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-500 hover:bg-gray-100 transition-colors outline-none">
+            <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-500 hover:bg-slate-100 transition-colors outline-none">
               <DotsThreeVertical size={15} weight="bold" />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem>
-                <PencilSimple size={14} className="text-gray-400" />
+                <PencilSimple size={14} className="text-slate-400" />
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={onAssignGroups}>
-                <UsersThree size={14} className="text-gray-400" />
+                <UsersThree size={14} className="text-slate-400" />
                 Assign groups
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Copy size={14} className="text-gray-400" />
+                <Copy size={14} className="text-slate-400" />
                 Duplicate
               </DropdownMenuItem>
               <DropdownMenuSeparator />

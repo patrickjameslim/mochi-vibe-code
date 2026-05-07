@@ -64,8 +64,8 @@ function IconButton({
       className={[
         'inline-flex items-center justify-center w-7 h-7 rounded transition-colors',
         ghost
-          ? 'text-gray-500 hover:bg-gray-100'
-          : 'text-gray-500 border border-gray-200 hover:bg-gray-50',
+          ? 'text-slate-500 hover:bg-slate-100'
+          : 'text-slate-500 border border-slate-200 hover:bg-slate-50',
       ].join(' ')}
     >
       {children}
@@ -76,10 +76,10 @@ function IconButton({
 // ─── Sort Header Cell ─────────────────────────────────────────────────────────
 function SortTh({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap select-none">
-      <button className="inline-flex items-center gap-1 hover:text-gray-700 transition-colors">
+    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
+      <button className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors">
         {children}
-        <ArrowsDownUp size={12} weight="bold" className="text-gray-400" />
+        <ArrowsDownUp size={12} weight="bold" className="text-slate-400" />
       </button>
     </th>
   );
@@ -135,7 +135,7 @@ function Tab({
         'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
         active
           ? 'border-violet-600 text-violet-700'
-          : 'border-transparent text-gray-500 hover:text-gray-700',
+          : 'border-transparent text-slate-500 hover:text-slate-700',
       ].join(' ')}
     >
       {label}
@@ -369,19 +369,19 @@ export default function CustomersTable({
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
 
         {/* Main content */}
         <div className="flex-1 overflow-auto">
           {/* Top bar */}
-          <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-            <nav className="flex items-center gap-1.5 text-sm text-gray-500">
+          <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
               <span>Dashboard</span>
               <CaretRight size={12} />
-              <span className="text-gray-900 font-medium">Customers</span>
+              <span className="text-slate-900 font-medium">Customers</span>
             </nav>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+            <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
               <BellSimple size={16} />
             </button>
           </header>
@@ -393,13 +393,13 @@ export default function CustomersTable({
           <div className="px-6 py-5">
             {/* Page title + actions */}
             <div className="flex items-center justify-between mb-5">
-              <h1 className="text-xl font-semibold text-gray-900">Customers</h1>
+              <h1 className="text-[28px] font-bold tracking-tight text-slate-900">Customers</h1>
               <div className="flex items-center gap-2">
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                   Export data
                   <CaretDown size={13} />
                 </button>
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                   Bulk create customer(s)
                 </button>
                 <button
@@ -413,16 +413,16 @@ export default function CustomersTable({
             </div>
 
             {/* Card */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               {/* Tabs */}
-              <div className="border-b border-gray-200 px-4 flex items-center gap-0">
+              <div className="border-b border-slate-200 px-4 flex items-center gap-0">
                 {(['All', 'Individual', 'Organization', 'Customer groups'] as const).map((t) => (
                   <Tab key={t} label={t} active={activeTab === t} onClick={() => handleTabChange(t)} />
                 ))}
               </div>
 
               {/* Synchronized top scrollbar — hidden on Customer groups tab */}
-              <div className={activeTab === 'Customer groups' ? 'hidden' : 'border-b border-gray-100'}>
+              <div className={activeTab === 'Customer groups' ? 'hidden' : 'border-b border-slate-100'}>
                 <div
                   ref={topScrollRef}
                   className="overflow-x-scroll"
@@ -436,11 +436,11 @@ export default function CustomersTable({
               </div>
 
               {/* Toolbar */}
-              <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-100">
+              <div className="px-4 py-3 flex items-center gap-2 border-b border-slate-100">
                 <div className="relative flex-1 max-w-xs">
                   <MagnifyingGlass
                     size={14}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
                   />
                   <input
                     ref={searchInputRef}
@@ -448,12 +448,12 @@ export default function CustomersTable({
                     placeholder="Search"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                    className={`w-full pl-8 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 ${search ? 'pr-7' : 'pr-3'}`}
+                    className={`w-full pl-8 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 ${search ? 'pr-7' : 'pr-3'}`}
                   />
                   {search && (
                     <button
                       onClick={() => { setSearch(''); setCurrentPage(1); searchInputRef.current?.blur(); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       <X size={14} weight="bold" />
                     </button>
@@ -461,15 +461,15 @@ export default function CustomersTable({
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                     <Funnel size={14} />
                     Filter
                   </button>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                     <ArrowsDownUp size={14} />
                     Last updated at
                   </button>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                     <Columns size={14} />
                     Columns
                   </button>
@@ -506,7 +506,7 @@ export default function CustomersTable({
                     }}
                   >
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b border-gray-100">
+                      <thead className="bg-slate-50 border-b border-slate-100">
                         <tr>
                           <th className="w-10 px-3 py-2.5">
                             <input
@@ -516,7 +516,7 @@ export default function CustomersTable({
                                 if (el) el.indeterminate = someChecked;
                               }}
                               onChange={toggleAll}
-                              className="w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer"
+                              className="w-4 h-4 rounded border-slate-300 accent-violet-600 cursor-pointer"
                             />
                           </th>
                           <SortTh>Customer ID</SortTh>
@@ -527,18 +527,18 @@ export default function CustomersTable({
                           <SortTh>Customer phone number</SortTh>
                           <SortTh>Customer group</SortTh>
                           <SortTh>Supporting documents</SortTh>
-                          <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 tracking-[0.06em]">
                             Notes
                           </th>
                           <SortTh>Last updated at</SortTh>
                           <SortTh>Date created</SortTh>
-                          <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                          <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
                             Quick actions
                           </th>
-                          <th className="sticky right-0 z-10 w-10 bg-gray-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
+                          <th className="sticky right-0 z-10 w-10 bg-slate-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-slate-100">
                         {paginated.map((customer) => (
                           <CustomerRow
                             key={customer.id}
@@ -592,11 +592,11 @@ export default function CustomersTable({
           />
           <SheetBody>
             {notesDrawer.customer?.notes ? (
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                 {notesDrawer.customer.notes}
               </p>
             ) : (
-              <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400">
+              <div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-400">
                 <Notepad size={28} weight="light" />
                 <p className="text-sm">No notes for this customer.</p>
               </div>
@@ -627,7 +627,7 @@ function DocFileIcon({ name }: { name: string }) {
   if (['xls','xlsx'].includes(ext))         return <FileXls  size={26} className="text-green-600 shrink-0"  />;
   if (ext === 'csv')                        return <FileCsv  size={26} className="text-green-500 shrink-0"  />;
   if (['zip','rar','7z'].includes(ext))     return <FileZip  size={26} className="text-yellow-600 shrink-0" />;
-  return                                           <FileIcon size={26} className="text-gray-400 shrink-0"   />;
+  return                                           <FileIcon size={26} className="text-slate-400 shrink-0"   />;
 }
 
 function DocsViewer({ customer }: { customer: Customer }) {
@@ -638,7 +638,7 @@ function DocsViewer({ customer }: { customer: Customer }) {
 
   if (!hasRealFiles && customer.supportingDocuments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400">
+      <div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-400">
         <FileIcon size={28} weight="light" />
         <p className="text-sm">No documents uploaded.</p>
       </div>
@@ -650,21 +650,21 @@ function DocsViewer({ customer }: { customer: Customer }) {
       <ul className="space-y-2">
         {hasRealFiles
           ? customer.supportingDocumentFiles!.map((doc) => (
-              <li key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50 group">
+              <li key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 group">
                 {/* Thumbnail or icon */}
-                <div className="w-11 h-11 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden flex items-center justify-center">
+                <div className="w-11 h-11 shrink-0 rounded-lg border border-slate-200 bg-white overflow-hidden flex items-center justify-center">
                   {doc.isImage
                     ? <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
                     : <DocFileIcon name={doc.name} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{doc.size}</p>
+                  <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{doc.size}</p>
                 </div>
                 {doc.isImage && (
                   <button
                     onClick={() => setLightbox(doc)}
-                    className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-violet-600 hover:bg-violet-50 transition-colors opacity-0 group-hover:opacity-100"
+                    className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <ArrowSquareOut size={14} />
                   </button>
@@ -672,13 +672,13 @@ function DocsViewer({ customer }: { customer: Customer }) {
               </li>
             ))
           : customer.supportingDocuments.map((name, i) => (
-              <li key={i} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
-                <div className="w-11 h-11 shrink-0 rounded-lg border border-gray-200 bg-white flex items-center justify-center">
+              <li key={i} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50">
+                <div className="w-11 h-11 shrink-0 rounded-lg border border-slate-200 bg-white flex items-center justify-center">
                   <DocFileIcon name={name} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">—</p>
+                  <p className="text-sm font-medium text-slate-800 truncate">{name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">—</p>
                 </div>
               </li>
             ))}
@@ -734,7 +734,7 @@ function PerPageDropdown({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 px-2 py-1 border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors"
+        className="inline-flex items-center gap-1 px-2 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50 transition-colors"
       >
         {value}
         <CaretDown
@@ -744,7 +744,7 @@ function PerPageDropdown({
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 min-w-[72px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+        <div className="absolute bottom-full mb-1 left-0 z-20 min-w-[72px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           {PER_PAGE_OPTIONS.map((opt) => (
             <button
               key={opt}
@@ -753,7 +753,7 @@ function PerPageDropdown({
                 'w-full px-3 py-1.5 text-left text-sm transition-colors',
                 opt === value
                   ? 'bg-violet-50 text-violet-700 font-medium'
-                  : 'text-gray-700 hover:bg-gray-50',
+                  : 'text-slate-700 hover:bg-slate-50',
               ].join(' ')}
             >
               {opt}
@@ -794,26 +794,26 @@ function Pagination({
   const end   = Math.min(currentPage * perPage, totalRows);
 
   return (
-    <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-      <div className="flex items-center gap-2 text-sm text-gray-600">
+    <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm text-slate-600">
         <span>Show</span>
         <PerPageDropdown value={perPage} onChange={onPerPageChange} />
         <span>per page</span>
-        <span className="ml-2 text-gray-400">· {start}–{end} of {totalRows}</span>
+        <span className="ml-2 text-slate-400">· {start}–{end} of {totalRows}</span>
       </div>
 
       <div className="flex items-center gap-1 text-sm">
         <button
           disabled={currentPage === 1}
           onClick={() => onPageChange(currentPage - 1)}
-          className="px-3 py-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
 
         {pages.map((p, i) =>
           p === '…' ? (
-            <span key={`ellipsis-${i}`} className="w-8 text-center text-gray-400 text-sm">
+            <span key={`ellipsis-${i}`} className="w-8 text-center text-slate-400 text-sm">
               …
             </span>
           ) : (
@@ -824,7 +824,7 @@ function Pagination({
                 'w-8 h-8 rounded border text-sm transition-colors',
                 p === currentPage
                   ? 'border-violet-500 bg-violet-50 text-violet-700 font-medium'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50',
               ].join(' ')}
             >
               {p}
@@ -835,7 +835,7 @@ function Pagination({
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
-          className="px-3 py-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+          className="px-3 py-1.5 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
         >
           Next <CaretDown size={12} className="-rotate-90" />
         </button>
@@ -873,24 +873,24 @@ function CustomerRow({
   onView?: () => void;
 }) {
   return (
-    <tr className={['transition-colors hover:bg-gray-50', isSelected ? 'bg-violet-50' : ''].join(' ')}>
+    <tr className={['transition-colors hover:bg-slate-50', isSelected ? 'bg-violet-50' : ''].join(' ')}>
       {/* Checkbox */}
       <td className="px-3 py-2.5">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={onToggle}
-          className="w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer"
+          className="w-4 h-4 rounded border-slate-300 accent-violet-600 cursor-pointer"
         />
       </td>
 
       {/* Customer ID */}
-      <td className="px-3 py-2.5 text-gray-700 font-mono text-xs whitespace-nowrap">
+      <td className="px-3 py-2.5 text-slate-700 font-mono text-xs whitespace-nowrap">
         <Highlight text={customer.id} query={query} />
       </td>
 
       {/* Customer type */}
-      <td className="px-3 py-2.5 text-gray-700 whitespace-nowrap">
+      <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
         <Highlight text={customer.type} query={query} />
       </td>
 
@@ -908,12 +908,12 @@ function CustomerRow({
       </td>
 
       {/* Email */}
-      <td className="px-3 py-2.5 text-gray-600 text-sm whitespace-nowrap">
+      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
         <Highlight text={customer.email} query={query} />
       </td>
 
       {/* Address */}
-      <td className="px-3 py-2.5 text-gray-600 text-sm max-w-[200px]">
+      <td className="px-3 py-2.5 text-slate-600 text-sm max-w-[200px]">
         <Tooltip content={customer.address} wide>
           <span className="line-clamp-2 leading-snug cursor-default">
             <Highlight text={customer.address} query={query} />
@@ -922,7 +922,7 @@ function CustomerRow({
       </td>
 
       {/* Phone */}
-      <td className="px-3 py-2.5 text-gray-600 text-sm whitespace-nowrap">
+      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
         <Highlight text={customer.phoneNumber} query={query} />
       </td>
 
@@ -960,12 +960,12 @@ function CustomerRow({
       </td>
 
       {/* Last updated at */}
-      <td className="px-3 py-2.5 text-gray-600 text-sm whitespace-nowrap">
+      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
         {customer.lastUpdatedAt}
       </td>
 
       {/* Date created */}
-      <td className="px-3 py-2.5 text-gray-600 text-sm whitespace-nowrap">
+      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
         {customer.dateCreated}
       </td>
 
@@ -983,20 +983,20 @@ function CustomerRow({
       {/* Kebab menu */}
       <td className="sticky right-0 z-10 px-2 py-2.5 bg-white [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_white]">
         <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-500 hover:bg-gray-100 transition-colors outline-none">
+          <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-500 hover:bg-slate-100 transition-colors outline-none">
             <DotsThreeVertical size={16} weight="bold" />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onSelect={onEdit}>
-              <PencilSimple size={14} className="text-gray-400" />
+              <PencilSimple size={14} className="text-slate-400" />
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onAssignGroups}>
-              <UsersThree size={14} className="text-gray-400" />
+              <UsersThree size={14} className="text-slate-400" />
               Assign groups
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Copy size={14} className="text-gray-400" />
+              <Copy size={14} className="text-slate-400" />
               Duplicate
             </DropdownMenuItem>
             <DropdownMenuSeparator />
