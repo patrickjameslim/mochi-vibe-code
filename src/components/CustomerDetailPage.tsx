@@ -19,8 +19,10 @@ import {
   Buildings,
   ChartLine,
   CreditCard,
+  UsersThree,
 } from '@phosphor-icons/react';
 import { Sidebar } from './Sidebar';
+import AssignGroupsDrawer from './AssignGroupsDrawer';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
@@ -30,6 +32,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import { Separator } from './ui/Separator';
 import { Customer, SupportingDocFile } from '../data/customers';
+import { getBillsByCustomer } from '../data/bills';
+import ReceivablesTable from './ReceivablesTable';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,7 +78,10 @@ interface Props {
   customer: Customer;
   groups: string[];
   onBack: () => void;
-  onSave?: (updated: Customer) => void;
+  onSave?: (updated: Customer, groups: string[]) => void;
+  onCreateBill?: () => void;
+  /** When true the page opens directly in edit mode (e.g. navigated from the View page) */
+  startInEditMode?: boolean;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -84,9 +91,11 @@ export default function CustomerDetailPage({
   groups,
   onBack,
   onSave,
+  onCreateBill,
+  startInEditMode = false,
 }: Props) {
   const [activeTab, setActiveTab] = useState<'General' | 'Receivables' | 'Reports'>('General');
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(startInEditMode);
   const [copied, setCopied] = useState(false);
 
   // Editable fields
@@ -126,6 +135,10 @@ export default function CustomerDetailPage({
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Groups
+  const [editedGroups, setEditedGroups] = useState<string[]>(groups);
+  const [groupsDrawerOpen, setGroupsDrawerOpen] = useState(false);
+
   // Reset all fields when cancelling edit
   function cancelEdit() {
     setName(customer.name);
@@ -150,6 +163,7 @@ export default function CustomerDetailPage({
             url: '',
           }))
     );
+    setEditedGroups(groups);
     setEditMode(false);
   }
 
@@ -170,7 +184,7 @@ export default function CustomerDetailPage({
       supportingDocumentFiles: docs,
       supportingDocuments: docs.map((d) => d.name),
     };
-    onSave?.(updated);
+    onSave?.(updated, editedGroups);
   }
 
   function handleImageUpload(file: File) {
@@ -456,7 +470,7 @@ export default function CustomerDetailPage({
                         <div>
                           <FieldLabel>Payment method</FieldLabel>
                           {editMode ? (
-                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                            <Select value={paymentMethod || undefined} onValueChange={setPaymentMethod}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select method" />
                               </SelectTrigger>
@@ -501,10 +515,42 @@ export default function CustomerDetailPage({
 
                         {/* Customer groups */}
                         <div>
-                          <FieldLabel>Customer group</FieldLabel>
-                          {groups.length > 0 ? (
+                          <FieldLabel>Customer groups</FieldLabel>
+                          {editMode ? (
+                            <div className="mt-0.5 space-y-2">
+                              {/* Current group badges with remove × */}
+                              {editedGroups.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {editedGroups.map((g) => (
+                                    <span
+                                      key={g}
+                                      className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700"
+                                    >
+                                      {g}
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditedGroups((prev) => prev.filter((x) => x !== g))}
+                                        className="ml-0.5 text-violet-400 hover:text-violet-700 transition-colors"
+                                      >
+                                        <X size={10} weight="bold" />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Manage button */}
+                              <button
+                                type="button"
+                                onClick={() => setGroupsDrawerOpen(true)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-violet-400 hover:text-violet-600 transition-colors"
+                              >
+                                <UsersThree size={13} />
+                                Manage groups
+                              </button>
+                            </div>
+                          ) : editedGroups.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5 mt-0.5">
-                              {groups.map((g) => (
+                              {editedGroups.map((g) => (
                                 <Badge key={g} variant="default" className="whitespace-nowrap">
                                   {g}
                                 </Badge>
@@ -567,10 +613,20 @@ export default function CustomerDetailPage({
                         </div>
                       ))}
                     </CardContent>
-                    <CardFooter>
-                      <button className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors">
+                    <CardFooter className="flex items-center justify-between gap-3 pt-2">
+                      <button
+                        onClick={() => setActiveTab('Receivables')}
+                        className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
+                      >
                         View all receivables →
                       </button>
+                      <Button
+                        size="sm"
+                        onClick={() => onCreateBill?.()}
+                        className="gap-1.5 text-xs h-7 px-3"
+                      >
+                        + Create bill
+                      </Button>
                     </CardFooter>
                   </Card>
                 </div>
@@ -694,13 +750,10 @@ export default function CustomerDetailPage({
           {/* ── Receivables tab ── */}
           <TabsContent value="Receivables" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
             <div className="max-w-6xl mx-auto">
-              <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-1">
-                  <CreditCard size={24} className="text-gray-300" />
-                </div>
-                <h3 className="text-base font-semibold text-gray-600">Receivables</h3>
-                <p className="text-sm text-gray-400">This section is coming soon.</p>
-              </Card>
+              <ReceivablesTable
+                bills={getBillsByCustomer(customer.id)}
+                onCreateBill={onCreateBill}
+              />
             </div>
           </TabsContent>
 
@@ -753,6 +806,15 @@ export default function CustomerDetailPage({
         multiple
         className="hidden"
         onChange={(e) => handleDocUpload(e.target.files)}
+      />
+
+      {/* Assign Groups Drawer */}
+      <AssignGroupsDrawer
+        open={groupsDrawerOpen}
+        onClose={() => setGroupsDrawerOpen(false)}
+        onSave={(updated) => setEditedGroups(updated)}
+        customerName={name}
+        initialGroups={editedGroups}
       />
     </div>
   );

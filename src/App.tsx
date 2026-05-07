@@ -4,8 +4,10 @@ import { Customer, CUSTOMERS } from './data/customers';
 import CustomersTable from './components/CustomersTable';
 import CreateCustomerPage from './components/CreateCustomerPage';
 import CustomerDetailPage from './components/CustomerDetailPage';
+import CustomerViewPage from './components/CustomerViewPage';
+import CreateBillPage from './components/CreateBillPage';
 
-type Page = 'list' | 'create' | 'detail';
+type Page = 'list' | 'create' | 'detail' | 'view' | 'bill';
 
 function App() {
   const [page, setPage] = useState<Page>('list');
@@ -13,6 +15,8 @@ function App() {
   const [pendingBanner, setPendingBanner] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingGroups, setEditingGroups] = useState<string[]>([]);
+  const [groupOverride, setGroupOverride] = useState<{ id: string; groups: string[] } | null>(null);
+  const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
 
   function handleCustomerCreated(customer: Customer) {
     setCustomers((prev) => [customer, ...prev]);
@@ -20,14 +24,32 @@ function App() {
     setPage('list');
   }
 
+  function handleView(customer: Customer, groups: string[]) {
+    setEditingCustomer(customer);
+    setEditingGroups(groups);
+    setDetailStartInEditMode(false);
+    setPage('view');
+  }
+
   function handleEdit(customer: Customer, groups: string[]) {
     setEditingCustomer(customer);
     setEditingGroups(groups);
+    setDetailStartInEditMode(true);   // table kebab → land directly in edit mode
     setPage('detail');
   }
 
-  function handleCustomerUpdated(updated: Customer) {
+  function handleEditFromView() {
+    setDetailStartInEditMode(true);   // view-page Edit btn → also land in edit mode
+    setPage('detail');
+  }
+
+  function handleCreateBill() {
+    setPage('bill');
+  }
+
+  function handleCustomerUpdated(updated: Customer, updatedGroups: string[]) {
     setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+    setGroupOverride({ id: updated.id, groups: updatedGroups });
     setPendingBanner(`${updated.name} has been updated successfully.`);
     setPage('list');
   }
@@ -41,13 +63,38 @@ function App() {
     );
   }
 
+  if (page === 'view' && editingCustomer) {
+    return (
+      <CustomerViewPage
+        customer={editingCustomer}
+        groups={editingGroups}
+        onBack={() => setPage('list')}
+        onEdit={handleEditFromView}
+        onCreateBill={handleCreateBill}
+      />
+    );
+  }
+
   if (page === 'detail' && editingCustomer) {
     return (
       <CustomerDetailPage
+        key={`${editingCustomer.id}-${detailStartInEditMode}`}
         customer={editingCustomer}
         groups={editingGroups}
         onBack={() => setPage('list')}
         onSave={handleCustomerUpdated}
+        onCreateBill={handleCreateBill}
+        startInEditMode={detailStartInEditMode}
+      />
+    );
+  }
+
+  if (page === 'bill') {
+    return (
+      <CreateBillPage
+        customer={editingCustomer ?? undefined}
+        onBack={() => setPage(editingCustomer ? 'detail' : 'list')}
+        onViewCustomer={editingCustomer ? () => setPage('view') : undefined}
       />
     );
   }
@@ -59,6 +106,9 @@ function App() {
       onBannerShown={() => setPendingBanner(null)}
       onCreateCustomer={() => setPage('create')}
       onEdit={handleEdit}
+      onViewCustomer={handleView}
+      groupOverride={groupOverride}
+      onGroupOverrideApplied={() => setGroupOverride(null)}
     />
   );
 }

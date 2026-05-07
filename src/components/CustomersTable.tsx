@@ -198,12 +198,18 @@ export default function CustomersTable({
   onBannerShown,
   onCreateCustomer,
   onEdit,
+  onViewCustomer,
+  groupOverride = null,
+  onGroupOverrideApplied,
 }: {
   customers?: Customer[];
   initialBanner?: string | null;
   onBannerShown?: () => void;
   onCreateCustomer?: () => void;
   onEdit?: (customer: Customer, groups: string[]) => void;
+  onViewCustomer?: (customer: Customer, groups: string[]) => void;
+  groupOverride?: { id: string; groups: string[] } | null;
+  onGroupOverrideApplied?: () => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'All' | 'Individual' | 'Organization' | 'Customer groups'>('All');
@@ -262,6 +268,14 @@ export default function CustomersTable({
       return changed ? next : prev;
     });
   }, [customers]);
+
+  // Apply group override from parent (e.g. after editing in CustomerDetailPage)
+  useEffect(() => {
+    if (!groupOverride) return;
+    setCustomerGroups((prev) => ({ ...prev, [groupOverride.id]: groupOverride.groups }));
+    onGroupOverrideApplied?.();
+  }, [groupOverride]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // per-row expand state for the group cell
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -539,6 +553,7 @@ export default function CustomersTable({
                             onViewNotes={() => setNotesDrawer({ open: true, customer })}
                             onViewDocs={() => setDocsDrawer({ open: true, customer })}
                             onEdit={() => onEdit?.(customer, customerGroups[customer.id] ?? [customer.group])}
+                            onView={() => onViewCustomer?.(customer, customerGroups[customer.id] ?? [customer.group])}
                           />
                         ))}
                       </tbody>
@@ -842,6 +857,7 @@ function CustomerRow({
   onViewNotes,
   onViewDocs,
   onEdit,
+  onView,
 }: {
   customer: Customer;
   groups: string[];
@@ -854,6 +870,7 @@ function CustomerRow({
   onViewNotes?: () => void;
   onViewDocs?: () => void;
   onEdit?: () => void;
+  onView?: () => void;
 }) {
   return (
     <tr className={['transition-colors hover:bg-gray-50', isSelected ? 'bg-violet-50' : ''].join(' ')}>
@@ -881,7 +898,10 @@ function CustomerRow({
       <td className="px-3 py-2.5 whitespace-nowrap">
         <div className="flex items-center gap-2">
           <Avatar initials={customer.avatarInitials} color={customer.avatarColor} size={26} />
-          <button className="text-violet-600 hover:text-violet-800 hover:underline font-medium text-sm">
+          <button
+            onClick={onView}
+            className="text-violet-600 hover:text-violet-800 hover:underline font-medium text-sm text-left"
+          >
             <Highlight text={customer.name} query={query} />
           </button>
         </div>
