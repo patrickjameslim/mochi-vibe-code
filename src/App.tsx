@@ -1,22 +1,29 @@
 import { useState } from 'react';
 import './index.css';
 import { Customer, CUSTOMERS } from './data/customers';
+import { NavigationContext, AppPage } from './context/NavigationContext';
 import CustomersTable from './components/CustomersTable';
 import CreateCustomerPage from './components/CreateCustomerPage';
 import CustomerDetailPage from './components/CustomerDetailPage';
 import CustomerViewPage from './components/CustomerViewPage';
 import CreateBillPage from './components/CreateBillPage';
-
-type Page = 'list' | 'create' | 'detail' | 'view' | 'bill';
+import ManageBillsPage from './components/ManageBillsPage';
 
 function App() {
-  const [page, setPage] = useState<Page>('list');
+  const [page, setPage] = useState<AppPage>('list');
   const [customers, setCustomers] = useState<Customer[]>(CUSTOMERS);
   const [pendingBanner, setPendingBanner] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingGroups, setEditingGroups] = useState<string[]>([]);
   const [groupOverride, setGroupOverride] = useState<{ id: string; groups: string[] } | null>(null);
   const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
+
+  // ── Navigation handler consumed by Sidebar via context ───────────────────
+  function navigate(target: AppPage) {
+    // Navigating to create-bill from the sidebar has no customer context
+    if (target === 'bill') setEditingCustomer(null);
+    setPage(target);
+  }
 
   function handleCustomerCreated(customer: Customer) {
     setCustomers((prev) => [customer, ...prev]);
@@ -34,12 +41,12 @@ function App() {
   function handleEdit(customer: Customer, groups: string[]) {
     setEditingCustomer(customer);
     setEditingGroups(groups);
-    setDetailStartInEditMode(true);   // table kebab → land directly in edit mode
+    setDetailStartInEditMode(true);
     setPage('detail');
   }
 
   function handleEditFromView() {
-    setDetailStartInEditMode(true);   // view-page Edit btn → also land in edit mode
+    setDetailStartInEditMode(true);
     setPage('detail');
   }
 
@@ -54,62 +61,76 @@ function App() {
     setPage('list');
   }
 
-  if (page === 'create') {
-    return (
-      <CreateCustomerPage
-        onBack={() => setPage('list')}
-        onSubmit={handleCustomerCreated}
-      />
-    );
-  }
+  // ── Page rendering ────────────────────────────────────────────────────────
+  function renderPage() {
+    if (page === 'create') {
+      return (
+        <CreateCustomerPage
+          onBack={() => setPage('list')}
+          onSubmit={handleCustomerCreated}
+        />
+      );
+    }
 
-  if (page === 'view' && editingCustomer) {
-    return (
-      <CustomerViewPage
-        customer={editingCustomer}
-        groups={editingGroups}
-        onBack={() => setPage('list')}
-        onEdit={handleEditFromView}
-        onCreateBill={handleCreateBill}
-      />
-    );
-  }
+    if (page === 'view' && editingCustomer) {
+      return (
+        <CustomerViewPage
+          customer={editingCustomer}
+          groups={editingGroups}
+          onBack={() => setPage('list')}
+          onEdit={handleEditFromView}
+          onCreateBill={handleCreateBill}
+        />
+      );
+    }
 
-  if (page === 'detail' && editingCustomer) {
-    return (
-      <CustomerDetailPage
-        key={`${editingCustomer.id}-${detailStartInEditMode}`}
-        customer={editingCustomer}
-        groups={editingGroups}
-        onBack={() => setPage('list')}
-        onSave={handleCustomerUpdated}
-        onCreateBill={handleCreateBill}
-        startInEditMode={detailStartInEditMode}
-      />
-    );
-  }
+    if (page === 'detail' && editingCustomer) {
+      return (
+        <CustomerDetailPage
+          key={`${editingCustomer.id}-${detailStartInEditMode}`}
+          customer={editingCustomer}
+          groups={editingGroups}
+          onBack={() => setPage('list')}
+          onSave={handleCustomerUpdated}
+          onCreateBill={handleCreateBill}
+          startInEditMode={detailStartInEditMode}
+        />
+      );
+    }
 
-  if (page === 'bill') {
+    if (page === 'bill') {
+      return (
+        <CreateBillPage
+          customer={editingCustomer ?? undefined}
+          onBack={() => setPage(editingCustomer ? 'detail' : 'manage-bills')}
+          onViewCustomer={editingCustomer ? () => setPage('view') : undefined}
+        />
+      );
+    }
+
+    if (page === 'manage-bills') {
+      return <ManageBillsPage />;
+    }
+
+    // Default: customers list
     return (
-      <CreateBillPage
-        customer={editingCustomer ?? undefined}
-        onBack={() => setPage(editingCustomer ? 'detail' : 'list')}
-        onViewCustomer={editingCustomer ? () => setPage('view') : undefined}
+      <CustomersTable
+        customers={customers}
+        initialBanner={pendingBanner}
+        onBannerShown={() => setPendingBanner(null)}
+        onCreateCustomer={() => setPage('create')}
+        onEdit={handleEdit}
+        onViewCustomer={handleView}
+        groupOverride={groupOverride}
+        onGroupOverrideApplied={() => setGroupOverride(null)}
       />
     );
   }
 
   return (
-    <CustomersTable
-      customers={customers}
-      initialBanner={pendingBanner}
-      onBannerShown={() => setPendingBanner(null)}
-      onCreateCustomer={() => setPage('create')}
-      onEdit={handleEdit}
-      onViewCustomer={handleView}
-      groupOverride={groupOverride}
-      onGroupOverrideApplied={() => setGroupOverride(null)}
-    />
+    <NavigationContext.Provider value={{ currentPage: page, navigate }}>
+      {renderPage()}
+    </NavigationContext.Provider>
   );
 }
 
