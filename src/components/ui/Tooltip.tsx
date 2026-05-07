@@ -1,34 +1,53 @@
-import * as RadixTooltip from '@radix-ui/react-tooltip';
+import * as React from 'react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import { cn } from '@/lib/utils';
 
+const TooltipProvider = TooltipPrimitive.Provider;
+const TooltipRoot     = TooltipPrimitive.Root;
+const TooltipTrigger  = TooltipPrimitive.Trigger;
+
+const TooltipContent = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> & { wide?: boolean }
+>(({ className, sideOffset = 6, wide = false, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        'z-50 rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-md',
+        wide ? 'max-w-xs whitespace-normal leading-relaxed' : 'whitespace-nowrap',
+        className
+      )}
+      {...props}
+    >
+      {props.children}
+      <TooltipPrimitive.Arrow className="fill-gray-900" />
+    </TooltipPrimitive.Content>
+  </TooltipPrimitive.Portal>
+));
+TooltipContent.displayName = TooltipPrimitive.Content.displayName;
+
+// ─── Simple convenience wrapper (keeps the original Tooltip API) ──────────────
 interface TooltipProps {
   content: string;
   children: React.ReactNode;
   wide?: boolean;
 }
 
-export function Tooltip({ content, children, wide = false }: TooltipProps) {
+function Tooltip({ content, children, wide = false }: TooltipProps) {
   return (
-    <RadixTooltip.Root delayDuration={300}>
-      <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
-      <RadixTooltip.Portal>
-        <RadixTooltip.Content
-          side="top"
-          sideOffset={6}
-          className={[
-            'z-50 rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-md',
-            wide ? 'max-w-xs whitespace-normal leading-relaxed' : 'whitespace-nowrap',
-          ].join(' ')}
-        >
-          {content}
-          <RadixTooltip.Arrow className="fill-gray-900" />
-        </RadixTooltip.Content>
-      </RadixTooltip.Portal>
-    </RadixTooltip.Root>
+    <TooltipRoot delayDuration={300}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent wide={wide}>{content}</TooltipContent>
+    </TooltipRoot>
   );
 }
 
-export function TooltipProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <RadixTooltip.Provider delayDuration={300}>{children}</RadixTooltip.Provider>
-  );
-}
+export {
+  Tooltip,
+  TooltipProvider,
+  TooltipRoot,
+  TooltipTrigger,
+  TooltipContent,
+};

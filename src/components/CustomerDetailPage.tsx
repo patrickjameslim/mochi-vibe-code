@@ -15,15 +15,20 @@ import {
   FileCsv,
   FileZip,
   File as FileIcon,
-  MagnifyingGlassPlus,
   User,
   Buildings,
-  CaretDown,
   ChartLine,
   CreditCard,
 } from '@phosphor-icons/react';
 import { Sidebar } from './Sidebar';
 import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Textarea } from './ui/Textarea';
+import { Badge } from './ui/Badge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/Card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
+import { Separator } from './ui/Separator';
 import { Customer, SupportingDocFile } from '../data/customers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,7 +49,7 @@ function FileTypeIcon({ name }: { name: string }) {
   return                                             <FileIcon size={22} className="text-gray-400 shrink-0" />;
 }
 
-// ─── Small field display helpers ──────────────────────────────────────────────
+// ─── Small metadata field helpers ─────────────────────────────────────────────
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -60,38 +65,6 @@ function FieldValue({ children }: { children: React.ReactNode }) {
     <p className="text-sm text-gray-800">
       {empty ? <span className="text-gray-400 italic">—</span> : children}
     </p>
-  );
-}
-
-function FieldInput({
-  value,
-  onChange,
-  placeholder = '',
-  type = 'text',
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 placeholder:text-gray-400"
-    />
-  );
-}
-
-// ─── Group Pill ───────────────────────────────────────────────────────────────
-
-function GroupPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-gray-300 text-gray-600 whitespace-nowrap">
-      {label}
-    </span>
   );
 }
 
@@ -279,51 +252,45 @@ export default function CustomerDetailPage({
           </button>
         </header>
 
-        {/* ── Tabs + edit actions ── */}
-        <div className="shrink-0 bg-white border-b border-gray-200 px-6 flex items-center justify-between">
-          <div className="flex items-center">
-            {(['General', 'Receivables', 'Reports'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={[
-                  'px-4 py-3 text-sm font-medium border-b-2 transition-colors',
-                  activeTab === tab
-                    ? 'border-violet-600 text-violet-700'
-                    : 'border-transparent text-gray-500 hover:text-gray-700',
-                ].join(' ')}
-              >
-                {tab}
-              </button>
-            ))}
+        {/* ── Tabs (wraps tab nav + scrollable content) ── */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
+          {/* Tab nav row */}
+          <div className="shrink-0 bg-white border-b border-gray-200 px-6 flex items-center justify-between">
+            <TabsList className="gap-0 bg-transparent p-0 h-auto rounded-none">
+              <TabsTrigger value="General">General</TabsTrigger>
+              <TabsTrigger value="Receivables">Receivables</TabsTrigger>
+              <TabsTrigger value="Reports">Reports</TabsTrigger>
+            </TabsList>
+            <div className="flex items-center gap-2 py-2">
+              {editMode ? (
+                <>
+                  <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
+                  <Button variant="primary" onClick={handleSave}>Save changes</Button>
+                </>
+              ) : (
+                <Button variant="outline" onClick={() => setEditMode(true)}>
+                  <PencilSimple size={14} />
+                  Edit
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2 py-2">
-            {editMode ? (
-              <>
-                <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
-                <Button variant="primary" onClick={handleSave}>Save changes</Button>
-              </>
-            ) : (
-              <Button variant="outline" onClick={() => setEditMode(true)}>
-                <PencilSimple size={14} />
-                Edit
-              </Button>
-            )}
-          </div>
-        </div>
 
-        {/* ── Body ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          {activeTab === 'General' ? (
+          {/* ── General tab ── */}
+          <TabsContent value="General" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
             <div className="max-w-6xl mx-auto space-y-4">
 
               {/* Two-column layout */}
               <div className="grid grid-cols-3 gap-4 items-start">
 
                 {/* ── Left: Customer Information (2/3) ── */}
-                <div className="col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-gray-900">Customer information</h2>
+                <Card className="col-span-2">
+                  <CardHeader className="flex flex-row items-center justify-between py-4">
+                    <CardTitle>Customer information</CardTitle>
                     {/* Type badge / toggle */}
                     {editMode ? (
                       <div className="flex items-center gap-1 rounded-lg border border-gray-200 overflow-hidden">
@@ -346,21 +313,24 @@ export default function CustomerDetailPage({
                         ))}
                       </div>
                     ) : (
-                      <span className={[
-                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
-                        customerType === 'Individual'
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-violet-50 text-violet-700 border-violet-200',
-                      ].join(' ')}>
+                      <Badge
+                        variant={customerType === 'Individual' ? 'secondary' : 'primary'}
+                        className={[
+                          'gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
+                          customerType === 'Individual'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-violet-50 text-violet-700 border-violet-200',
+                        ].join(' ')}
+                      >
                         {customerType === 'Individual'
                           ? <User size={11} weight="bold" />
                           : <Buildings size={11} weight="bold" />}
                         {customerType}
-                      </span>
+                      </Badge>
                     )}
-                  </div>
+                  </CardHeader>
 
-                  <div className="px-6 py-5">
+                  <CardContent className="py-5">
                     {/* Avatar + name / email / phone */}
                     <div className="flex items-start gap-4 mb-6">
                       {/* Avatar */}
@@ -405,25 +375,23 @@ export default function CustomerDetailPage({
                       <div className="flex-1 min-w-0">
                         {editMode ? (
                           <div className="space-y-2">
-                            <input
+                            <Input
                               value={name}
                               onChange={(e) => setName(e.target.value)}
                               placeholder="Customer name"
-                              className="w-full text-lg font-semibold text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+                              className="text-lg font-semibold text-gray-900"
                             />
-                            <input
+                            <Input
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
                               placeholder="Email"
                               type="email"
-                              className="w-full text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
                             />
-                            <input
+                            <Input
                               value={phone}
                               onChange={(e) => setPhone(e.target.value)}
                               placeholder="Phone number"
                               type="tel"
-                              className="w-full text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
                             />
                           </div>
                         ) : (
@@ -437,16 +405,16 @@ export default function CustomerDetailPage({
                     </div>
 
                     {/* Address + TIN */}
-                    <div className="border-t border-gray-100 pt-5 space-y-4">
+                    <Separator className="my-5" />
+                    <div className="space-y-4">
                       <div>
                         <FieldLabel>Address</FieldLabel>
                         {editMode ? (
-                          <textarea
+                          <Textarea
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
                             rows={2}
                             placeholder="Customer address"
-                            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 resize-none placeholder:text-gray-400"
                           />
                         ) : (
                           <FieldValue>{address}</FieldValue>
@@ -456,7 +424,7 @@ export default function CustomerDetailPage({
                       <div>
                         <FieldLabel>Tax Identification Number (TIN)</FieldLabel>
                         {editMode ? (
-                          <FieldInput value={tin} onChange={setTin} placeholder="###-###-###" />
+                          <Input value={tin} onChange={(e) => setTin(e.target.value)} placeholder="###-###-###" />
                         ) : (
                           <FieldValue>{tin}</FieldValue>
                         )}
@@ -464,8 +432,8 @@ export default function CustomerDetailPage({
                     </div>
 
                     {/* Metadata grid */}
-                    <div className="border-t border-gray-100 pt-5 mt-4">
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                    <Separator className="my-5" />
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-5">
 
                         {/* Customer ID */}
                         <div>
@@ -488,19 +456,16 @@ export default function CustomerDetailPage({
                         <div>
                           <FieldLabel>Payment method</FieldLabel>
                           {editMode ? (
-                            <div className="relative">
-                              <select
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value)}
-                                className="w-full appearance-none px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 bg-white pr-8 text-gray-700"
-                              >
-                                <option value="">Select method</option>
+                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select method" />
+                              </SelectTrigger>
+                              <SelectContent>
                                 {['Cash', 'Bank Transfer', 'Check', 'Credit Card', 'GCash', 'Maya'].map((m) => (
-                                  <option key={m} value={m}>{m}</option>
+                                  <SelectItem key={m} value={m}>{m}</SelectItem>
                                 ))}
-                              </select>
-                              <CaretDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                            </div>
+                              </SelectContent>
+                            </Select>
                           ) : (
                             <FieldValue>{paymentMethod}</FieldValue>
                           )}
@@ -539,7 +504,11 @@ export default function CustomerDetailPage({
                           <FieldLabel>Customer group</FieldLabel>
                           {groups.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5 mt-0.5">
-                              {groups.map((g) => <GroupPill key={g} label={g} />)}
+                              {groups.map((g) => (
+                                <Badge key={g} variant="default" className="whitespace-nowrap">
+                                  {g}
+                                </Badge>
+                              ))}
                             </div>
                           ) : (
                             <FieldValue>{''}</FieldValue>
@@ -550,7 +519,7 @@ export default function CustomerDetailPage({
                         <div>
                           <FieldLabel>Payment terms</FieldLabel>
                           {editMode ? (
-                            <FieldInput value={paymentTerms} onChange={setPaymentTerms} placeholder="e.g. Net 30" />
+                            <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. Net 30" />
                           ) : (
                             <FieldValue>{paymentTerms}</FieldValue>
                           )}
@@ -561,11 +530,11 @@ export default function CustomerDetailPage({
                           <FieldLabel>SEC/DTI number</FieldLabel>
                           <FieldValue>{''}</FieldValue>
                         </div>
-                      </div>
                     </div>
 
                     {/* Dates footer */}
-                    <div className="border-t border-gray-100 pt-4 mt-5 grid grid-cols-2 gap-x-8">
+                    <Separator className="my-5" />
+                    <div className="grid grid-cols-2 gap-x-8">
                       <div>
                         <FieldLabel>Date created</FieldLabel>
                         <FieldValue>{customer.dateCreated}</FieldValue>
@@ -575,16 +544,16 @@ export default function CustomerDetailPage({
                         <FieldValue>{customer.lastUpdatedAt}</FieldValue>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {/* ── Right: Billing Summary (1/3) ── */}
                 <div className="col-span-1 space-y-4">
-                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-100">
-                      <h2 className="text-sm font-semibold text-gray-900">Billing summary</h2>
-                    </div>
-                    <div className="px-5 py-4 space-y-3">
+                  <Card>
+                    <CardHeader className="px-5 py-4">
+                      <CardTitle>Billing summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-5 py-4 space-y-3">
                       {[
                         { label: 'Total amount due',  value: '₱ 0.00' },
                         { label: 'Total overdue',     value: '₱ 0.00' },
@@ -597,45 +566,44 @@ export default function CustomerDetailPage({
                           <span className="text-sm font-medium text-gray-800">{value}</span>
                         </div>
                       ))}
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                    </CardContent>
+                    <CardFooter>
                       <button className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors">
                         View all receivables →
                       </button>
-                    </div>
-                  </div>
+                    </CardFooter>
+                  </Card>
                 </div>
               </div>
 
               {/* ── Notes ── */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h2 className="text-sm font-semibold text-gray-900">Notes</h2>
-                </div>
-                <div className="px-6 py-5">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
                   {editMode ? (
-                    <textarea
+                    <Textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={4}
                       placeholder="Add notes about this customer…"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 resize-none placeholder:text-gray-400"
                     />
                   ) : notes ? (
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{notes}</p>
                   ) : (
                     <p className="text-sm text-gray-400 italic">No notes for this customer.</p>
                   )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* ── Supporting Documents ── */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h2 className="text-sm font-semibold text-gray-900">Supporting documents</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Maximum file size: 25 MB</p>
-                </div>
-                <div className="px-6 py-5 space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Supporting documents</CardTitle>
+                  <CardDescription>Maximum file size: 25 MB</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   {/* Drop zone — only in edit mode */}
                   {editMode && (
                     <div
@@ -669,7 +637,6 @@ export default function CustomerDetailPage({
                           key={doc.id}
                           className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50 group"
                         >
-                          {/* Thumbnail or icon */}
                           <div className="shrink-0 w-10 h-10 rounded-lg border border-gray-200 overflow-hidden bg-white flex items-center justify-center">
                             {doc.isImage && doc.url ? (
                               <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
@@ -677,14 +644,12 @@ export default function CustomerDetailPage({
                               <FileTypeIcon name={doc.name} />
                             )}
                           </div>
-
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
                             {doc.size && (
                               <p className="text-xs text-gray-400 mt-0.5">{doc.size}</p>
                             )}
                           </div>
-
                           {editMode && (
                             <button
                               onClick={() => removeDoc(doc.id)}
@@ -701,44 +666,58 @@ export default function CustomerDetailPage({
                       <p className="text-sm text-gray-400 italic">No documents uploaded.</p>
                     )
                   )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* ── Contacts ── */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-gray-900">Contacts</h2>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between py-4">
+                  <CardTitle>Contacts</CardTitle>
                   {editMode && (
                     <button className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors font-medium">
                       + Add contact
                     </button>
                   )}
-                </div>
-                <div className="px-6 py-12 flex flex-col items-center justify-center text-center gap-2">
+                </CardHeader>
+                <CardContent className="py-12 flex flex-col items-center justify-center text-center gap-2">
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-1">
                     <User size={20} className="text-gray-300" />
                   </div>
                   <p className="text-sm font-medium text-gray-500">No contacts yet</p>
                   <p className="text-xs text-gray-400">Contacts associated with this customer will appear here.</p>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
             </div>
-          ) : (
-            /* ── Placeholder for Receivables / Reports ── */
+          </TabsContent>
+
+          {/* ── Receivables tab ── */}
+          <TabsContent value="Receivables" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
             <div className="max-w-6xl mx-auto">
-              <div className="bg-white rounded-xl border border-gray-200 p-16 flex flex-col items-center justify-center text-center gap-3">
+              <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
                 <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-1">
-                  {activeTab === 'Receivables'
-                    ? <CreditCard size={24} className="text-gray-300" />
-                    : <ChartLine size={24} className="text-gray-300" />}
+                  <CreditCard size={24} className="text-gray-300" />
                 </div>
-                <h3 className="text-base font-semibold text-gray-600">{activeTab}</h3>
+                <h3 className="text-base font-semibold text-gray-600">Receivables</h3>
                 <p className="text-sm text-gray-400">This section is coming soon.</p>
-              </div>
+              </Card>
             </div>
-          )}
-        </div>
+          </TabsContent>
+
+          {/* ── Reports tab ── */}
+          <TabsContent value="Reports" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
+            <div className="max-w-6xl mx-auto">
+              <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-1">
+                  <ChartLine size={24} className="text-gray-300" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-600">Reports</h3>
+                <p className="text-sm text-gray-400">This section is coming soon.</p>
+              </Card>
+            </div>
+          </TabsContent>
+
+        </Tabs>
       </div>
 
       {/* ── Lightbox ── */}

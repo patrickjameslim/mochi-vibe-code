@@ -100,6 +100,11 @@ export default function CustomerGroupsTable({
     });
   }
 
+  function toggleAll() {
+    const allExpanded = rows.length > 0 && rows.every((g) => expandedGroups.has(g.name));
+    setExpandedGroups(allExpanded ? new Set() : new Set(rows.map((g) => g.name)));
+  }
+
   function getGroupCustomers(groupName: string): Customer[] {
     return customers.filter((c) => {
       const groups = customerGroups[c.id] ?? [c.group];
@@ -162,7 +167,21 @@ export default function CustomerGroupsTable({
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-100">
           <tr>
-            <th className="w-10 px-3 py-2.5" />
+            <th className="w-10 px-3 py-2.5 text-center">
+              <button
+                onClick={toggleAll}
+                className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              >
+                <CaretDown
+                  size={14}
+                  weight="bold"
+                  className={[
+                    'transition-transform duration-200',
+                    rows.length > 0 && rows.every((g) => expandedGroups.has(g.name)) ? 'rotate-180' : '',
+                  ].join(' ')}
+                />
+              </button>
+            </th>
             <SortTh>Customer group</SortTh>
             <SortTh>Total customers</SortTh>
             <SortTh>Amount collected</SortTh>

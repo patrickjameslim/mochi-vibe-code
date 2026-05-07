@@ -19,9 +19,16 @@ import {
   FileCsv,
   FileZip,
   File,
+  WarningCircle,
 } from '@phosphor-icons/react';
 import { Sidebar } from './Sidebar';
 import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Textarea } from './ui/Textarea';
+import { Label } from './ui/Label';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card';
+import { Badge } from './ui/Badge';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import { Customer } from '../data/customers';
 
 interface Props {
@@ -54,63 +61,32 @@ function formatNow(): string {
   return `${months[d.getMonth()]} ${pad(d.getDate())}, ${d.getFullYear()} ${pad(h % 12 || 12)}:${pad(d.getMinutes())} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-// ─── Field helpers ────────────────────────────────────────────────────────────
-function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
+// ─── Field label with optional required indicator ─────────────────────────────
+function FormLabel({
+  children,
+  required,
+  error,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+  error?: boolean;
+}) {
   return (
-    <label className="block text-sm font-medium text-gray-700 mb-1">
+    <Label className={`block text-sm font-medium mb-1 ${error ? 'text-red-600' : 'text-gray-700'}`}>
       {children}
       {required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
+    </Label>
   );
 }
 
-function Input({
-  placeholder,
-  value,
-  onChange,
-  type = 'text',
-  className = '',
-}: {
-  placeholder?: string;
-  value?: string;
-  onChange?: (v: string) => void;
-  type?: string;
-  className?: string;
-}) {
+// ─── Inline field error message ───────────────────────────────────────────────
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
   return (
-    <input
-      type={type}
-      placeholder={placeholder}
-      value={value ?? ''}
-      onChange={(e) => onChange?.(e.target.value)}
-      className={`w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 placeholder:text-gray-400 ${className}`}
-    />
-  );
-}
-
-function Select({
-  placeholder,
-  options = [],
-  value,
-  onChange,
-}: {
-  placeholder: string;
-  options?: string[];
-  value?: string;
-  onChange?: (v: string) => void;
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value ?? ''}
-        onChange={(e) => onChange?.(e.target.value)}
-        className="w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 text-gray-500 bg-white pr-8"
-      >
-        <option value="" disabled>{placeholder}</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <CaretDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-    </div>
+    <p className="mt-1.5 flex items-center gap-1 text-sm text-red-500">
+      <WarningCircle size={14} className="shrink-0" />
+      {message}
+    </p>
   );
 }
 
@@ -230,10 +206,7 @@ function GroupCombobox({
       >
         {/* Selected pills */}
         {selected.map((g) => (
-          <span
-            key={g}
-            className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md bg-violet-100 text-violet-700 text-xs font-medium"
-          >
+          <Badge key={g} variant="primary" className="gap-1 pl-2 pr-1 py-0.5 rounded-md font-medium">
             {g}
             <button
               onClick={(e) => remove(g, e)}
@@ -241,7 +214,7 @@ function GroupCombobox({
             >
               <X size={9} weight="bold" />
             </button>
-          </span>
+          </Badge>
         ))}
 
         {/* Search input */}
@@ -332,14 +305,16 @@ function GroupCombobox({
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+// SectionCard now delegates to shadcn Card components
+function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-      </div>
-      <div className="px-6 py-5 space-y-5">{children}</div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="space-y-5">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -372,6 +347,15 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
   const [paymentTerms, setPaymentTerms] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [note, setNote] = useState('');
+
+  // Validation errors
+  const [errors, setErrors] = useState<{ name?: string; email?: string; address?: string }>({});
+
+  // Refs for scroll-to-error
+  const nameFieldRef    = useRef<HTMLDivElement>(null);
+  const emailFieldRef   = useRef<HTMLDivElement>(null);
+  const addressFieldRef = useRef<HTMLDivElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const prefixInputRef = useRef<HTMLInputElement>(null);
@@ -442,7 +426,33 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
     });
   }
 
+  function validate(): boolean {
+    const next: typeof errors = {};
+
+    if (!name.trim())
+      next.name = 'Customer name is required.';
+
+    if (!email.trim())
+      next.email = 'Customer email is required.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      next.email = 'Please enter a valid email address.';
+
+    if (!addrLine1.trim())
+      next.address = 'Customer address is required.';
+
+    setErrors(next);
+
+    // Scroll the page to the first error field
+    if (next.name)         nameFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    else if (next.email)   emailFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    else if (next.address) addressFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    return Object.keys(next).length === 0;
+  }
+
   function handleSubmit() {
+    if (!validate()) return;
+
     const addressParts = [addrLine1, addrLine2, city, province, country !== 'Philippines' ? country : '', zip]
       .map((s) => s.trim()).filter(Boolean);
     const address = addressParts.join(', ');
@@ -450,9 +460,9 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
     const customer: Customer = {
       id: idPrefix + idNumber,
       type: customerType,
-      name: name.trim() || 'Unnamed Customer',
-      avatarInitials: buildInitials(name.trim() || 'U C'),
-      avatarColor: pickColor(name.trim() || 'UC'),
+      name: name.trim(),
+      avatarInitials: buildInitials(name.trim()),
+      avatarColor: pickColor(name.trim()),
       avatarUrl: uploadedImage?.url,
       email: email.trim(),
       address,
@@ -629,13 +639,13 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                   {prefixPopoverOpen && (
                     <div className="absolute left-0 top-full mt-2 w-64 bg-white rounded-xl border border-gray-200 shadow-lg z-20 p-4">
                       <p className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Edit ID prefix</p>
-                      <input
+                      <Input
                         ref={prefixInputRef}
                         type="text"
                         value={draftPrefix}
                         onChange={(e) => setDraftPrefix(e.target.value)}
                         placeholder="e.g. CST-"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 mb-3"
+                        className="mb-3"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') { setIdPrefix(draftPrefix); setPrefixPopoverOpen(false); }
                           if (e.key === 'Escape') setPrefixPopoverOpen(false);
@@ -666,56 +676,70 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
             </div>
 
             {/* Name */}
-            <div>
-              <Label required>Customer name</Label>
-              <Input placeholder="" value={name} onChange={setName} />
+            <div ref={nameFieldRef}>
+              <FormLabel required error={!!errors.name}>Customer name</FormLabel>
+              <Input
+                value={name}
+                onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
+                error={!!errors.name}
+              />
+              <FieldError message={errors.name} />
             </div>
 
             {/* Email */}
-            <div>
-              <Label required>Customer email</Label>
-              <Input placeholder="" type="email" value={email} onChange={setEmail} />
+            <div ref={emailFieldRef}>
+              <FormLabel required error={!!errors.email}>Customer email</FormLabel>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
+                error={!!errors.email}
+              />
+              <FieldError message={errors.email} />
             </div>
 
             {/* Phone */}
             <div>
-              <Label>Customer phone number</Label>
-              <Input placeholder="" type="tel" value={phone} onChange={setPhone} />
+              <FormLabel>Customer phone number</FormLabel>
+              <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
 
             {/* Address */}
-            <div>
-              <Label required>Customer address</Label>
+            <div ref={addressFieldRef}>
+              <FormLabel required error={!!errors.address}>Customer address</FormLabel>
               <div className="space-y-2">
-                <Input placeholder="Address line 1" value={addrLine1} onChange={setAddrLine1} />
-                <Input placeholder="Address line 2" value={addrLine2} onChange={setAddrLine2} />
+                <Input
+                  placeholder="Address line 1"
+                  value={addrLine1}
+                  onChange={(e) => { setAddrLine1(e.target.value); if (errors.address) setErrors((p) => ({ ...p, address: undefined })); }}
+                  error={!!errors.address}
+                />
+                <Input placeholder="Address line 2" value={addrLine2} onChange={(e) => setAddrLine2(e.target.value)} />
                 <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="City" value={city} onChange={setCity} />
-                  <Input placeholder="Province" value={province} onChange={setProvince} />
+                  <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
+                  <Input placeholder="Province" value={province} onChange={(e) => setProvince(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {/* Country dropdown */}
-                  <div className="relative">
-                    <select
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 bg-white pr-8 text-gray-700"
-                    >
-                      <option>Philippines</option>
-                      <option>United States</option>
-                      <option>Singapore</option>
-                      <option>Japan</option>
-                    </select>
-                    <CaretDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  </div>
-                  <Input placeholder="Zip code" value={zip} onChange={setZip} />
+                  {/* Country — shadcn Select */}
+                  <Select value={country} onValueChange={setCountry}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['Philippines', 'United States', 'Singapore', 'Japan'].map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input placeholder="Zip code" value={zip} onChange={(e) => setZip(e.target.value)} />
                 </div>
               </div>
+              <FieldError message={errors.address} />
             </div>
 
             {/* VAT status */}
             <div>
-              <Label>VAT status</Label>
+              <FormLabel>VAT status</FormLabel>
               <div className="flex items-center gap-5 mt-1">
                 {[
                   { value: 'vatable', label: 'VAT-able' },
@@ -739,12 +763,12 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
 
             {/* Withholding tax */}
             <div>
-              <Label>Withholding tax %</Label>
+              <FormLabel>Withholding tax %</FormLabel>
               <div className="flex items-center gap-2 max-w-[120px]">
                 <Input
                   type="number"
                   value={withholding}
-                  onChange={setWithholding}
+                  onChange={(e) => setWithholding(e.target.value)}
                   className="text-right"
                 />
                 <span className="text-sm text-gray-500 shrink-0">%</span>
@@ -753,69 +777,79 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
 
             {/* TIN */}
             <div>
-              <Label>Customer TIN</Label>
-              <Input placeholder="###-###-###" className="max-w-[200px]" value={tin} onChange={setTin} />
+              <FormLabel>Customer TIN</FormLabel>
+              <Input
+                placeholder="###-###-###"
+                className="max-w-[200px]"
+                value={tin}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                  let formatted = digits;
+                  if (digits.length > 6) formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+                  else if (digits.length > 3) formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+                  setTin(formatted);
+                }}
+              />
             </div>
 
             {/* Default payment terms */}
             <div>
               <div className="flex items-center gap-1 mb-1">
-                <span className="text-sm font-medium text-gray-700">Default payment terms</span>
+                <Label className="text-sm font-medium text-gray-700 mb-0">Default payment terms</Label>
                 <Info size={13} className="text-gray-400" />
               </div>
-              <Input placeholder="e.g. Net 30" value={paymentTerms} onChange={setPaymentTerms} />
+              <Input placeholder="e.g. Net 30" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
             </div>
 
-            {/* Payment method */}
+            {/* Payment method — shadcn Select */}
             <div>
               <div className="flex items-center gap-1 mb-1">
-                <span className="text-sm font-medium text-gray-700">Payment method</span>
+                <Label className="text-sm font-medium text-gray-700 mb-0">Payment method</Label>
                 <Info size={13} className="text-gray-400" />
               </div>
-              <Select
-                placeholder="Select payment method"
-                options={['Cash', 'Bank Transfer', 'Check', 'Credit Card', 'GCash', 'Maya']}
-                value={paymentMethod}
-                onChange={setPaymentMethod}
-              />
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {['Cash', 'Bank Transfer', 'Check', 'Credit Card', 'GCash', 'Maya'].map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Customer group */}
             <div>
-              <Label>Customer group</Label>
+              <FormLabel>Customer group</FormLabel>
               <GroupCombobox selected={selectedGroups} onChange={setSelectedGroups} />
             </div>
 
             {/* Customer note */}
             <div>
-              <Label>Customer note</Label>
-              <textarea
+              <FormLabel>Customer note</FormLabel>
+              <Textarea
                 placeholder="Add additional details about the customer"
                 rows={3}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 placeholder:text-gray-400 resize-none"
               />
             </div>
-
 
           </SectionCard>
 
           {/* ── Notes ── */}
           <SectionCard title="Notes">
-            <textarea
-              rows={4}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 resize-none"
-            />
+            <Textarea rows={4} />
           </SectionCard>
 
           {/* ── Supporting documents ── */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900">Supporting documents</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Maximum file size: 25MB</p>
-            </div>
-            <div className="px-6 py-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Supporting documents</CardTitle>
+              <CardDescription>Maximum file size: 25MB</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
 
               {/* Drop zone */}
               <div
@@ -868,8 +902,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                   ))}
                 </ul>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Bottom CTAs */}
           <div className="flex items-center justify-end gap-2 py-4">
