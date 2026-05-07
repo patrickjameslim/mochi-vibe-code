@@ -1,5 +1,5 @@
 import React from 'react';
-import { CaretRight, BellSimple } from '@phosphor-icons/react';
+import { CaretRight, CaretDown, BellSimple, Plus } from '@phosphor-icons/react';
 import { Sidebar } from './Sidebar';
 import ReceivablesTable from './ReceivablesTable';
 import { BILLS } from '../data/bills';
@@ -28,13 +28,30 @@ export default function ManageBillsPage() {
         </header>
 
         {/* ── Content ── */}
-        <main className="flex-1 overflow-y-auto px-8 py-6">
-          <div className="max-w-[1400px] mx-auto">
-            <ReceivablesTable
-              bills={BILLS}
-              onCreateBill={() => navigate('bill')}
-            />
+        <main className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex items-center justify-between mb-5">
+            <h1 className="text-xl font-semibold text-gray-900">Manage bills</h1>
+            <div className="flex items-center gap-2">
+              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                Export data
+                <CaretDown size={13} />
+              </button>
+              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                Bulk create bill(s)
+              </button>
+              <button
+                onClick={() => navigate('bill')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
+              >
+                <Plus size={15} weight="bold" />
+                Create a new bill
+              </button>
+            </div>
           </div>
+          <ReceivablesTable
+            bills={BILLS}
+            onCreateBill={() => navigate('bill')}
+          />
         </main>
       </div>
     </div>

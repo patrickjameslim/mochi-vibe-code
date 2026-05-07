@@ -114,7 +114,7 @@ function SortTh({
   align?: 'left' | 'right';
 }) {
   return (
-    <th className={`px-3 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap select-none ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <th className={`px-3 py-2.5 text-xs font-medium text-gray-500 whitespace-nowrap select-none ${align === 'right' ? 'text-right' : 'text-left'}`}>
       <button
         onClick={() => onSort(col)}
         className={`inline-flex items-center gap-1 hover:text-gray-700 transition-colors ${current === col ? 'text-gray-700' : ''}`}
@@ -403,7 +403,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     className="w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer"
                   />
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">
                   Status
                 </th>
                 <SortTh col="id"              current={sortKey} onSort={toggleSort}>Bill ID</SortTh>
@@ -411,15 +411,15 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                 <SortTh col="amount"          current={sortKey} onSort={toggleSort} align="right">Amount</SortTh>
                 <SortTh col="billDate"        current={sortKey} onSort={toggleSort}>Bill date</SortTh>
                 <SortTh col="dueDate"         current={sortKey} onSort={toggleSort}>Due date</SortTh>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Customer</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">Customer</th>
                 <SortTh col="daysOutstanding" current={sortKey} onSort={toggleSort}>Days outstanding</SortTh>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Link</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Billing type</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">Link</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">Billing type</th>
                 <SortTh col="lastUpdatedAt"   current={sortKey} onSort={toggleSort}>Last updated at</SortTh>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Payment date</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Payment method</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Tags</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Quick actions</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">Payment date</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">Payment method</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">Tags</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap select-none">Quick actions</th>
                 <th className="sticky right-0 z-10 w-10 bg-gray-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
               </tr>
             </thead>
