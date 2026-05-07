@@ -27,14 +27,14 @@ import { Bill, BillStatus, BillType, formatPeso } from '../data/bills';
 
 // ─── Status & type config ─────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<BillStatus, { label: string; className: string }> = {
-  draft:     { label: 'Draft',     className: 'bg-gray-100 text-gray-500 border border-gray-200' },
-  sent:      { label: 'Sent',      className: 'bg-teal-500 text-white' },
-  scheduled: { label: 'Scheduled', className: 'bg-indigo-500 text-white' },
-  verifying: { label: 'Verifying', className: 'bg-amber-500 text-white' },
-  paid:      { label: 'Paid',      className: 'bg-emerald-500 text-white' },
-  overdue:   { label: 'Overdue',   className: 'bg-red-50 text-red-600 border border-red-200' },
-  void:      { label: 'Void',      className: 'bg-gray-200 text-gray-400 border border-gray-300' },
+const STATUS_CFG: Record<BillStatus, { label: string; className: string; dotColor?: string }> = {
+  draft:     { label: 'Draft',     className: 'bg-slate-100 text-slate-800' },
+  sent:      { label: 'Sent',      className: 'bg-violet-100 text-violet-800',  dotColor: '#6D41E8' },
+  scheduled: { label: 'Scheduled', className: 'bg-[#CDEFC3] text-[#14532D]' },
+  verifying: { label: 'Verifying', className: 'bg-amber-100 text-amber-900',   dotColor: '#D97706' },
+  paid:      { label: 'Paid',      className: 'bg-green-100 text-[#14532D]',   dotColor: '#16A34A' },
+  overdue:   { label: 'Overdue',   className: 'bg-red-100 text-red-900',       dotColor: '#DC2626' },
+  void:      { label: 'Void',      className: 'bg-slate-100 text-slate-400' },
 };
 
 const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
@@ -445,7 +445,10 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
 
                     {/* Status */}
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
+                        {status.dotColor && (
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: status.dotColor }} />
+                        )}
                         {status.label}
                       </span>
                     </td>
