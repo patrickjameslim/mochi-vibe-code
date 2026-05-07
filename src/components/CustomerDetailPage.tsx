@@ -50,14 +50,14 @@ function FileTypeIcon({ name }: { name: string }) {
   if (['xls', 'xlsx'].includes(ext))          return <FileXls  size={22} className="text-green-600 shrink-0" />;
   if (ext === 'csv')                          return <FileCsv  size={22} className="text-green-500 shrink-0" />;
   if (['zip', 'rar', '7z'].includes(ext))     return <FileZip  size={22} className="text-yellow-600 shrink-0" />;
-  return                                             <FileIcon size={22} className="text-gray-400 shrink-0" />;
+  return                                             <FileIcon size={22} className="text-slate-400 shrink-0" />;
 }
 
 // ─── Small metadata field helpers ─────────────────────────────────────────────
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
+    <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">
       {children}
     </p>
   );
@@ -66,8 +66,8 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 function FieldValue({ children }: { children: React.ReactNode }) {
   const empty = !children || (typeof children === 'string' && children.trim() === '');
   return (
-    <p className="text-sm text-gray-800">
-      {empty ? <span className="text-gray-400 italic">—</span> : children}
+    <p className="text-sm text-slate-800">
+      {empty ? <span className="text-slate-400 italic">—</span> : children}
     </p>
   );
 }
@@ -238,30 +238,30 @@ export default function CustomerDetailPage({
     : 'VAT Exempt';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ── Header ── */}
-        <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <header className="shrink-0 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
             >
               <ArrowLeft size={14} weight="bold" />
             </button>
-            <nav className="flex items-center gap-1.5 text-sm text-gray-500">
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
               <span>Dashboard</span>
               <CaretRight size={12} />
-              <button onClick={onBack} className="hover:text-gray-700 transition-colors">
+              <button onClick={onBack} className="hover:text-slate-700 transition-colors">
                 Customers
               </button>
               <CaretRight size={12} />
-              <span className="text-gray-900 font-medium">{customer.name}</span>
+              <span className="text-slate-900 font-medium">{customer.name}</span>
             </nav>
           </div>
-          <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+          <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
             <BellSimple size={16} />
           </button>
         </header>
@@ -273,7 +273,7 @@ export default function CustomerDetailPage({
           className="flex-1 flex flex-col overflow-hidden"
         >
           {/* Tab nav row */}
-          <div className="shrink-0 bg-white border-b border-gray-200 px-6 flex items-center justify-between">
+          <div className="shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
             <TabsList className="gap-0 bg-transparent p-0 h-auto rounded-none">
               <TabsTrigger value="General">General</TabsTrigger>
               <TabsTrigger value="Receivables">Receivables</TabsTrigger>
@@ -307,7 +307,7 @@ export default function CustomerDetailPage({
                     <CardTitle>Customer information</CardTitle>
                     {/* Type badge / toggle */}
                     {editMode ? (
-                      <div className="flex items-center gap-1 rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="flex items-center gap-1 rounded-lg border border-slate-200 overflow-hidden">
                         {(['Individual', 'Organization'] as const).map((t) => (
                           <button
                             key={t}
@@ -316,7 +316,7 @@ export default function CustomerDetailPage({
                               'flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-colors',
                               customerType === t
                                 ? 'bg-violet-600 text-white'
-                                : 'text-gray-500 hover:bg-gray-50',
+                                : 'text-slate-500 hover:bg-slate-50',
                             ].join(' ')}
                           >
                             {t === 'Individual'
@@ -368,7 +368,7 @@ export default function CustomerDetailPage({
                         {editMode && (
                           <button
                             onClick={() => imageInputRef.current?.click()}
-                            className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 transition-colors shadow-md"
+                            className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 transition-colors shadow-md"
                           >
                             <Camera size={13} />
                           </button>
@@ -393,7 +393,7 @@ export default function CustomerDetailPage({
                               value={name}
                               onChange={(e) => setName(e.target.value)}
                               placeholder="Customer name"
-                              className="text-lg font-semibold text-gray-900"
+                              className="text-lg font-semibold text-slate-900"
                             />
                             <Input
                               value={email}
@@ -410,9 +410,9 @@ export default function CustomerDetailPage({
                           </div>
                         ) : (
                           <>
-                            <h3 className="text-lg font-semibold text-gray-900 truncate">{name}</h3>
-                            <p className="text-sm text-gray-500 mt-0.5">{email || <span className="italic">No email</span>}</p>
-                            <p className="text-sm text-gray-500 mt-0.5">{phone || <span className="italic">No phone</span>}</p>
+                            <h3 className="text-lg font-semibold text-slate-900 truncate">{name}</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">{email || <span className="italic">No email</span>}</p>
+                            <p className="text-sm text-slate-500 mt-0.5">{phone || <span className="italic">No phone</span>}</p>
                           </>
                         )}
                       </div>
@@ -453,10 +453,10 @@ export default function CustomerDetailPage({
                         <div>
                           <FieldLabel>Customer ID</FieldLabel>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono text-gray-800">{customer.id}</span>
+                            <span className="text-sm font-mono text-slate-800">{customer.id}</span>
                             <button
                               onClick={copyId}
-                              className="inline-flex items-center justify-center w-6 h-6 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                              className="inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                               title="Copy ID"
                             >
                               {copied
@@ -504,7 +504,7 @@ export default function CustomerDetailPage({
                                     onChange={() => setVatStatus(value as typeof vatStatus)}
                                     className="accent-violet-600 w-3.5 h-3.5"
                                   />
-                                  <span className="text-xs text-gray-700">{label}</span>
+                                  <span className="text-xs text-slate-700">{label}</span>
                                 </label>
                               ))}
                             </div>
@@ -542,7 +542,7 @@ export default function CustomerDetailPage({
                               <button
                                 type="button"
                                 onClick={() => setGroupsDrawerOpen(true)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-violet-400 hover:text-violet-600 transition-colors"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:border-violet-400 hover:text-violet-600 transition-colors"
                               >
                                 <UsersThree size={13} />
                                 Manage groups
@@ -608,8 +608,8 @@ export default function CustomerDetailPage({
                         { label: 'Avg. days to pay',  value: '—' },
                       ].map(({ label, value }) => (
                         <div key={label} className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">{label}</span>
-                          <span className="text-sm font-medium text-gray-800">{value}</span>
+                          <span className="text-xs text-slate-500">{label}</span>
+                          <span className="text-sm font-medium text-slate-800">{value}</span>
                         </div>
                       ))}
                     </CardContent>
@@ -646,9 +646,9 @@ export default function CustomerDetailPage({
                       placeholder="Add notes about this customer…"
                     />
                   ) : notes ? (
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{notes}</p>
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{notes}</p>
                   ) : (
-                    <p className="text-sm text-gray-400 italic">No notes for this customer.</p>
+                    <p className="text-sm text-slate-400 italic">No notes for this customer.</p>
                   )}
                 </CardContent>
               </Card>
@@ -675,12 +675,12 @@ export default function CustomerDetailPage({
                         'flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed py-8 transition-colors cursor-pointer',
                         dragOver
                           ? 'border-violet-400 bg-violet-50'
-                          : 'border-gray-200 bg-gray-50 hover:border-violet-300 hover:bg-violet-50/40',
+                          : 'border-slate-200 bg-slate-50 hover:border-violet-300 hover:bg-violet-50/40',
                       ].join(' ')}
                     >
-                      <UploadSimple size={20} className={dragOver ? 'text-violet-400 mb-1' : 'text-gray-300 mb-1'} />
-                      <p className="text-sm text-gray-500">Drop files here</p>
-                      <p className="text-xs text-gray-400">or</p>
+                      <UploadSimple size={20} className={dragOver ? 'text-violet-400 mb-1' : 'text-slate-300 mb-1'} />
+                      <p className="text-sm text-slate-500">Drop files here</p>
+                      <p className="text-xs text-slate-400">or</p>
                       <span className="text-sm text-violet-600 font-medium">Browse files</span>
                     </div>
                   )}
@@ -691,9 +691,9 @@ export default function CustomerDetailPage({
                       {docs.map((doc) => (
                         <li
                           key={doc.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50 group"
+                          className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 group"
                         >
-                          <div className="shrink-0 w-10 h-10 rounded-lg border border-gray-200 overflow-hidden bg-white flex items-center justify-center">
+                          <div className="shrink-0 w-10 h-10 rounded-lg border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
                             {doc.isImage && doc.url ? (
                               <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
                             ) : (
@@ -701,15 +701,15 @@ export default function CustomerDetailPage({
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
+                            <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
                             {doc.size && (
-                              <p className="text-xs text-gray-400 mt-0.5">{doc.size}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">{doc.size}</p>
                             )}
                           </div>
                           {editMode && (
                             <button
                               onClick={() => removeDoc(doc.id)}
-                              className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                              className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                             >
                               <X size={14} weight="bold" />
                             </button>
@@ -719,7 +719,7 @@ export default function CustomerDetailPage({
                     </ul>
                   ) : (
                     !editMode && (
-                      <p className="text-sm text-gray-400 italic">No documents uploaded.</p>
+                      <p className="text-sm text-slate-400 italic">No documents uploaded.</p>
                     )
                   )}
                 </CardContent>
@@ -736,11 +736,11 @@ export default function CustomerDetailPage({
                   )}
                 </CardHeader>
                 <CardContent className="py-12 flex flex-col items-center justify-center text-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-1">
-                    <User size={20} className="text-gray-300" />
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
+                    <User size={20} className="text-slate-300" />
                   </div>
-                  <p className="text-sm font-medium text-gray-500">No contacts yet</p>
-                  <p className="text-xs text-gray-400">Contacts associated with this customer will appear here.</p>
+                  <p className="text-sm font-medium text-slate-500">No contacts yet</p>
+                  <p className="text-xs text-slate-400">Contacts associated with this customer will appear here.</p>
                 </CardContent>
               </Card>
 
@@ -761,11 +761,11 @@ export default function CustomerDetailPage({
           <TabsContent value="Reports" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
             <div className="max-w-6xl mx-auto">
               <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-1">
-                  <ChartLine size={24} className="text-gray-300" />
+                <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-1">
+                  <ChartLine size={24} className="text-slate-300" />
                 </div>
-                <h3 className="text-base font-semibold text-gray-600">Reports</h3>
-                <p className="text-sm text-gray-400">This section is coming soon.</p>
+                <h3 className="text-base font-semibold text-slate-600">Reports</h3>
+                <p className="text-sm text-slate-400">This section is coming soon.</p>
               </Card>
             </div>
           </TabsContent>

@@ -7,9 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        purple: {
-          600: '#7c3aed',
-          700: '#6d28d9',
+        // Mochi brand purple — overrides Tailwind's built-in violet scale
+        violet: {
+          50:  '#F4EFFE',
+          100: '#E8DEFD',
+          200: '#D1BCFA',
+          300: '#B594F5',
+          400: '#946BEF',
+          500: '#7E50EB',
+          600: '#6D41E8',
+          700: '#5A32C9',
+          800: '#4527A0',
+          900: '#2E1B6E',
+          950: '#1A0F40',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

@@ -27,14 +27,14 @@ import { Bill, BillStatus, BillType, formatPeso } from '../data/bills';
 
 // ─── Status & type config ─────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<BillStatus, { label: string; className: string }> = {
-  draft:     { label: 'Draft',     className: 'bg-gray-100 text-gray-500 border border-gray-200' },
-  sent:      { label: 'Sent',      className: 'bg-teal-500 text-white' },
-  scheduled: { label: 'Scheduled', className: 'bg-indigo-500 text-white' },
-  verifying: { label: 'Verifying', className: 'bg-amber-500 text-white' },
-  paid:      { label: 'Paid',      className: 'bg-emerald-500 text-white' },
-  overdue:   { label: 'Overdue',   className: 'bg-red-50 text-red-600 border border-red-200' },
-  void:      { label: 'Void',      className: 'bg-gray-200 text-gray-400 border border-gray-300' },
+const STATUS_CFG: Record<BillStatus, { label: string; className: string; dotColor?: string }> = {
+  draft:     { label: 'Draft',     className: 'bg-slate-100 text-slate-800' },
+  sent:      { label: 'Sent',      className: 'bg-violet-100 text-violet-800',  dotColor: '#6D41E8' },
+  scheduled: { label: 'Scheduled', className: 'bg-[#CDEFC3] text-[#14532D]' },
+  verifying: { label: 'Verifying', className: 'bg-amber-100 text-amber-900',   dotColor: '#D97706' },
+  paid:      { label: 'Paid',      className: 'bg-green-100 text-[#14532D]',   dotColor: '#16A34A' },
+  overdue:   { label: 'Overdue',   className: 'bg-red-100 text-red-900',       dotColor: '#DC2626' },
+  void:      { label: 'Void',      className: 'bg-slate-100 text-slate-400' },
 };
 
 const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
@@ -82,14 +82,14 @@ function Tab({
         'inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
         active
           ? 'border-violet-600 text-violet-700'
-          : 'border-transparent text-gray-500 hover:text-gray-700',
+          : 'border-transparent text-slate-500 hover:text-slate-700',
       ].join(' ')}
     >
       {label}
       {count > 0 && (
         <span className={[
           'rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
-          active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500',
+          active ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500',
         ].join(' ')}>
           {count}
         </span>
@@ -114,13 +114,13 @@ function SortTh({
   align?: 'left' | 'right';
 }) {
   return (
-    <th className={`px-3 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap select-none ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <th className={`px-3 py-2.5 text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em] ${align === 'right' ? 'text-right' : 'text-left'}`}>
       <button
         onClick={() => onSort(col)}
-        className={`inline-flex items-center gap-1 hover:text-gray-700 transition-colors ${current === col ? 'text-gray-700' : ''}`}
+        className={`inline-flex items-center gap-1 hover:text-slate-700 transition-colors ${current === col ? 'text-slate-700' : ''}`}
       >
         {children}
-        <ArrowsDownUp size={12} weight="bold" className={current === col ? 'text-violet-500' : 'text-gray-400'} />
+        <ArrowsDownUp size={12} weight="bold" className={current === col ? 'text-violet-500' : 'text-slate-400'} />
       </button>
     </th>
   );
@@ -146,20 +146,20 @@ function PerPageDropdown({ value, onChange }: { value: number; onChange: (v: num
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 px-2 py-1 border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors"
+        className="inline-flex items-center gap-1 px-2 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50 transition-colors"
       >
         {value}
         <CaretDown size={12} className={['transition-transform duration-150', open ? 'rotate-180' : ''].join(' ')} />
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 min-w-[72px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+        <div className="absolute bottom-full mb-1 left-0 z-20 min-w-[72px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           {PER_PAGE_OPTIONS.map((opt) => (
             <button
               key={opt}
               onClick={() => { onChange(opt); setOpen(false); }}
               className={[
                 'w-full px-3 py-1.5 text-left text-sm transition-colors',
-                opt === value ? 'bg-violet-50 text-violet-700 font-medium' : 'text-gray-700 hover:bg-gray-50',
+                opt === value ? 'bg-violet-50 text-violet-700 font-medium' : 'text-slate-700 hover:bg-slate-50',
               ].join(' ')}
             >
               {opt}
@@ -191,24 +191,24 @@ function Pagination({
   const end   = Math.min(currentPage * perPage, totalRows);
 
   return (
-    <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-      <div className="flex items-center gap-2 text-sm text-gray-600">
+    <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm text-slate-600">
         <span>Show</span>
         <PerPageDropdown value={perPage} onChange={onPerPageChange} />
         <span>per page</span>
-        <span className="ml-2 text-gray-400">· {start}–{end} of {totalRows}</span>
+        <span className="ml-2 text-slate-400">· {start}–{end} of {totalRows}</span>
       </div>
       <div className="flex items-center gap-1 text-sm">
         <button
           disabled={currentPage === 1}
           onClick={() => onPageChange(currentPage - 1)}
-          className="px-3 py-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
         {pages.map((p, i) =>
           p === '…' ? (
-            <span key={`e-${i}`} className="w-8 text-center text-gray-400">…</span>
+            <span key={`e-${i}`} className="w-8 text-center text-slate-400">…</span>
           ) : (
             <button
               key={p}
@@ -217,7 +217,7 @@ function Pagination({
                 'w-8 h-8 rounded border text-sm transition-colors',
                 p === currentPage
                   ? 'border-violet-500 bg-violet-50 text-violet-700 font-medium'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50',
               ].join(' ')}
             >
               {p}
@@ -227,7 +227,7 @@ function Pagination({
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
-          className="px-3 py-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+          className="px-3 py-1.5 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
         >
           Next <CaretDown size={12} className="-rotate-90" />
         </button>
@@ -322,10 +322,10 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
 
       {/* ── Filter tabs ── */}
-      <div className="border-b border-gray-200 px-4 flex items-center gap-0">
+      <div className="border-b border-slate-200 px-4 flex items-center gap-0">
         {FILTER_TABS.map(({ value, label }) => (
           <Tab
             key={value}
@@ -338,36 +338,36 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-100">
+      <div className="px-4 py-3 flex items-center gap-2 border-b border-slate-100">
         <div className="relative flex-1 max-w-xs">
-          <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             ref={searchRef}
             type="text"
             placeholder="Search by bill ID or customer"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            className={`w-full pl-8 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 ${search ? 'pr-7' : 'pr-3'}`}
+            className={`w-full pl-8 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 ${search ? 'pr-7' : 'pr-3'}`}
           />
           {search && (
             <button
               onClick={() => { setSearch(''); setCurrentPage(1); searchRef.current?.focus(); }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               <X size={14} weight="bold" />
             </button>
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
             <Funnel size={14} />
             Filter
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
             <ArrowsDownUp size={14} />
             Last updated at
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
             <SquaresFour size={14} />
             Columns
           </button>
@@ -378,11 +378,11 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
       <div className="overflow-x-auto">
         {paginated.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-              <FileText size={22} className="text-gray-300" />
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+              <FileText size={22} className="text-slate-300" />
             </div>
-            <p className="text-sm font-medium text-gray-500">No bills found</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-sm font-medium text-slate-500">No bills found</p>
+            <p className="text-xs text-slate-400 mt-1">
               {q
                 ? 'Try a different search term.'
                 : filter !== 'all'
@@ -392,7 +392,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="w-10 px-3 py-2.5">
                   <input
@@ -400,10 +400,10 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     checked={allChecked}
                     ref={(el) => { if (el) el.indeterminate = someChecked; }}
                     onChange={toggleAll}
-                    className="w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-300 accent-violet-600 cursor-pointer"
                   />
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
                   Status
                 </th>
                 <SortTh col="id"              current={sortKey} onSort={toggleSort}>Bill ID</SortTh>
@@ -411,19 +411,19 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                 <SortTh col="amount"          current={sortKey} onSort={toggleSort} align="right">Amount</SortTh>
                 <SortTh col="billDate"        current={sortKey} onSort={toggleSort}>Bill date</SortTh>
                 <SortTh col="dueDate"         current={sortKey} onSort={toggleSort}>Due date</SortTh>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Customer</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">Customer</th>
                 <SortTh col="daysOutstanding" current={sortKey} onSort={toggleSort}>Days outstanding</SortTh>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Link</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Billing type</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">Link</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">Billing type</th>
                 <SortTh col="lastUpdatedAt"   current={sortKey} onSort={toggleSort}>Last updated at</SortTh>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Payment date</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Payment method</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Tags</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Quick actions</th>
-                <th className="sticky right-0 z-10 w-10 bg-gray-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">Payment date</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">Payment method</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">Tags</th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">Quick actions</th>
+                <th className="sticky right-0 z-10 w-10 bg-slate-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {paginated.map((bill) => {
                 const isSelected = selected.has(bill.id);
                 const status = STATUS_CFG[bill.status];
@@ -431,7 +431,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                 return (
                   <tr
                     key={bill.id}
-                    className={['transition-colors hover:bg-gray-50', isSelected ? 'bg-violet-50' : ''].join(' ')}
+                    className={['transition-colors hover:bg-slate-50', isSelected ? 'bg-violet-50' : ''].join(' ')}
                   >
                     {/* Checkbox */}
                     <td className="px-3 py-2.5">
@@ -439,19 +439,22 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleRow(bill.id)}
-                        className="w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-300 accent-violet-600 cursor-pointer"
                       />
                     </td>
 
                     {/* Status */}
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
+                        {status.dotColor && (
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: status.dotColor }} />
+                        )}
                         {status.label}
                       </span>
                     </td>
 
                     {/* Bill ID */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-700 font-mono text-xs">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-slate-700 font-mono text-xs">
                       {bill.id}
                     </td>
 
@@ -463,17 +466,17 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     </td>
 
                     {/* Amount */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium text-gray-700 tabular-nums">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium text-slate-700 tabular-nums">
                       {formatPeso(bill.amount)}
                     </td>
 
                     {/* Bill date */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-slate-600">
                       {bill.billDate}
                     </td>
 
                     {/* Due date */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-slate-600">
                       {bill.dueDate}
                     </td>
 
@@ -486,13 +489,13 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                         >
                           {bill.customerInitials}
                         </span>
-                        <span className="text-gray-700 text-sm max-w-[130px] truncate">{bill.customerName}</span>
+                        <span className="text-slate-700 text-sm max-w-[130px] truncate">{bill.customerName}</span>
                       </div>
                     </td>
 
                     {/* Days outstanding */}
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm text-center">
-                      <span className={bill.daysOutstanding > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                      <span className={bill.daysOutstanding > 0 ? 'text-red-600 font-medium' : 'text-slate-600'}>
                         {bill.daysOutstanding}
                       </span>
                     </td>
@@ -500,10 +503,10 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     {/* Link */}
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs text-gray-600">{bill.link}</span>
+                        <span className="font-mono text-xs text-slate-600">{bill.link}</span>
                         <button
                           onClick={() => copyLink(bill.link)}
-                          className="text-gray-400 hover:text-violet-500 transition-colors"
+                          className="text-slate-400 hover:text-violet-500 transition-colors"
                           title="Copy link"
                         >
                           {copiedLink === bill.link
@@ -521,18 +524,18 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     </td>
 
                     {/* Last updated at */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-slate-600">
                       {bill.lastUpdatedAt}
                     </td>
 
                     {/* Payment date */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
-                      {bill.paymentDate ?? <span className="text-gray-400">N/A</span>}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-slate-600">
+                      {bill.paymentDate ?? <span className="text-slate-400">N/A</span>}
                     </td>
 
                     {/* Payment method */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
-                      {bill.paymentMethod ?? <span className="text-gray-400">N/A</span>}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-slate-600">
+                      {bill.paymentMethod ?? <span className="text-slate-400">N/A</span>}
                     </td>
 
                     {/* Tags */}
@@ -542,7 +545,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                           {bill.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 border border-gray-200"
+                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200"
                             >
                               <Tag size={9} />
                               {tag}
@@ -550,7 +553,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                           ))}
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-sm">—</span>
+                        <span className="text-slate-400 text-sm">—</span>
                       )}
                     </td>
 
@@ -559,13 +562,13 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                       <div className="flex items-center gap-1.5">
                         <button
                           title="Send"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
                         >
                           <PaperPlaneTilt size={14} />
                         </button>
                         <button
                           title="Mark as paid"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
                         >
                           <CheckCircle size={14} />
                         </button>
@@ -575,20 +578,20 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     {/* Kebab menu */}
                     <td className="sticky right-0 z-10 px-2 py-2.5 bg-white [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_white]">
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-500 hover:bg-gray-100 transition-colors outline-none">
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-500 hover:bg-slate-100 transition-colors outline-none">
                           <DotsThreeVertical size={16} weight="bold" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem>
-                            <PaperPlaneTilt size={14} className="text-gray-400" />
+                            <PaperPlaneTilt size={14} className="text-slate-400" />
                             Send
                           </DropdownMenuItem>
                           <DropdownMenuItem>
-                            <CopySimple size={14} className="text-gray-400" />
+                            <CopySimple size={14} className="text-slate-400" />
                             Duplicate
                           </DropdownMenuItem>
                           <DropdownMenuItem>
-                            <CheckCircle size={14} className="text-gray-400" />
+                            <CheckCircle size={14} className="text-slate-400" />
                             Mark as paid
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />

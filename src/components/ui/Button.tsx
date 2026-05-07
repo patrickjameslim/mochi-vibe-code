@@ -11,13 +11,13 @@ const buttonVariants = cva(
         primary:
           'bg-violet-600 text-white border border-violet-600 hover:bg-violet-700 hover:border-violet-700 active:bg-violet-800 focus-visible:ring-violet-400',
         outline:
-          'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 hover:border-gray-400 hover:text-gray-900 active:bg-gray-200 focus-visible:ring-gray-400',
+          'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 hover:border-slate-400 hover:text-slate-900 active:bg-slate-200 focus-visible:ring-slate-400',
         ghost:
-          'bg-transparent text-gray-600 border border-transparent hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200 focus-visible:ring-gray-400',
+          'bg-transparent text-slate-600 border border-transparent hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200 focus-visible:ring-slate-400',
         destructive:
           'bg-red-600 text-white border border-red-600 hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-400',
         secondary:
-          'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 active:bg-gray-300 focus-visible:ring-gray-400',
+          'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 active:bg-slate-300 focus-visible:ring-slate-400',
         link: 'text-violet-600 underline-offset-4 hover:underline border-0 p-0 h-auto font-normal',
       },
       size: {

@@ -40,7 +40,7 @@ const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed z-50 flex flex-col bg-white shadow-2xl border-l border-gray-200',
+        'fixed z-50 flex flex-col bg-white shadow-2xl border-l border-slate-200',
         'top-0 h-full w-[400px]',
         side === 'right' ? 'right-0' : 'left-0',
         'data-[state=open]:animate-sheet-in-right data-[state=closed]:animate-sheet-out-right',
@@ -73,13 +73,13 @@ function Sheet({ open, onClose, children }: SheetProps) {
 // ─── Header ──────────────────────────────────────────────────────────────────
 function SheetHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 shrink-0">
-      <DialogPrimitive.Title className="text-base font-semibold text-gray-900">
+    <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
+      <DialogPrimitive.Title className="text-base font-semibold text-slate-900">
         {title}
       </DialogPrimitive.Title>
       <DialogPrimitive.Close
         onClick={onClose}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50"
       >
         <X size={15} weight="bold" />
       </DialogPrimitive.Close>
@@ -97,7 +97,7 @@ function SheetBody({ children }: { children: React.ReactNode }) {
 // ─── Footer ──────────────────────────────────────────────────────────────────
 function SheetFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="shrink-0 border-t border-gray-200 bg-white px-5 py-4">
+    <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4">
       {children}
     </div>
   );

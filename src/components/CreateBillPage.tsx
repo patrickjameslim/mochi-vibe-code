@@ -45,14 +45,14 @@ function fmt(n: number) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-sm font-semibold text-gray-900 mb-4">{children}</h3>
+    <h3 className="text-sm font-semibold text-slate-900 mb-4">{children}</h3>
   );
 }
 
 function FieldBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-xs font-medium text-gray-500">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500 tracking-[0.06em]">{label}</p>
       {children}
     </div>
   );
@@ -120,68 +120,68 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
   const billingTypes: { id: BillingType; icon: React.ReactNode; label: string; desc: string }[] = [
     {
       id: 'one-time',
-      icon: <FileText size={20} className="text-gray-500" />,
+      icon: <FileText size={20} className="text-slate-500" />,
       label: 'One-time',
       desc: 'Charge a single billing',
     },
     {
       id: 'recurring',
-      icon: <ArrowClockwise size={20} className="text-gray-500" />,
+      icon: <ArrowClockwise size={20} className="text-slate-500" />,
       label: 'Recurring',
       desc: 'Charge a recurring bill with a fixed periodical schedule',
     },
     {
       id: 'installment',
-      icon: <CalendarBlank size={20} className="text-gray-500" />,
+      icon: <CalendarBlank size={20} className="text-slate-500" />,
       label: 'Installment',
       desc: 'Split bill into multiple scheduled charges',
     },
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Header ── */}
-        <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <header className="shrink-0 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
             >
               <ArrowLeft size={14} weight="bold" />
             </button>
-            <nav className="flex items-center gap-1.5 text-sm text-gray-500">
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
               <span>Dashboard</span>
               <CaretRight size={12} />
               <span>Billing</span>
               <CaretRight size={12} />
-              <span className="text-gray-900 font-medium">Create bill</span>
+              <span className="text-slate-900 font-medium">Create bill</span>
             </nav>
           </div>
-          <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+          <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
             <BellSimple size={16} />
           </button>
         </header>
 
         {/* ── Sub-header: name+ID | toggle | actions ── */}
-        <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-2.5 grid grid-cols-3 items-center gap-4">
+        <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-2.5 grid grid-cols-3 items-center gap-4">
 
           {/* Left – bill name input */}
           <div className="min-w-0">
             <input
               value={billName}
               onChange={(e) => setBillName(e.target.value)}
-              className="w-80 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100 transition-colors"
+              className="w-80 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100 transition-colors"
               placeholder="Untitled bill"
             />
           </div>
 
           {/* Center – Build / Preview toggle */}
           <div className="flex justify-center">
-            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+            <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
               {(['build', 'preview'] as const).map((v) => (
                 <button
                   key={v}
@@ -189,8 +189,8 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                   className={[
                     'px-4 py-1.5 text-sm font-medium capitalize transition-colors',
                     activeView === v
-                      ? 'bg-gray-100 text-gray-900'
-                      : 'text-gray-500 hover:bg-gray-50',
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-500 hover:bg-slate-50',
                   ].join(' ')}
                 >
                   {v}
@@ -239,11 +239,11 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
 
             {/* ── Action row ── */}
             <div className="flex items-center gap-2">
-              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-colors">
+              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-900 transition-colors">
                 <Gear size={13} />
                 Settings
               </button>
-              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-colors">
+              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-900 transition-colors">
                 <Scan size={13} />
                 Scan document
               </button>
@@ -254,7 +254,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
             </div>
 
             {/* ── Billing type ── */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <SectionTitle>Billing type</SectionTitle>
               <div className="grid grid-cols-3 gap-3">
                 {billingTypes.map(({ id, icon, label, desc }) => (
@@ -265,15 +265,15 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                       'flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors',
                       billingType === id
                         ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-400'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50',
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
                     ].join(' ')}
                   >
                     {icon}
                     <div>
-                      <p className={`text-sm font-semibold ${billingType === id ? 'text-violet-700' : 'text-gray-800'}`}>
+                      <p className={`text-sm font-semibold ${billingType === id ? 'text-violet-700' : 'text-slate-800'}`}>
                         {label}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{desc}</p>
                     </div>
                   </button>
                 ))}
@@ -281,24 +281,24 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
             </div>
 
             {/* ── From / To / Billing meta ── */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="grid grid-cols-3 divide-x divide-gray-100">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="grid grid-cols-3 divide-x divide-slate-100">
 
                 {/* From */}
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">From</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">From</p>
                     <button className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors">
                       Update profile
                     </button>
                   </div>
                   <div className="flex items-start gap-2">
-                    <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-gray-500">M</span>
+                    <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-slate-500">M</span>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-violet-600">Maplecrest Group Inc.</p>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                         24 Amora Street,<br />
                         Barangay San Isidro,<br />
                         Quezon City, Metro Manila
@@ -310,7 +310,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                 {/* To */}
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">To</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">To</p>
                     <button className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors">
                       Change
                     </button>
@@ -331,12 +331,12 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                         >
                           {customer.name}
                         </button>
-                        <p className="text-xs text-gray-500 mt-0.5">{customer.email}</p>
-                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{customer.address}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{customer.email}</p>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{customer.address}</p>
                       </div>
                     </div>
                   ) : (
-                    <button className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-violet-400 hover:text-violet-600 transition-colors">
+                    <button className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-400 hover:border-violet-400 hover:text-violet-600 transition-colors">
                       <Plus size={12} weight="bold" />
                       Select a customer
                     </button>
@@ -346,7 +346,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                 {/* Billing meta */}
                 <div className="p-5 space-y-3">
                   <FieldBlock label="Billing ID">
-                    <Input value={billId} readOnly className="bg-gray-50 text-gray-500 text-xs" />
+                    <Input value={billId} readOnly className="bg-slate-50 text-slate-500 text-xs" />
                   </FieldBlock>
                   <FieldBlock label="Purchase order ID">
                     <div className="relative">
@@ -358,7 +358,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                   </FieldBlock>
                   <FieldBlock label="Bill date">
                     <div className="relative">
-                      <CalendarBlank size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <CalendarBlank size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <Input
                         type="date"
                         value={billDate}
@@ -381,7 +381,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                   </FieldBlock>
                   <FieldBlock label="Due date">
                     <div className="relative">
-                      <CalendarBlank size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <CalendarBlank size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <Input
                         type="date"
                         value={dueDate}
@@ -395,14 +395,14 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
             </div>
 
             {/* ── Line items ── */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
                 <SectionTitle>Line items</SectionTitle>
 
                 {/* Table header */}
                 <div className="grid grid-cols-[1fr_80px_120px_80px_100px_36px] gap-2 mb-2">
                   {['Item', 'Qty', 'Price', 'Tax %', 'Subtotal', ''].map((h) => (
-                    <p key={h} className="text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</p>
+                    <p key={h} className="text-xs font-medium text-slate-400 uppercase tracking-wide">{h}</p>
                   ))}
                 </div>
 
@@ -426,7 +426,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                           className="text-sm text-center"
                         />
                         <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">₱</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">₱</span>
                           <Input
                             type="number"
                             min={0}
@@ -447,15 +447,15 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                             className="text-sm pr-6"
                             placeholder="0"
                           />
-                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
                         </div>
-                        <p className="text-sm text-gray-700 font-medium text-right pr-1">
+                        <p className="text-sm text-slate-700 font-medium text-right pr-1">
                           {fmt(rowSubtotal)}
                         </p>
                         <button
                           onClick={() => removeItem(item.id)}
                           disabled={items.length === 1}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Trash size={14} />
                         </button>
@@ -475,15 +475,15 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
               </div>
 
               {/* Totals */}
-              <div className="px-5 py-4 bg-gray-50/60">
+              <div className="px-5 py-4 bg-slate-50/60">
                 <div className="ml-auto max-w-xs space-y-2.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="font-medium text-gray-800">{fmt(subtotal)}</span>
+                    <span className="text-slate-500">Subtotal</span>
+                    <span className="font-medium text-slate-800">{fmt(subtotal)}</span>
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Tax %</span>
+                    <span className="text-slate-500">Tax %</span>
                     <div className="flex items-center gap-1.5">
                       <Input
                         type="number"
@@ -494,7 +494,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                         className="w-16 text-xs text-center py-1"
                         placeholder="0"
                       />
-                      <span className="text-gray-400 text-xs">%</span>
+                      <span className="text-slate-400 text-xs">%</span>
                     </div>
                   </div>
 
@@ -503,9 +503,9 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                   </button>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Discount</span>
+                    <span className="text-slate-500">Discount</span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-gray-400 text-xs">₱</span>
+                      <span className="text-slate-400 text-xs">₱</span>
                       <Input
                         type="number"
                         min={0}
@@ -519,19 +519,19 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Tax amount</span>
-                    <span className="font-medium text-gray-800">{fmt(taxAmount)}</span>
+                    <span className="text-slate-500">Tax amount</span>
+                    <span className="font-medium text-slate-800">{fmt(taxAmount)}</span>
                   </div>
 
                   <Separator />
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 font-medium">Total</span>
-                    <span className="font-semibold text-gray-900">{fmt(total)}</span>
+                    <span className="text-slate-600 font-medium">Total</span>
+                    <span className="font-semibold text-slate-900">{fmt(total)}</span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-800">Amount due</span>
+                    <span className="text-sm font-semibold text-slate-800">Amount due</span>
                     <span className="text-base font-bold text-violet-600">{fmt(amountDue)}</span>
                   </div>
                 </div>
@@ -539,21 +539,21 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
             </div>
 
             {/* ── Billing ── */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <SectionTitle>Billing</SectionTitle>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setOverdueEnabled((v) => !v)}
-                    className="text-gray-400 hover:text-violet-600 transition-colors"
+                    className="text-slate-400 hover:text-violet-600 transition-colors"
                   >
                     {overdueEnabled
                       ? <ToggleRight size={28} weight="fill" className="text-violet-600" />
                       : <ToggleLeft size={28} />}
                   </button>
                   <div>
-                    <p className="text-sm font-medium text-gray-800">Overdue charge</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-sm font-medium text-slate-800">Overdue charge</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
                       An additional fee applied to unpaid bills after the due date
                     </p>
                   </div>
@@ -568,49 +568,49 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                     disabled={!overdueEnabled}
                     className="w-16 text-sm text-center"
                   />
-                  <span className="text-sm text-gray-400">%</span>
+                  <span className="text-sm text-slate-400">%</span>
                 </div>
               </div>
             </div>
 
             {/* ── Payment instructions ── */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <SectionTitle>Payment instructions</SectionTitle>
               <Textarea
                 value={paymentInstructions}
                 onChange={(e) => setPaymentInstructions(e.target.value)}
                 rows={6}
-                className="text-sm text-gray-700"
+                className="text-sm text-slate-700"
               />
             </div>
 
             {/* ── Notes ── */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <SectionTitle>Notes</SectionTitle>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Add a note for the customer…"
-                className="text-sm text-gray-700"
+                className="text-sm text-slate-700"
               />
             </div>
 
             {/* ── Advanced ── */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <SectionTitle>Advanced</SectionTitle>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSignatureEnabled((v) => !v)}
-                  className="text-gray-400 hover:text-violet-600 transition-colors"
+                  className="text-slate-400 hover:text-violet-600 transition-colors"
                 >
                   {signatureEnabled
                     ? <ToggleRight size={28} weight="fill" className="text-violet-600" />
                     : <ToggleLeft size={28} />}
                 </button>
                 <div className="flex items-center gap-2">
-                  <PencilSimple size={14} className="text-gray-400" />
-                  <p className="text-sm font-medium text-gray-800">Add my signature</p>
+                  <PencilSimple size={14} className="text-slate-400" />
+                  <p className="text-sm font-medium text-slate-800">Add my signature</p>
                 </div>
               </div>
             </div>
@@ -621,7 +621,7 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
         </div>
 
         {/* ── Sticky footer ── */}
-        <div className="shrink-0 bg-white border-t border-gray-200 px-8 py-3 flex items-center justify-end gap-3">
+        <div className="shrink-0 bg-white border-t border-slate-200 px-8 py-3 flex items-center justify-end gap-3">
           <Button variant="outline" onClick={onBack}>Cancel</Button>
           <Button variant="outline">Save as draft</Button>
           <Button variant="primary">Send now</Button>

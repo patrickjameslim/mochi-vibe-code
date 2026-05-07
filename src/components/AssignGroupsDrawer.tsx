@@ -77,15 +77,15 @@ export default function AssignGroupsDrawer({
 
       <SheetBody>
         {/* Customer label */}
-        <p className="mb-4 text-sm text-gray-500">
+        <p className="mb-4 text-sm text-slate-500">
           Assigning groups to{' '}
-          <span className="font-medium text-gray-900">{customerName}</span>
+          <span className="font-medium text-slate-900">{customerName}</span>
         </p>
 
         {/* Assigned groups summary */}
         {assignedGroups.length > 0 && (
           <div className="mb-5">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
               Assigned ({assignedGroups.length})
             </p>
             <div className="flex flex-wrap gap-2">
@@ -104,13 +104,13 @@ export default function AssignGroupsDrawer({
         )}
 
         {/* Divider if both sections shown */}
-        {assignedGroups.length > 0 && <hr className="mb-5 border-gray-100" />}
+        {assignedGroups.length > 0 && <hr className="mb-5 border-slate-100" />}
 
         {/* Search */}
         <div className="relative mb-4">
           <MagnifyingGlass
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
           />
           <Input
             type="text"
@@ -124,9 +124,9 @@ export default function AssignGroupsDrawer({
         {/* Group list */}
         {noResults ? (
           <div className="flex flex-col items-center gap-3 py-8 text-center">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               No group found for{' '}
-              <span className="font-medium text-gray-700">
+              <span className="font-medium text-slate-700">
                 &ldquo;{search}&rdquo;
               </span>
             </p>
@@ -152,7 +152,7 @@ export default function AssignGroupsDrawer({
                   />
                 ))}
                 {unassignedFiltered.length > 0 && (
-                  <p className="px-1 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+                  <p className="px-1 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
                     Unassigned
                   </p>
                 )}
@@ -200,7 +200,7 @@ function GroupRow({
       onClick={onToggle}
       className={[
         'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
-        checked ? 'bg-violet-50 text-violet-700' : 'text-gray-700 hover:bg-gray-50',
+        checked ? 'bg-violet-50 text-violet-700' : 'text-slate-700 hover:bg-slate-50',
       ].join(' ')}
     >
       {/* Checkbox visual */}
@@ -209,7 +209,7 @@ function GroupRow({
           'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
           checked
             ? 'border-violet-600 bg-violet-600'
-            : 'border-gray-300 bg-white',
+            : 'border-slate-300 bg-white',
         ].join(' ')}
       >
         {checked && <Check size={10} weight="bold" className="text-white" />}

@@ -72,7 +72,7 @@ function FormLabel({
   error?: boolean;
 }) {
   return (
-    <Label className={`block text-sm font-medium mb-1 ${error ? 'text-red-600' : 'text-gray-700'}`}>
+    <Label className={`block text-sm font-medium mb-1 ${error ? 'text-red-600' : 'text-slate-700'}`}>
       {children}
       {required && <span className="text-red-500 ml-0.5">*</span>}
     </Label>
@@ -114,7 +114,7 @@ function FileTypeIcon({ name }: { name: string }) {
   if (['xls','xlsx'].includes(ext))           return <FileXls  size={28} className={`${cls} text-green-600`}  />;
   if (ext === 'csv')                          return <FileCsv  size={28} className={`${cls} text-green-500`}  />;
   if (['zip','rar','7z'].includes(ext))       return <FileZip  size={28} className={`${cls} text-yellow-600`} />;
-  return                                             <File     size={28} className={`${cls} text-gray-400`}   />;
+  return                                             <File     size={28} className={`${cls} text-slate-400`}   />;
 }
 
 // ─── Group combobox ───────────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ function GroupCombobox({
           'min-h-[38px] w-full flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm cursor-text transition-shadow',
           open
             ? 'border-violet-400 ring-2 ring-violet-200'
-            : 'border-gray-200 hover:border-gray-300',
+            : 'border-slate-200 hover:border-slate-300',
         ].join(' ')}
       >
         {/* Selected pills */}
@@ -224,22 +224,22 @@ function GroupCombobox({
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder={selected.length === 0 ? 'Select customer groups…' : ''}
-          className="flex-1 min-w-[120px] outline-none bg-transparent text-sm text-gray-700 placeholder:text-gray-400"
+          className="flex-1 min-w-[120px] outline-none bg-transparent text-sm text-slate-700 placeholder:text-slate-400"
         />
 
         <CaretDown
           size={13}
-          className={`ml-auto shrink-0 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+          className={`ml-auto shrink-0 text-slate-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
         />
       </div>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden">
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
           {/* Results */}
           <ul className="max-h-48 overflow-y-auto py-1">
             {filtered.length === 0 && !canCreate && (
-              <li className="px-3 py-3 text-xs text-gray-400 text-center">No groups found</li>
+              <li className="px-3 py-3 text-xs text-slate-400 text-center">No groups found</li>
             )}
             {filtered.map((group) => {
               const isSelected = selected.includes(group);
@@ -252,7 +252,7 @@ function GroupCombobox({
                       'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left',
                       isSelected
                         ? 'bg-violet-50 text-violet-700'
-                        : 'text-gray-700 hover:bg-gray-50',
+                        : 'text-slate-700 hover:bg-slate-50',
                     ].join(' ')}
                   >
                     <span
@@ -260,7 +260,7 @@ function GroupCombobox({
                         'inline-flex items-center justify-center w-4 h-4 rounded border shrink-0 transition-colors',
                         isSelected
                           ? 'bg-violet-600 border-violet-600'
-                          : 'border-gray-300',
+                          : 'border-slate-300',
                       ].join(' ')}
                     >
                       {isSelected && <Check size={10} weight="bold" className="text-white" />}
@@ -288,8 +288,8 @@ function GroupCombobox({
 
           {/* Selected count footer */}
           {selected.length > 0 && (
-            <div className="border-t border-gray-100 px-3 py-2 flex items-center justify-between">
-              <span className="text-xs text-gray-400">{selected.length} selected</span>
+            <div className="border-t border-slate-100 px-3 py-2 flex items-center justify-between">
+              <span className="text-xs text-slate-400">{selected.length} selected</span>
               <button
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onChange([])}
@@ -484,35 +484,35 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar />
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar — breadcrumb + bell only */}
-        <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <header className="shrink-0 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
             >
               <ArrowLeft size={14} weight="bold" />
             </button>
-            <nav className="flex items-center gap-1.5 text-sm text-gray-500">
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
               <span>Dashboard</span>
               <CaretRight size={12} />
-              <button onClick={onBack} className="hover:text-gray-700 transition-colors">Customers</button>
+              <button onClick={onBack} className="hover:text-slate-700 transition-colors">Customers</button>
               <CaretRight size={12} />
-              <span className="text-gray-900 font-medium">Create customer</span>
+              <span className="text-slate-900 font-medium">Create customer</span>
             </nav>
           </div>
-          <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+          <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
             <BellSimple size={16} />
           </button>
         </header>
 
         {/* Form action bar */}
-        <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-end gap-2">
+        <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-end gap-2">
           <Button variant="outline" onClick={onBack}>Cancel</Button>
           <Button variant="outline">Save as draft</Button>
           <Button variant="primary" onClick={handleSubmit}>Create customer</Button>
@@ -535,12 +535,12 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                     'flex items-center gap-2.5 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors',
                     customerType === t
                       ? 'border-violet-500 bg-violet-50 text-violet-700'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                   ].join(' ')}
                 >
                   {t === 'Individual'
-                    ? <User size={16} className={customerType === t ? 'text-violet-500' : 'text-gray-400'} />
-                    : <Buildings size={16} className={customerType === t ? 'text-violet-500' : 'text-gray-400'} />}
+                    ? <User size={16} className={customerType === t ? 'text-violet-500' : 'text-slate-400'} />
+                    : <Buildings size={16} className={customerType === t ? 'text-violet-500' : 'text-slate-400'} />}
                   {t}
                 </button>
               ))}
@@ -549,7 +549,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
             {/* Customer image */}
             <div>
               <Label>Customer image</Label>
-              <p className="text-xs text-gray-400 mb-2">Accepted formats: .jpg, .png, .gif (max 20MB)</p>
+              <p className="text-xs text-slate-400 mb-2">Accepted formats: .jpg, .png, .gif (max 20MB)</p>
 
               {uploadedImage ? (
                 <div className="flex items-center gap-3">
@@ -557,7 +557,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                   <div className="relative group shrink-0">
                     <button
                       onClick={() => setLightboxOpen(true)}
-                      className="block w-16 h-16 rounded-lg border border-gray-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      className="block w-16 h-16 rounded-lg border border-slate-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-violet-400"
                     >
                       <img
                         src={uploadedImage.url}
@@ -573,8 +573,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
 
                   {/* File info */}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate max-w-[220px]">{uploadedImage.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{uploadedImage.size}</p>
+                    <p className="text-sm font-medium text-slate-800 truncate max-w-[220px]">{uploadedImage.name}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{uploadedImage.size}</p>
                     <div className="flex items-center gap-3 mt-1.5">
                       <button
                         onClick={() => imageInputRef.current?.click()}
@@ -594,7 +594,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
               ) : (
                 <button
                   onClick={() => imageInputRef.current?.click()}
-                  className="inline-flex items-center justify-center w-16 h-16 rounded-lg border-2 border-dashed border-gray-200 text-gray-300 hover:border-violet-400 hover:text-violet-400 hover:bg-violet-50 transition-colors"
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:border-violet-400 hover:text-violet-400 hover:bg-violet-50 transition-colors"
                 >
                   <Image size={20} />
                 </button>
@@ -614,8 +614,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
               <Label>Customer ID</Label>
               <div className="flex items-center gap-2">
                 {/* Prefixed input */}
-                <div className="flex items-stretch rounded-lg border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
-                  <span className="inline-flex items-center px-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-500 font-medium select-none whitespace-nowrap">
+                <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
+                  <span className="inline-flex items-center px-3 bg-slate-50 border-r border-slate-200 text-sm text-slate-500 font-medium select-none whitespace-nowrap">
                     {idPrefix}
                   </span>
                   <input
@@ -637,8 +637,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
 
                   {/* Popover */}
                   {prefixPopoverOpen && (
-                    <div className="absolute left-0 top-full mt-2 w-64 bg-white rounded-xl border border-gray-200 shadow-lg z-20 p-4">
-                      <p className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Edit ID prefix</p>
+                    <div className="absolute left-0 top-full mt-2 w-64 bg-white rounded-xl border border-slate-200 shadow-lg z-20 p-4">
+                      <p className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Edit ID prefix</p>
                       <Input
                         ref={prefixInputRef}
                         type="text"
@@ -652,8 +652,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                         }}
                       />
                       {/* Preview */}
-                      <p className="text-xs text-gray-400 mb-3">
-                        Preview: <span className="font-medium text-gray-700">{draftPrefix || '—'}{idNumber}</span>
+                      <p className="text-xs text-slate-400 mb-3">
+                        Preview: <span className="font-medium text-slate-700">{draftPrefix || '—'}{idNumber}</span>
                       </p>
                       <div className="flex items-center gap-2">
                         <button
@@ -664,7 +664,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                         </button>
                         <button
                           onClick={() => setPrefixPopoverOpen(false)}
-                          className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                         >
                           Cancel
                         </button>
@@ -755,7 +755,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                       onChange={() => setVatStatus(value as typeof vatStatus)}
                       className="accent-violet-600 w-3.5 h-3.5"
                     />
-                    <span className="text-sm text-gray-700">{label}</span>
+                    <span className="text-sm text-slate-700">{label}</span>
                   </label>
                 ))}
               </div>
@@ -771,7 +771,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                   onChange={(e) => setWithholding(e.target.value)}
                   className="text-right"
                 />
-                <span className="text-sm text-gray-500 shrink-0">%</span>
+                <span className="text-sm text-slate-500 shrink-0">%</span>
               </div>
             </div>
 
@@ -795,8 +795,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
             {/* Default payment terms */}
             <div>
               <div className="flex items-center gap-1 mb-1">
-                <Label className="text-sm font-medium text-gray-700 mb-0">Default payment terms</Label>
-                <Info size={13} className="text-gray-400" />
+                <Label className="text-[13px] font-medium text-slate-700 mb-0">Default payment terms</Label>
+                <Info size={13} className="text-slate-400" />
               </div>
               <Input placeholder="e.g. Net 30" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
             </div>
@@ -804,8 +804,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
             {/* Payment method — shadcn Select */}
             <div>
               <div className="flex items-center gap-1 mb-1">
-                <Label className="text-sm font-medium text-gray-700 mb-0">Payment method</Label>
-                <Info size={13} className="text-gray-400" />
+                <Label className="text-[13px] font-medium text-slate-700 mb-0">Payment method</Label>
+                <Info size={13} className="text-slate-400" />
               </div>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger>
@@ -858,13 +858,13 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); handleDocUpload(e.dataTransfer.files); }}
                 className={[
                   'flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed py-10 transition-colors cursor-pointer',
-                  dragOver ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-gray-50 hover:border-violet-300 hover:bg-violet-50/40',
+                  dragOver ? 'border-violet-400 bg-violet-50' : 'border-slate-200 bg-slate-50 hover:border-violet-300 hover:bg-violet-50/40',
                 ].join(' ')}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <UploadSimple size={24} className={dragOver ? 'text-violet-400 mb-1' : 'text-gray-300 mb-1'} />
-                <p className="text-sm text-gray-500">Drop files here</p>
-                <p className="text-xs text-gray-400">or</p>
+                <UploadSimple size={24} className={dragOver ? 'text-violet-400 mb-1' : 'text-slate-300 mb-1'} />
+                <p className="text-sm text-slate-500">Drop files here</p>
+                <p className="text-xs text-slate-400">or</p>
                 <span className="text-sm text-violet-600 font-medium">Browse files</span>
               </div>
 
@@ -874,10 +874,10 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
                   {docs.map((doc) => (
                     <li
                       key={doc.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50 group"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 group"
                     >
                       {/* Thumbnail */}
-                      <div className="shrink-0 w-12 h-12 rounded-lg border border-gray-200 overflow-hidden bg-white flex items-center justify-center">
+                      <div className="shrink-0 w-12 h-12 rounded-lg border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
                         {doc.isImage ? (
                           <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
                         ) : (
@@ -887,14 +887,14 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
 
                       {/* Name + size */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{doc.size}</p>
+                        <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{doc.size}</p>
                       </div>
 
                       {/* Remove */}
                       <button
                         onClick={() => removeDoc(doc.id)}
-                        className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <X size={14} weight="bold" />
                       </button>
