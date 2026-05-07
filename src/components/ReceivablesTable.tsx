@@ -3,7 +3,7 @@ import {
   ArrowsDownUp,
   MagnifyingGlass,
   Funnel,
-  Columns,
+  SquaresFour,
   CaretDown,
   Plus,
   DotsThreeVertical,
@@ -368,7 +368,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
             Last updated at
           </button>
           <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-            <Columns size={14} />
+            <SquaresFour size={14} />
             Columns
           </button>
         </div>
@@ -451,7 +451,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     </td>
 
                     {/* Bill ID */}
-                    <td className="px-3 py-2.5 whitespace-nowrap font-mono text-xs text-gray-600">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-700 font-mono text-xs">
                       {bill.id}
                     </td>
 
@@ -463,7 +463,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     </td>
 
                     {/* Amount */}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right text-sm font-semibold text-gray-800 tabular-nums">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium text-gray-700 tabular-nums">
                       {formatPeso(bill.amount)}
                     </td>
 
@@ -481,18 +481,18 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <span
-                          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[9px] font-bold shrink-0"
-                          style={{ backgroundColor: bill.customerAvatarColor }}
+                          className="inline-flex items-center justify-center w-[26px] h-[26px] rounded-full text-white font-semibold shrink-0"
+                          style={{ backgroundColor: bill.customerAvatarColor, fontSize: 10 }}
                         >
                           {bill.customerInitials}
                         </span>
-                        <span className="text-sm text-gray-700 max-w-[130px] truncate">{bill.customerName}</span>
+                        <span className="text-gray-700 text-sm max-w-[130px] truncate">{bill.customerName}</span>
                       </div>
                     </td>
 
                     {/* Days outstanding */}
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm text-center">
-                      <span className={bill.daysOutstanding > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                      <span className={bill.daysOutstanding > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
                         {bill.daysOutstanding}
                       </span>
                     </td>
@@ -500,7 +500,7 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     {/* Link */}
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs text-violet-600">{bill.link}</span>
+                        <span className="font-mono text-xs text-gray-600">{bill.link}</span>
                         <button
                           onClick={() => copyLink(bill.link)}
                           className="text-gray-400 hover:text-violet-500 transition-colors"
