@@ -1,23 +1,31 @@
-import React, { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
+  ArrowsDownUp,
   MagnifyingGlass,
   Funnel,
-  ArrowsDownUp,
-  SquaresFour,
-  DownloadSimple,
-  ArrowUp,
-  ArrowDown,
+  Columns,
+  CaretDown,
+  Plus,
+  DotsThreeVertical,
+  PaperPlaneTilt,
   CopySimple,
   CheckCircle,
-  PaperPlaneTilt,
+  Archive,
+  X,
+  FileText,
   Link as LinkIcon,
   Tag,
-  FileText,
 } from '@phosphor-icons/react';
-import { Button } from './ui/Button';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from './ui/DropdownMenu';
 import { Bill, BillStatus, BillType, formatPeso } from '../data/bills';
 
-// ─── Status config ────────────────────────────────────────────────────────────
+// ─── Status & type config ─────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<BillStatus, { label: string; className: string }> = {
   draft:     { label: 'Draft',     className: 'bg-gray-100 text-gray-500 border border-gray-200' },
@@ -35,7 +43,7 @@ const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
   'installment': { label: 'Installment', className: 'bg-orange-50 text-orange-700 border border-orange-200' },
 };
 
-// ─── Filter tabs ──────────────────────────────────────────────────────────────
+// ─── Filter tab type ──────────────────────────────────────────────────────────
 
 type Filter = 'all' | BillStatus;
 
@@ -52,7 +60,181 @@ const FILTER_TABS: { value: Filter; label: string }[] = [
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
-type SortKey = 'id' | 'title' | 'amount' | 'billDate' | 'dueDate' | 'status' | 'lastUpdatedAt' | 'daysOutstanding';
+type SortKey = 'id' | 'title' | 'amount' | 'billDate' | 'dueDate' | 'daysOutstanding' | 'lastUpdatedAt';
+
+// ─── Tab ─────────────────────────────────────────────────────────────────────
+
+function Tab({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        'inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+        active
+          ? 'border-violet-600 text-violet-700'
+          : 'border-transparent text-gray-500 hover:text-gray-700',
+      ].join(' ')}
+    >
+      {label}
+      {count > 0 && (
+        <span className={[
+          'rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
+          active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500',
+        ].join(' ')}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Sort header cell ─────────────────────────────────────────────────────────
+
+function SortTh({
+  children,
+  col,
+  current,
+  onSort,
+  align = 'left',
+}: {
+  children: React.ReactNode;
+  col: SortKey;
+  current: SortKey;
+  onSort: (k: SortKey) => void;
+  align?: 'left' | 'right';
+}) {
+  return (
+    <th className={`px-3 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap select-none ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button
+        onClick={() => onSort(col)}
+        className={`inline-flex items-center gap-1 hover:text-gray-700 transition-colors ${current === col ? 'text-gray-700' : ''}`}
+      >
+        {children}
+        <ArrowsDownUp size={12} weight="bold" className={current === col ? 'text-violet-500' : 'text-gray-400'} />
+      </button>
+    </th>
+  );
+}
+
+// ─── Per-page dropdown ────────────────────────────────────────────────────────
+
+const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
+function PerPageDropdown({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1 px-2 py-1 border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors"
+      >
+        {value}
+        <CaretDown size={12} className={['transition-transform duration-150', open ? 'rotate-180' : ''].join(' ')} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full mb-1 left-0 z-20 min-w-[72px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+          {PER_PAGE_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => { onChange(opt); setOpen(false); }}
+              className={[
+                'w-full px-3 py-1.5 text-left text-sm transition-colors',
+                opt === value ? 'bg-violet-50 text-violet-700 font-medium' : 'text-gray-700 hover:bg-gray-50',
+              ].join(' ')}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
+function getPageNumbers(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
+  if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total];
+  return [1, '…', current - 1, current, current + 1, '…', total];
+}
+
+function Pagination({
+  currentPage, totalPages, perPage, totalRows, onPageChange, onPerPageChange,
+}: {
+  currentPage: number; totalPages: number; perPage: number; totalRows: number;
+  onPageChange: (p: number) => void; onPerPageChange: (v: number) => void;
+}) {
+  const pages = getPageNumbers(currentPage, totalPages);
+  const start = (currentPage - 1) * perPage + 1;
+  const end   = Math.min(currentPage * perPage, totalRows);
+
+  return (
+    <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <span>Show</span>
+        <PerPageDropdown value={perPage} onChange={onPerPageChange} />
+        <span>per page</span>
+        <span className="ml-2 text-gray-400">· {start}–{end} of {totalRows}</span>
+      </div>
+      <div className="flex items-center gap-1 text-sm">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          className="px-3 py-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Previous
+        </button>
+        {pages.map((p, i) =>
+          p === '…' ? (
+            <span key={`e-${i}`} className="w-8 text-center text-gray-400">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p as number)}
+              className={[
+                'w-8 h-8 rounded border text-sm transition-colors',
+                p === currentPage
+                  ? 'border-violet-500 bg-violet-50 text-violet-700 font-medium'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+              ].join(' ')}
+            >
+              {p}
+            </button>
+          )
+        )}
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+          className="px-3 py-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+        >
+          Next <CaretDown size={12} className="-rotate-90" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -64,59 +246,69 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function ReceivablesTable({ bills, onCreateBill }: Props) {
-  const [filter, setFilter]         = useState<Filter>('all');
-  const [search, setSearch]         = useState('');
-  const [sortKey, setSortKey]       = useState<SortKey>('id');
-  const [sortAsc, setSortAsc]       = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [filter, setFilter]     = useState<Filter>('all');
+  const [search, setSearch]     = useState('');
+  const [sortKey, setSortKey]   = useState<SortKey>('id');
+  const [sortAsc, setSortAsc]   = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [perPage, setPerPage]   = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [copiedLink, setCopiedLink]   = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // ── Counts per status (from full bill list, not filtered) ──────────────────
   const counts = bills.reduce<Record<string, number>>((acc, b) => {
     acc[b.status] = (acc[b.status] ?? 0) + 1;
     return acc;
   }, {});
 
-  // ── Filter + search ────────────────────────────────────────────────────────
+  // Filter → search → sort
   const afterFilter = filter === 'all' ? bills : bills.filter((b) => b.status === filter);
-  const afterSearch = search.trim()
+  const q = search.trim().toLowerCase();
+  const afterSearch = q
     ? afterFilter.filter(
         (b) =>
-          b.id.toLowerCase().includes(search.toLowerCase()) ||
-          b.title.toLowerCase().includes(search.toLowerCase()) ||
-          b.customerName.toLowerCase().includes(search.toLowerCase()),
+          b.id.toLowerCase().includes(q) ||
+          b.title.toLowerCase().includes(q) ||
+          b.customerName.toLowerCase().includes(q),
       )
     : afterFilter;
 
-  // ── Sort ──────────────────────────────────────────────────────────────────
   const sorted = [...afterSearch].sort((a, b) => {
     let cmp = 0;
-    if (sortKey === 'amount')          cmp = a.amount - b.amount;
+    if      (sortKey === 'amount')          cmp = a.amount - b.amount;
     else if (sortKey === 'daysOutstanding') cmp = a.daysOutstanding - b.daysOutstanding;
-    else if (sortKey === 'id')         cmp = a.id.localeCompare(b.id);
-    else if (sortKey === 'title')      cmp = a.title.localeCompare(b.title);
-    else if (sortKey === 'status')     cmp = a.status.localeCompare(b.status);
-    else if (sortKey === 'lastUpdatedAt') cmp = 0;
-    else if (sortKey === 'billDate')   cmp = new Date(a.billDate).getTime() - new Date(b.billDate).getTime();
-    else if (sortKey === 'dueDate')    cmp = new Date(a.dueDate).getTime()  - new Date(b.dueDate).getTime();
+    else if (sortKey === 'id')              cmp = a.id.localeCompare(b.id);
+    else if (sortKey === 'title')           cmp = a.title.localeCompare(b.title);
+    else if (sortKey === 'billDate')        cmp = new Date(a.billDate).getTime() - new Date(b.billDate).getTime();
+    else if (sortKey === 'dueDate')         cmp = new Date(a.dueDate).getTime()  - new Date(b.dueDate).getTime();
     return sortAsc ? cmp : -cmp;
   });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / perPage));
+  const safePage   = Math.min(currentPage, totalPages);
+  const paginated  = sorted.slice((safePage - 1) * perPage, safePage * perPage);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortAsc((p) => !p);
     else { setSortKey(key); setSortAsc(false); }
   }
 
-  // ── Selection helpers ─────────────────────────────────────────────────────
-  const allSelected = sorted.length > 0 && sorted.every((b) => selectedIds.has(b.id));
+  function handleFilterChange(f: Filter) {
+    setFilter(f);
+    setCurrentPage(1);
+    setSearch('');
+  }
+
+  const allChecked  = paginated.length > 0 && paginated.every((b) => selected.has(b.id));
+  const someChecked = paginated.some((b) => selected.has(b.id)) && !allChecked;
 
   function toggleAll() {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(sorted.map((b) => b.id)));
+    if (allChecked) setSelected(new Set());
+    else setSelected(new Set(paginated.map((b) => b.id)));
   }
 
   function toggleRow(id: string) {
-    setSelectedIds((prev) => {
+    setSelected((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -130,225 +322,189 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
   }
 
   return (
-    <div className="space-y-0">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
-      {/* ── Top toolbar: title + actions ──────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Bills</h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <DownloadSimple size={13} />
-            Download CSV
-          </Button>
-          <Button size="sm" onClick={() => onCreateBill?.()} className="gap-1.5 text-xs">
-            + Create a new bill
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Filter tabs ───────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-0 border-b border-gray-200">
-        {FILTER_TABS.map(({ value, label }) => {
-          const count = value === 'all' ? bills.length : (counts[value] ?? 0);
-          const active = filter === value;
-          return (
-            <button
-              key={value}
-              onClick={() => setFilter(value)}
-              className={[
-                'flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
-                active
-                  ? 'border-violet-600 text-violet-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-              ].join(' ')}
-            >
-              {label}
-              {count > 0 && (
-                <span className={[
-                  'rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
-                  active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500',
-                ].join(' ')}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Search + action row ───────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 py-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-xs">
-          <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Enter a billing ID or customer"
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-colors"
+      {/* ── Filter tabs ── */}
+      <div className="border-b border-gray-200 px-4 flex items-center gap-0">
+        {FILTER_TABS.map(({ value, label }) => (
+          <Tab
+            key={value}
+            label={label}
+            count={value === 'all' ? bills.length : (counts[value] ?? 0)}
+            active={filter === value}
+            onClick={() => handleFilterChange(value)}
           />
+        ))}
+      </div>
+
+      {/* ── Toolbar ── */}
+      <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-100">
+        <div className="relative flex-1 max-w-xs">
+          <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Search by bill ID or customer"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            className={`w-full pl-8 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 ${search ? 'pr-7' : 'pr-3'}`}
+          />
+          {search && (
+            <button
+              onClick={() => { setSearch(''); setCurrentPage(1); searchRef.current?.focus(); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-1.5 ml-auto">
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-colors">
-            <Funnel size={13} />
+        <div className="ml-auto flex items-center gap-2">
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <Funnel size={14} />
             Filter
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-colors">
-            <ArrowsDownUp size={13} />
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <ArrowsDownUp size={14} />
             Last updated at
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-colors">
-            <SquaresFour size={13} />
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <Columns size={14} />
             Columns
           </button>
         </div>
       </div>
 
-      {/* ── Table ─────────────────────────────────────────────────────────── */}
-      {sorted.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center border border-gray-200 rounded-xl bg-white">
-          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-            <FileText size={22} className="text-gray-300" />
+      {/* ── Table ── */}
+      <div className="overflow-x-auto">
+        {paginated.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+              <FileText size={22} className="text-gray-300" />
+            </div>
+            <p className="text-sm font-medium text-gray-500">No bills found</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {q
+                ? 'Try a different search term.'
+                : filter !== 'all'
+                ? `No ${STATUS_CFG[filter as BillStatus]?.label.toLowerCase()} bills.`
+                : 'No bills have been created yet.'}
+            </p>
           </div>
-          <p className="text-sm font-medium text-gray-500">No bills found</p>
-          <p className="text-xs text-gray-400 mt-1">
-            {search
-              ? 'Try a different search term.'
-              : filter !== 'all'
-              ? `No ${STATUS_CFG[filter as BillStatus]?.label.toLowerCase()} bills for this customer.`
-              : 'No bills have been created yet.'}
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm min-w-[1400px]">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/70">
-                {/* Checkbox */}
-                <th className="w-10 px-3 py-3">
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="w-10 px-3 py-2.5">
                   <input
                     type="checkbox"
-                    checked={allSelected}
+                    checked={allChecked}
+                    ref={(el) => { if (el) el.indeterminate = someChecked; }}
                     onChange={toggleAll}
-                    className="rounded border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                    className="w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer"
                   />
                 </th>
-                {/* Status (not sortable — badge is self-explanatory) */}
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap w-28">
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                   Status
                 </th>
-                {/* Flag */}
-                <th className="w-6 px-1 py-3" />
-                {/* Sortable columns */}
-                <SortTh label="Bill ID"          col="id"              current={sortKey} asc={sortAsc} onSort={toggleSort} />
-                <SortTh label="Bill name"         col="title"           current={sortKey} asc={sortAsc} onSort={toggleSort} />
-                <SortTh label="Amount"            col="amount"          current={sortKey} asc={sortAsc} onSort={toggleSort} align="right" />
-                <SortTh label="Bill date"         col="billDate"        current={sortKey} asc={sortAsc} onSort={toggleSort} />
-                <SortTh label="Due date"          col="dueDate"         current={sortKey} asc={sortAsc} onSort={toggleSort} />
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">Customer</th>
-                <SortTh label="Days outstanding"  col="daysOutstanding" current={sortKey} asc={sortAsc} onSort={toggleSort} />
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">Link</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">Billing type</th>
-                <SortTh label="Last updated at"   col="lastUpdatedAt"   current={sortKey} asc={sortAsc} onSort={toggleSort} />
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">Payment date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">Payment method</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">Tags</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">Quick actions</th>
+                <SortTh col="id"              current={sortKey} onSort={toggleSort}>Bill ID</SortTh>
+                <SortTh col="title"           current={sortKey} onSort={toggleSort}>Bill name</SortTh>
+                <SortTh col="amount"          current={sortKey} onSort={toggleSort} align="right">Amount</SortTh>
+                <SortTh col="billDate"        current={sortKey} onSort={toggleSort}>Bill date</SortTh>
+                <SortTh col="dueDate"         current={sortKey} onSort={toggleSort}>Due date</SortTh>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Customer</th>
+                <SortTh col="daysOutstanding" current={sortKey} onSort={toggleSort}>Days outstanding</SortTh>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Link</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Billing type</th>
+                <SortTh col="lastUpdatedAt"   current={sortKey} onSort={toggleSort}>Last updated at</SortTh>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Payment date</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Payment method</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Tags</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Quick actions</th>
+                <th className="sticky right-0 z-10 w-10 bg-gray-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
               </tr>
             </thead>
-
             <tbody className="divide-y divide-gray-100">
-              {sorted.map((bill) => {
-                const selected = selectedIds.has(bill.id);
-                const status   = STATUS_CFG[bill.status];
-                const type     = TYPE_CFG[bill.type];
+              {paginated.map((bill) => {
+                const isSelected = selected.has(bill.id);
+                const status = STATUS_CFG[bill.status];
+                const type   = TYPE_CFG[bill.type];
                 return (
                   <tr
                     key={bill.id}
-                    className={[
-                      'group transition-colors',
-                      selected ? 'bg-violet-50/50' : 'hover:bg-gray-50/60',
-                    ].join(' ')}
+                    className={['transition-colors hover:bg-gray-50', isSelected ? 'bg-violet-50' : ''].join(' ')}
                   >
                     {/* Checkbox */}
-                    <td className="w-10 px-3 py-3">
+                    <td className="px-3 py-2.5">
                       <input
                         type="checkbox"
-                        checked={selected}
+                        checked={isSelected}
                         onChange={() => toggleRow(bill.id)}
-                        className="rounded border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer"
                       />
                     </td>
 
-                    {/* Status badge */}
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${status.className}`}>
+                    {/* Status */}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}>
                         {status.label}
                       </span>
                     </td>
 
-                    {/* Flag */}
-                    <td className="px-1 py-3 text-gray-300 text-xs select-none">–</td>
-
                     {/* Bill ID */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                        {bill.id}
-                      </span>
+                    <td className="px-3 py-2.5 whitespace-nowrap font-mono text-xs text-gray-600">
+                      {bill.id}
                     </td>
 
                     {/* Bill name */}
-                    <td className="px-4 py-3 max-w-[180px]">
-                      <button className="text-xs font-medium text-violet-600 hover:text-violet-800 hover:underline truncate block text-left w-full transition-colors">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <button className="text-violet-600 hover:text-violet-800 hover:underline font-medium text-sm text-left transition-colors">
                         {bill.title}
                       </button>
                     </td>
 
                     {/* Amount */}
-                    <td className="px-4 py-3 whitespace-nowrap text-right">
-                      <span className="text-xs font-semibold text-gray-900 tabular-nums">
-                        {formatPeso(bill.amount)}
-                      </span>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right text-sm font-semibold text-gray-800 tabular-nums">
+                      {formatPeso(bill.amount)}
                     </td>
 
                     {/* Bill date */}
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
                       {bill.billDate}
                     </td>
 
                     {/* Due date */}
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
                       {bill.dueDate}
                     </td>
 
                     {/* Customer */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                        <span
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[9px] font-bold shrink-0"
                           style={{ backgroundColor: bill.customerAvatarColor }}
                         >
                           {bill.customerInitials}
-                        </div>
-                        <span className="text-xs text-gray-700 truncate max-w-[130px]">{bill.customerName}</span>
+                        </span>
+                        <span className="text-sm text-gray-700 max-w-[130px] truncate">{bill.customerName}</span>
                       </div>
                     </td>
 
                     {/* Days outstanding */}
-                    <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <span className={`text-xs font-medium ${bill.daysOutstanding > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-center">
+                      <span className={bill.daysOutstanding > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
                         {bill.daysOutstanding}
                       </span>
                     </td>
 
                     {/* Link */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-violet-600 font-mono">{bill.link}</span>
+                        <span className="font-mono text-xs text-violet-600">{bill.link}</span>
                         <button
                           onClick={() => copyLink(bill.link)}
+                          className="text-gray-400 hover:text-violet-500 transition-colors"
                           title="Copy link"
-                          className="text-gray-300 hover:text-violet-500 transition-colors"
                         >
                           {copiedLink === bill.link
                             ? <LinkIcon size={12} className="text-emerald-500" />
@@ -358,35 +514,35 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                     </td>
 
                     {/* Billing type */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${type.className}`}>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${type.className}`}>
                         {type.label}
                       </span>
                     </td>
 
                     {/* Last updated at */}
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
                       {bill.lastUpdatedAt}
                     </td>
 
                     {/* Payment date */}
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                      {bill.paymentDate ?? <span className="text-gray-300">N/A</span>}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                      {bill.paymentDate ?? <span className="text-gray-400">N/A</span>}
                     </td>
 
                     {/* Payment method */}
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                      {bill.paymentMethod ?? <span className="text-gray-300">N/A</span>}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                      {bill.paymentMethod ?? <span className="text-gray-400">N/A</span>}
                     </td>
 
                     {/* Tags */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {bill.tags && bill.tags.length > 0 ? (
                         <div className="flex items-center gap-1 flex-wrap">
                           {bill.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200"
+                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 border border-gray-200"
                             >
                               <Tag size={9} />
                               {tag}
@@ -394,77 +550,74 @@ export default function ReceivablesTable({ bills, onCreateBill }: Props) {
                           ))}
                         </div>
                       ) : (
-                        <span className="text-gray-300 text-xs">—</span>
+                        <span className="text-gray-400 text-sm">—</span>
                       )}
                     </td>
 
                     {/* Quick actions */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
                         <button
                           title="Send"
-                          className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:text-violet-600 hover:border-violet-300 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
                         >
-                          <PaperPlaneTilt size={11} />
-                        </button>
-                        <button
-                          title="Duplicate"
-                          className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:text-violet-600 hover:border-violet-300 transition-colors"
-                        >
-                          <CopySimple size={11} />
+                          <PaperPlaneTilt size={14} />
                         </button>
                         <button
                           title="Mark as paid"
-                          className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 bg-white text-gray-400 hover:text-emerald-600 hover:border-emerald-300 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
                         >
-                          <CheckCircle size={11} />
+                          <CheckCircle size={14} />
                         </button>
                       </div>
+                    </td>
+
+                    {/* Kebab menu */}
+                    <td className="sticky right-0 z-10 px-2 py-2.5 bg-white [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_white]">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-500 hover:bg-gray-100 transition-colors outline-none">
+                          <DotsThreeVertical size={16} weight="bold" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem>
+                            <PaperPlaneTilt size={14} className="text-gray-400" />
+                            Send
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <CopySimple size={14} className="text-gray-400" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <CheckCircle size={14} className="text-gray-400" />
+                            Mark as paid
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem destructive>
+                            <Archive size={14} />
+                            Archive
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Row count */}
+      {/* ── Pagination ── */}
       {sorted.length > 0 && (
-        <p className="text-xs text-gray-400 pt-2">
-          Showing {sorted.length} of {bills.length} {bills.length === 1 ? 'bill' : 'bills'}
-          {selectedIds.size > 0 && ` · ${selectedIds.size} selected`}
-        </p>
+        <Pagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          perPage={perPage}
+          totalRows={sorted.length}
+          onPageChange={setCurrentPage}
+          onPerPageChange={(v) => { setPerPage(v); setCurrentPage(1); }}
+        />
       )}
     </div>
-  );
-}
-
-// ─── Sortable column header ───────────────────────────────────────────────────
-
-function SortTh({
-  label, col, current, asc, onSort, align = 'left',
-}: {
-  label: string;
-  col: SortKey;
-  current: SortKey;
-  asc: boolean;
-  onSort: (k: SortKey) => void;
-  align?: 'left' | 'right';
-}) {
-  const active = current === col;
-  return (
-    <th className={`px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'}`}>
-      <button
-        onClick={() => onSort(col)}
-        className={`inline-flex items-center gap-1 hover:text-gray-700 transition-colors ${active ? 'text-gray-700' : ''}`}
-      >
-        {label}
-        <span className="flex flex-col gap-px">
-          <ArrowUp   size={7} weight="bold" className={active && asc  ? 'text-violet-600' : 'text-gray-300'} />
-          <ArrowDown size={7} weight="bold" className={active && !asc ? 'text-violet-600' : 'text-gray-300'} />
-        </span>
-      </button>
-    </th>
   );
 }
