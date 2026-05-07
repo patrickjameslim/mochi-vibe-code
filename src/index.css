@@ -4,6 +4,49 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    /* shadcn CSS variables — mapped to the project's violet/gray palette */
+    --background:   0 0% 100%;
+    --foreground:   222 47% 11%;
+
+    --card:         0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover:      0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* violet-600 */
+    --primary:      262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    /* gray-100 */
+    --secondary:    220 14% 96%;
+    --secondary-foreground: 215 19% 27%;
+
+    /* gray-100 */
+    --muted:        220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* violet-50 */
+    --accent:       250 100% 97%;
+    --accent-foreground: 262 83% 58%;
+
+    /* red-600 */
+    --destructive:  0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* gray-200 */
+    --border:       220 13% 91%;
+    /* gray-200 */
+    --input:        220 13% 91%;
+    /* violet-400 */
+    --ring:         262 83% 71%;
+
+    --radius: 0.5rem;
+  }
+}
+
 @keyframes bannerSlideDown {
   from { transform: translateY(-100%); opacity: 0; }
   to   { transform: translateY(0);     opacity: 1; }

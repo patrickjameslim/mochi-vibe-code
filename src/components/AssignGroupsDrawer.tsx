@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { MagnifyingGlass, Plus, Check } from '@phosphor-icons/react';
 import { Sheet, SheetHeader, SheetBody, SheetFooter } from './ui/Sheet';
+import { Input } from './ui/Input';
+import { Button } from './ui/Button';
 
 const ALL_GROUPS = [
   'Metroview Axis Tower',
@@ -108,14 +110,14 @@ export default function AssignGroupsDrawer({
         <div className="relative mb-4">
           <MagnifyingGlass
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
           />
-          <input
+          <Input
             type="text"
             placeholder="Search groups…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            className="pl-9"
           />
         </div>
 
@@ -172,18 +174,12 @@ export default function AssignGroupsDrawer({
 
       <SheetFooter>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleCancel}
-            className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-          >
+          <Button variant="outline" onClick={handleCancel} className="flex-1">
             Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 rounded-lg bg-violet-600 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700"
-          >
+          </Button>
+          <Button variant="primary" onClick={handleSave} className="flex-1">
             Save changes
-          </button>
+          </Button>
         </div>
       </SheetFooter>
     </Sheet>

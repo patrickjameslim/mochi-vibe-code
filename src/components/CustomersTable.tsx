@@ -30,6 +30,7 @@ import SuccessBanner from './SuccessBanner';
 import CustomerGroupsTable from './CustomerGroupsTable';
 import { Sidebar } from './Sidebar';
 import { Sheet, SheetHeader, SheetBody } from './ui/Sheet';
+import { Badge } from './ui/Badge';
 import {
   FilePdf, FileDoc, FileXls, FileCsv, FileZip,
   File as FileIcon, ArrowSquareOut,
@@ -43,15 +44,6 @@ function Avatar({ initials, color, size = 28 }: { initials: string; color: strin
       style={{ width: size, height: size, backgroundColor: color, fontSize: size * 0.38 }}
     >
       {initials}
-    </span>
-  );
-}
-
-// ─── Customer Group Pill ──────────────────────────────────────────────────────
-function GroupPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-gray-300 text-gray-600 whitespace-nowrap">
-      {label}
     </span>
   );
 }
@@ -169,7 +161,9 @@ function GroupCell({
   return (
     <div className="flex flex-wrap gap-1 items-center">
       {visible.map((g) => (
-        <GroupPill key={g} label={g} />
+        <Badge key={g} variant="default" className="whitespace-nowrap">
+          {g}
+        </Badge>
       ))}
       {!expanded && hidden > 0 && (
         <button
