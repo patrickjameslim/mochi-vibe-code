@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ArrowsDownUp,
   Copy,
   DotsThreeVertical,
   MagnifyingGlass,
   Funnel,
-  Columns,
   CaretDown,
   Plus,
   BellSimple,
@@ -35,6 +34,35 @@ import {
   FilePdf, FileDoc, FileXls, FileCsv, FileZip,
   File as FileIcon, ArrowSquareOut,
 } from '@phosphor-icons/react';
+import ColumnManagementDrawer, { ColumnDef } from './ColumnManagementDrawer';
+import { ColumnsButton } from './ui/ColumnsButton';
+
+// ─── Column config ────────────────────────────────────────────────────────────
+
+const DEFAULT_CUSTOMER_COLS: ColumnDef[] = [
+  { id: 'customerID',      label: 'Customer ID',          visible: true,  pin: 'none' },
+  { id: 'type',            label: 'Customer type',        visible: true,  pin: 'none' },
+  { id: 'name',            label: 'Customer name',        visible: true,  pin: 'none' },
+  { id: 'email',           label: 'Customer email',       visible: true,  pin: 'none' },
+  { id: 'address',         label: 'Customer address',     visible: true,  pin: 'none' },
+  { id: 'phone',           label: 'Customer phone',       visible: true,  pin: 'none' },
+  { id: 'group',           label: 'Customer group',       visible: true,  pin: 'none' },
+  { id: 'supportingDocs',  label: 'Supporting documents', visible: true,  pin: 'none' },
+  { id: 'notes',           label: 'Notes',                visible: true,  pin: 'none' },
+  { id: 'lastUpdatedAt',   label: 'Last updated at',      visible: true,  pin: 'none' },
+  { id: 'dateCreated',     label: 'Date created',         visible: true,  pin: 'none' },
+  { id: 'quickActions',    label: 'Quick actions',        visible: true,  pin: 'none' },
+];
+
+// Approximate column widths (px) for sticky offset calculation
+const COL_WIDTH: Record<string, number> = {
+  customerID: 120, type: 130, name: 165, email: 195, address: 210,
+  phone: 145, group: 165, supportingDocs: 165, notes: 85,
+  lastUpdatedAt: 145, dateCreated: 135, quickActions: 115,
+};
+
+const CHECKBOX_W = 40;
+const KEBAB_W    = 44;
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 function Avatar({ initials, color, size = 28 }: { initials: string; color: string; size?: number }) {
@@ -74,13 +102,27 @@ function IconButton({
 }
 
 // ─── Sort Header Cell ─────────────────────────────────────────────────────────
-function SortTh({ children }: { children: React.ReactNode }) {
+function SortTh({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
+    <th
+      style={style}
+      className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em] bg-slate-50"
+    >
       <button className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors">
         {children}
         <ArrowsDownUp size={12} weight="bold" className="text-slate-400" />
       </button>
+    </th>
+  );
+}
+
+function PlainTh({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <th
+      style={style}
+      className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em] bg-slate-50"
+    >
+      {children}
     </th>
   );
 }
@@ -115,8 +157,6 @@ function Highlight({ text, query }: { text: string; query: string }) {
     </>
   );
 }
-
-// ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 // ─── Tab ─────────────────────────────────────────────────────────────────────
 function Tab({
@@ -219,6 +259,10 @@ export default function CustomersTable({
   const [perPage, setPerPage]       = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Column management
+  const [columnConfig, setColumnConfig] = useState<ColumnDef[]>(DEFAULT_CUSTOMER_COLS);
+  const [colDrawerOpen, setColDrawerOpen] = useState(false);
+
   // Notes drawer
   const [notesDrawer, setNotesDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
   // Docs viewer drawer
@@ -243,8 +287,8 @@ export default function CustomersTable({
     const ro = new ResizeObserver(sync);
     ro.observe(tableEl);
     return () => ro.disconnect();
-  }, [activeTab, perPage, currentPage]);
-  // Show incoming banner from parent (e.g. after creating a customer)
+  }, [activeTab, perPage, currentPage, columnConfig]);
+
   useEffect(() => {
     if (initialBanner) {
       setBanner(initialBanner);
@@ -252,12 +296,10 @@ export default function CustomersTable({
     }
   }, [initialBanner]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // per-customer group assignments (overrides data defaults)
   const [customerGroups, setCustomerGroups] = useState<Record<string, string[]>>(
     () => Object.fromEntries(customers.map((c) => [c.id, [c.group]]))
   );
 
-  // Merge any newly added customers into customerGroups
   useEffect(() => {
     setCustomerGroups((prev) => {
       const next = { ...prev };
@@ -269,14 +311,12 @@ export default function CustomersTable({
     });
   }, [customers]);
 
-  // Apply group override from parent (e.g. after editing in CustomerDetailPage)
   useEffect(() => {
     if (!groupOverride) return;
     setCustomerGroups((prev) => ({ ...prev, [groupOverride.id]: groupOverride.groups }));
     onGroupOverrideApplied?.();
   }, [groupOverride]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // per-row expand state for the group cell
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const q = search.trim().toLowerCase();
@@ -367,6 +407,53 @@ export default function CustomersTable({
     });
   }
 
+  // ─── Compute visible ordered columns + sticky offsets ────────────────────────
+  const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned } = useMemo(() => {
+    const leftPinned  = columnConfig.filter((c) => c.pin === 'left'  && c.visible);
+    const center      = columnConfig.filter((c) => c.pin === 'none'  && c.visible);
+    const rightPinned = columnConfig.filter((c) => c.pin === 'right' && c.visible);
+
+    const ordered = [...leftPinned, ...center, ...rightPinned];
+
+    // Compute left offsets
+    const leftOffsets: Record<string, number> = {};
+    let leftCursor = CHECKBOX_W;
+    for (const col of leftPinned) {
+      leftOffsets[col.id] = leftCursor;
+      leftCursor += COL_WIDTH[col.id] ?? 130;
+    }
+
+    // Compute right offsets (columns render left→right, rightPinned[last] is closest to kebab)
+    const rightOffsets: Record<string, number> = {};
+    let rightCursor = KEBAB_W;
+    for (let i = rightPinned.length - 1; i >= 0; i--) {
+      rightOffsets[rightPinned[i].id] = rightCursor;
+      rightCursor += COL_WIDTH[rightPinned[i].id] ?? 130;
+    }
+
+    const lastLeftId   = leftPinned.length > 0 ? leftPinned[leftPinned.length - 1].id : null;
+    const firstRightId = rightPinned.length > 0 ? rightPinned[0].id : null;
+    const SEP_R = { borderRight: '1px solid #d1d5db' };
+    const SEP_L = { borderLeft:  '1px solid #d1d5db' };
+
+    function colHeaderStyle(id: string): React.CSSProperties {
+      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 2, backgroundColor: '#f8fafc', ...(id === lastLeftId   ? SEP_R : {}) };
+      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 2, backgroundColor: '#f8fafc', ...(id === firstRightId ? SEP_L : {}) };
+      return {};
+    }
+
+    function colCellStyle(id: string): React.CSSProperties {
+      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 1, ...(id === lastLeftId   ? SEP_R : {}) };
+      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 1, ...(id === firstRightId ? SEP_L : {}) };
+      return {};
+    }
+
+    return { visibleCols: ordered, colHeaderStyle, colCellStyle, hasLeftPinned: leftPinned.length > 0, hasRightPinned: rightPinned.length > 0 };
+  }, [columnConfig]);
+
+  // Count active pins/hidden for button badge
+  const activeColChanges = columnConfig.filter((c) => !c.visible || c.pin !== 'none').length;
+
   return (
     <TooltipProvider>
       <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -375,7 +462,7 @@ export default function CustomersTable({
         {/* Main content */}
         <div className="flex-1 overflow-auto">
           {/* Top bar */}
-          <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
+          <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
             <nav className="flex items-center gap-1.5 text-sm text-slate-500">
               <span>Dashboard</span>
               <CaretRight size={12} />
@@ -469,10 +556,10 @@ export default function CustomersTable({
                     <ArrowsDownUp size={14} />
                     Last updated at
                   </button>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                    <Columns size={14} />
-                    Columns
-                  </button>
+                  <ColumnsButton
+                    onClick={() => setColDrawerOpen(true)}
+                    activeChanges={activeColChanges}
+                  />
                 </div>
               </div>
 
@@ -496,7 +583,7 @@ export default function CustomersTable({
                 </>
               ) : (
                 <>
-                  {/* ── Customers table (All / Individual / Organization) ── */}
+                  {/* ── Customers table ── */}
                   <div
                     ref={tableScrollRef}
                     className="overflow-x-auto"
@@ -505,10 +592,10 @@ export default function CustomersTable({
                         topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
                     }}
                   >
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm" style={{ borderSpacing: 0 }}>
                       <thead className="bg-slate-50 border-b border-slate-100">
                         <tr>
-                          <th className="w-10 px-3 py-2.5">
+                          <th className="sticky left-0 z-[3] w-10 px-3 py-2.5 bg-slate-50" style={!hasLeftPinned ? { borderRight: '1px solid #d1d5db' } : undefined}>
                             <input
                               type="checkbox"
                               checked={allChecked}
@@ -519,23 +606,22 @@ export default function CustomersTable({
                               className="w-4 h-4 rounded border-slate-300 accent-violet-600 cursor-pointer"
                             />
                           </th>
-                          <SortTh>Customer ID</SortTh>
-                          <SortTh>Customer type</SortTh>
-                          <SortTh>Customer name</SortTh>
-                          <SortTh>Customer email</SortTh>
-                          <SortTh>Customer address</SortTh>
-                          <SortTh>Customer phone number</SortTh>
-                          <SortTh>Customer group</SortTh>
-                          <SortTh>Supporting documents</SortTh>
-                          <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 tracking-[0.06em]">
-                            Notes
-                          </th>
-                          <SortTh>Last updated at</SortTh>
-                          <SortTh>Date created</SortTh>
-                          <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
-                            Quick actions
-                          </th>
-                          <th className="sticky right-0 z-10 w-10 bg-slate-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
+                          {visibleCols.map((col) => {
+                            const style = colHeaderStyle(col.id);
+                            const isPinned = !!style.position;
+                            return col.id === 'notes' || col.id === 'quickActions' ? (
+                              <PlainTh key={col.id} style={style}>
+                                {isPinned && <PinIndicator />}
+                                {col.label}
+                              </PlainTh>
+                            ) : (
+                              <SortTh key={col.id} style={style}>
+                                {isPinned && <PinIndicator />}
+                                {col.label}
+                              </SortTh>
+                            );
+                          })}
+                          <th className="sticky right-0 z-[3] w-10 bg-slate-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -544,6 +630,9 @@ export default function CustomersTable({
                             key={customer.id}
                             customer={customer}
                             groups={customerGroups[customer.id] ?? [customer.group]}
+                            visibleCols={visibleCols}
+                            colStyle={colCellStyle}
+                            checkboxSeparator={!hasLeftPinned}
                             isExpanded={expandedRows.has(customer.id)}
                             isSelected={selected.has(customer.id)}
                             query={q}
@@ -614,8 +703,23 @@ export default function CustomersTable({
             {docsDrawer.customer && <DocsViewer customer={docsDrawer.customer} />}
           </SheetBody>
         </Sheet>
+
+        {/* Column Management Drawer */}
+        <ColumnManagementDrawer
+          open={colDrawerOpen}
+          onClose={() => setColDrawerOpen(false)}
+          columns={columnConfig}
+          onChange={setColumnConfig}
+        />
       </div>
     </TooltipProvider>
+  );
+}
+
+// ─── Pin indicator ────────────────────────────────────────────────────────────
+function PinIndicator() {
+  return (
+    <span className="inline-block w-1 h-3 rounded-sm bg-violet-400 mr-1 opacity-70 shrink-0" />
   );
 }
 
@@ -633,7 +737,6 @@ function DocFileIcon({ name }: { name: string }) {
 function DocsViewer({ customer }: { customer: Customer }) {
   const [lightbox, setLightbox] = useState<SupportingDocFile | null>(null);
 
-  // Real uploaded files take priority; fall back to name-only legacy list
   const hasRealFiles = (customer.supportingDocumentFiles?.length ?? 0) > 0;
 
   if (!hasRealFiles && customer.supportingDocuments.length === 0) {
@@ -651,7 +754,6 @@ function DocsViewer({ customer }: { customer: Customer }) {
         {hasRealFiles
           ? customer.supportingDocumentFiles!.map((doc) => (
               <li key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 group">
-                {/* Thumbnail or icon */}
                 <div className="w-11 h-11 shrink-0 rounded-lg border border-slate-200 bg-white overflow-hidden flex items-center justify-center">
                   {doc.isImage
                     ? <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
@@ -684,7 +786,6 @@ function DocsViewer({ customer }: { customer: Customer }) {
             ))}
       </ul>
 
-      {/* Image lightbox */}
       {lightbox && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
@@ -709,16 +810,10 @@ function DocsViewer({ customer }: { customer: Customer }) {
   );
 }
 
-// ─── Per-page dropdown (opens upward) ────────────────────────────────────────
+// ─── Per-page dropdown ────────────────────────────────────────────────────────
 const PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
-function PerPageDropdown({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
+function PerPageDropdown({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -737,12 +832,8 @@ function PerPageDropdown({
         className="inline-flex items-center gap-1 px-2 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50 transition-colors"
       >
         {value}
-        <CaretDown
-          size={12}
-          className={['transition-transform duration-150', open ? 'rotate-180' : ''].join(' ')}
-        />
+        <CaretDown size={12} className={['transition-transform duration-150', open ? 'rotate-180' : ''].join(' ')} />
       </button>
-
       {open && (
         <div className="absolute bottom-full mb-1 left-0 z-20 min-w-[72px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           {PER_PAGE_OPTIONS.map((opt) => (
@@ -751,9 +842,7 @@ function PerPageDropdown({
               onClick={() => { onChange(opt); setOpen(false); }}
               className={[
                 'w-full px-3 py-1.5 text-left text-sm transition-colors',
-                opt === value
-                  ? 'bg-violet-50 text-violet-700 font-medium'
-                  : 'text-slate-700 hover:bg-slate-50',
+                opt === value ? 'bg-violet-50 text-violet-700 font-medium' : 'text-slate-700 hover:bg-slate-50',
               ].join(' ')}
             >
               {opt}
@@ -765,7 +854,7 @@ function PerPageDropdown({
   );
 }
 
-// ─── Page number helper ───────────────────────────────────────────────────────
+// ─── Pagination helpers ───────────────────────────────────────────────────────
 function getPageNumbers(current: number, total: number): (number | '…')[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
@@ -773,21 +862,11 @@ function getPageNumbers(current: number, total: number): (number | '…')[] {
   return [1, '…', current - 1, current, current + 1, '…', total];
 }
 
-// ─── Pagination ───────────────────────────────────────────────────────────────
 function Pagination({
-  currentPage,
-  totalPages,
-  perPage,
-  totalRows,
-  onPageChange,
-  onPerPageChange,
+  currentPage, totalPages, perPage, totalRows, onPageChange, onPerPageChange,
 }: {
-  currentPage: number;
-  totalPages: number;
-  perPage: number;
-  totalRows: number;
-  onPageChange: (p: number) => void;
-  onPerPageChange: (v: number) => void;
+  currentPage: number; totalPages: number; perPage: number; totalRows: number;
+  onPageChange: (p: number) => void; onPerPageChange: (v: number) => void;
 }) {
   const pages = getPageNumbers(currentPage, totalPages);
   const start = (currentPage - 1) * perPage + 1;
@@ -801,7 +880,6 @@ function Pagination({
         <span>per page</span>
         <span className="ml-2 text-slate-400">· {start}–{end} of {totalRows}</span>
       </div>
-
       <div className="flex items-center gap-1 text-sm">
         <button
           disabled={currentPage === 1}
@@ -810,12 +888,9 @@ function Pagination({
         >
           Previous
         </button>
-
         {pages.map((p, i) =>
           p === '…' ? (
-            <span key={`ellipsis-${i}`} className="w-8 text-center text-slate-400 text-sm">
-              …
-            </span>
+            <span key={`e-${i}`} className="w-8 text-center text-slate-400 text-sm">…</span>
           ) : (
             <button
               key={p}
@@ -831,7 +906,6 @@ function Pagination({
             </button>
           )
         )}
-
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
@@ -848,6 +922,9 @@ function Pagination({
 function CustomerRow({
   customer,
   groups,
+  visibleCols,
+  colStyle,
+  checkboxSeparator,
   isSelected,
   isExpanded,
   query = '',
@@ -861,6 +938,9 @@ function CustomerRow({
 }: {
   customer: Customer;
   groups: string[];
+  visibleCols: ColumnDef[];
+  colStyle: (id: string) => React.CSSProperties;
+  checkboxSeparator: boolean;
   isSelected: boolean;
   isExpanded: boolean;
   query?: string;
@@ -872,10 +952,125 @@ function CustomerRow({
   onEdit?: () => void;
   onView?: () => void;
 }) {
+  const rowBg = isSelected ? '#f5f3ff' : '#ffffff';
+
+  function renderCell(col: ColumnDef) {
+    const style = { ...colStyle(col.id), backgroundColor: rowBg };
+
+    switch (col.id) {
+      case 'customerID':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-700 font-mono text-xs whitespace-nowrap">
+            <Highlight text={customer.id} query={query} />
+          </td>
+        );
+      case 'type':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+            <Highlight text={customer.type} query={query} />
+          </td>
+        );
+      case 'name':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
+            <div className="flex items-center gap-2">
+              <Avatar initials={customer.avatarInitials} color={customer.avatarColor} size={26} />
+              <button
+                onClick={onView}
+                className="text-violet-600 hover:text-violet-800 hover:underline font-medium text-sm text-left"
+              >
+                <Highlight text={customer.name} query={query} />
+              </button>
+            </div>
+          </td>
+        );
+      case 'email':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
+            <Highlight text={customer.email} query={query} />
+          </td>
+        );
+      case 'address':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-600 text-sm max-w-[200px]">
+            <Tooltip content={customer.address} wide>
+              <span className="line-clamp-2 leading-snug cursor-default">
+                <Highlight text={customer.address} query={query} />
+              </span>
+            </Tooltip>
+          </td>
+        );
+      case 'phone':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
+            <Highlight text={customer.phoneNumber} query={query} />
+          </td>
+        );
+      case 'group':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5">
+            <GroupCell groups={groups} expanded={isExpanded} onToggleExpand={onToggleExpand} />
+          </td>
+        );
+      case 'supportingDocs':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5">
+            <div className="flex flex-col gap-0.5">
+              {customer.supportingDocuments.map((doc, i) => (
+                <button
+                  key={i}
+                  onClick={onViewDocs}
+                  className="text-violet-600 hover:text-violet-800 hover:underline text-sm text-left"
+                >
+                  {doc}
+                </button>
+              ))}
+            </div>
+          </td>
+        );
+      case 'notes':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-center">
+            <Tooltip content="View notes">
+              <IconButton onClick={onViewNotes}>
+                <Notepad size={15} />
+              </IconButton>
+            </Tooltip>
+          </td>
+        );
+      case 'lastUpdatedAt':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
+            {customer.lastUpdatedAt}
+          </td>
+        );
+      case 'dateCreated':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
+            {customer.dateCreated}
+          </td>
+        );
+      case 'quickActions':
+        return (
+          <td key={col.id} style={style} className="px-3 py-2.5">
+            <div className="flex items-center gap-1.5">
+              <Tooltip content="Duplicate">
+                <IconButton>
+                  <Copy size={15} />
+                </IconButton>
+              </Tooltip>
+            </div>
+          </td>
+        );
+      default:
+        return null;
+    }
+  }
+
   return (
     <tr className={['transition-colors hover:bg-slate-50', isSelected ? 'bg-violet-50' : ''].join(' ')}>
-      {/* Checkbox */}
-      <td className="px-3 py-2.5">
+      {/* Checkbox — always first, frozen left */}
+      <td className="sticky left-0 z-[2] px-3 py-2.5" style={{ backgroundColor: rowBg, ...(checkboxSeparator ? { borderRight: '1px solid #d1d5db' } : {}) }}>
         <input
           type="checkbox"
           checked={isSelected}
@@ -884,104 +1079,11 @@ function CustomerRow({
         />
       </td>
 
-      {/* Customer ID */}
-      <td className="px-3 py-2.5 text-slate-700 font-mono text-xs whitespace-nowrap">
-        <Highlight text={customer.id} query={query} />
-      </td>
+      {/* Dynamic columns */}
+      {visibleCols.map((col) => renderCell(col))}
 
-      {/* Customer type */}
-      <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
-        <Highlight text={customer.type} query={query} />
-      </td>
-
-      {/* Customer name */}
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          <Avatar initials={customer.avatarInitials} color={customer.avatarColor} size={26} />
-          <button
-            onClick={onView}
-            className="text-violet-600 hover:text-violet-800 hover:underline font-medium text-sm text-left"
-          >
-            <Highlight text={customer.name} query={query} />
-          </button>
-        </div>
-      </td>
-
-      {/* Email */}
-      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
-        <Highlight text={customer.email} query={query} />
-      </td>
-
-      {/* Address */}
-      <td className="px-3 py-2.5 text-slate-600 text-sm max-w-[200px]">
-        <Tooltip content={customer.address} wide>
-          <span className="line-clamp-2 leading-snug cursor-default">
-            <Highlight text={customer.address} query={query} />
-          </span>
-        </Tooltip>
-      </td>
-
-      {/* Phone */}
-      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
-        <Highlight text={customer.phoneNumber} query={query} />
-      </td>
-
-      {/* Group */}
-      <td className="px-3 py-2.5">
-        <GroupCell
-          groups={groups}
-          expanded={isExpanded}
-          onToggleExpand={onToggleExpand}
-        />
-      </td>
-
-      {/* Supporting documents */}
-      <td className="px-3 py-2.5">
-        <div className="flex flex-col gap-0.5">
-          {customer.supportingDocuments.map((doc, i) => (
-            <button
-              key={i}
-              onClick={onViewDocs}
-              className="text-violet-600 hover:text-violet-800 hover:underline text-sm text-left"
-            >
-              {doc}
-            </button>
-          ))}
-        </div>
-      </td>
-
-      {/* Notes */}
-      <td className="px-3 py-2.5 text-center">
-        <Tooltip content="View notes">
-          <IconButton onClick={onViewNotes}>
-            <Notepad size={15} />
-          </IconButton>
-        </Tooltip>
-      </td>
-
-      {/* Last updated at */}
-      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
-        {customer.lastUpdatedAt}
-      </td>
-
-      {/* Date created */}
-      <td className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
-        {customer.dateCreated}
-      </td>
-
-      {/* Quick actions */}
-      <td className="px-3 py-2.5">
-        <div className="flex items-center gap-1.5">
-          <Tooltip content="Duplicate">
-            <IconButton>
-              <Copy size={15} />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </td>
-
-      {/* Kebab menu */}
-      <td className="sticky right-0 z-10 px-2 py-2.5 bg-white [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_white]">
+      {/* Kebab — always last */}
+      <td className="sticky right-0 z-[2] px-2 py-2.5 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_white]" style={{ backgroundColor: rowBg }}>
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-500 hover:bg-slate-100 transition-colors outline-none">
             <DotsThreeVertical size={16} weight="bold" />
