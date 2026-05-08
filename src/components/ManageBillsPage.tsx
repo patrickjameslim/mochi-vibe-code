@@ -14,7 +14,7 @@ export default function ManageBillsPage() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ── Header ── */}
-        <header className="shrink-0 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
+        <header className="shrink-0 relative z-10 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
           <nav className="flex items-center gap-1.5 text-sm text-slate-500">
             <span>Dashboard</span>
             <CaretRight size={12} />
