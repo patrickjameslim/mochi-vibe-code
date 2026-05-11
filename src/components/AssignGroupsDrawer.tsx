@@ -70,6 +70,10 @@ export default function AssignGroupsDrawer({
   }
 
   const noResults = filtered.length === 0;
+  const trimmedSearch = search.trim();
+  const canCreate =
+    trimmedSearch !== '' &&
+    !groups.some((g) => g.toLowerCase() === trimmedSearch.toLowerCase());
 
   return (
     <Sheet open={open} onClose={handleCancel}>
@@ -168,6 +172,17 @@ export default function AssignGroupsDrawer({
                 onToggle={() => toggle(group)}
               />
             ))}
+
+            {/* Inline create option when search has no exact match */}
+            {canCreate && (
+              <button
+                onClick={createGroup}
+                className="flex w-full items-center gap-3 rounded-lg border border-dashed border-violet-300 px-3 py-2.5 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-50"
+              >
+                <Plus size={14} weight="bold" className="shrink-0" />
+                <span>Create &ldquo;{trimmedSearch}&rdquo;</span>
+              </button>
+            )}
           </div>
         )}
       </SheetBody>
