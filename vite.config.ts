@@ -9,5 +9,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+  },
+  server: {
+    port: process.env.PORT ? parseInt(process.env.PORT) : 5174,
+    strictPort: false,
   },
 });
