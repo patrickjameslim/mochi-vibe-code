@@ -23,7 +23,8 @@ import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
 import { Separator } from './ui/Separator';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
-import { Customer } from '../data/customers';
+import { Customer, CUSTOMERS } from '../data/customers';
+import SelectCustomerDrawer from './SelectCustomerDrawer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,8 +69,11 @@ interface Props {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function CreateBillPage({ customer, onBack, onViewCustomer }: Props) {
+export default function CreateBillPage({ customer: customerProp, onBack, onViewCustomer }: Props) {
   const [activeView, setActiveView] = useState<'build' | 'preview'>('build');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>(CUSTOMERS);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(customerProp ?? null);
   const [tipDismissed, setTipDismissed] = useState(false);
   const [billingType, setBillingType] = useState<BillingType>('one-time');
   const [billDate, setBillDate] = useState('');
@@ -311,17 +315,22 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">To</p>
-                    <button className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors">
-                      Change
-                    </button>
+                    {selectedCustomer && (
+                      <button
+                        onClick={() => setPickerOpen(true)}
+                        className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
+                      >
+                        Change
+                      </button>
+                    )}
                   </div>
-                  {customer ? (
+                  {selectedCustomer ? (
                     <div className="flex items-start gap-2">
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-white text-xs font-bold"
-                        style={{ backgroundColor: customer.avatarColor }}
+                        style={{ backgroundColor: selectedCustomer.avatarColor }}
                       >
-                        {customer.avatarInitials}
+                        {selectedCustomer.avatarInitials}
                       </div>
                       <div>
                         <button
@@ -329,14 +338,17 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
                           onClick={() => onViewCustomer?.()}
                           className="text-sm font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors text-left"
                         >
-                          {customer.name}
+                          {selectedCustomer.name}
                         </button>
-                        <p className="text-xs text-slate-500 mt-0.5">{customer.email}</p>
-                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{customer.address}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{selectedCustomer.email}</p>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{selectedCustomer.address}</p>
                       </div>
                     </div>
                   ) : (
-                    <button className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-400 hover:border-violet-400 hover:text-violet-600 transition-colors">
+                    <button
+                      onClick={() => setPickerOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-400 hover:border-violet-400 hover:text-violet-600 transition-colors"
+                    >
                       <Plus size={12} weight="bold" />
                       Select a customer
                     </button>
@@ -627,6 +639,18 @@ export default function CreateBillPage({ customer, onBack, onViewCustomer }: Pro
           <Button variant="primary">Send now</Button>
         </div>
       </div>
+
+      {/* ── Customer picker drawer ── */}
+      <SelectCustomerDrawer
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        customers={customers}
+        onSelect={(c) => {
+          setSelectedCustomer(c);
+          setPickerOpen(false);
+        }}
+        onNewCustomer={(c) => setCustomers((prev) => [c, ...prev])}
+      />
     </div>
   );
 }

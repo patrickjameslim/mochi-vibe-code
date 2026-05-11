@@ -31,6 +31,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import { Separator } from './ui/Separator';
+import { formatPHPhone } from '../utils/phoneFormat';
 import { Customer, SupportingDocFile } from '../data/customers';
 import { getBillsByCustomer } from '../data/bills';
 import ReceivablesTable from './ReceivablesTable';
@@ -101,7 +102,7 @@ export default function CustomerDetailPage({
   // Editable fields
   const [name, setName] = useState(customer.name);
   const [email, setEmail] = useState(customer.email);
-  const [phone, setPhone] = useState(customer.phoneNumber);
+  const [phone, setPhone] = useState(formatPHPhone(customer.phoneNumber));
   const [address, setAddress] = useState(customer.address);
   const [tin, setTin] = useState(customer.tin ?? '');
   const [paymentMethod, setPaymentMethod] = useState(customer.paymentMethod ?? '');
@@ -143,7 +144,7 @@ export default function CustomerDetailPage({
   function cancelEdit() {
     setName(customer.name);
     setEmail(customer.email);
-    setPhone(customer.phoneNumber);
+    setPhone(formatPHPhone(customer.phoneNumber));
     setAddress(customer.address);
     setTin(customer.tin ?? '');
     setPaymentMethod(customer.paymentMethod ?? '');
@@ -403,8 +404,8 @@ export default function CustomerDetailPage({
                             />
                             <Input
                               value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              placeholder="Phone number"
+                              onChange={(e) => setPhone(formatPHPhone(e.target.value))}
+                              placeholder="+63 9XX XXX XXXX"
                               type="tel"
                             />
                           </div>

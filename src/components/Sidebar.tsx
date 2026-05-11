@@ -134,16 +134,16 @@ export function Sidebar() {
         {billingOpen && (
           <div className="space-y-0.5">
             <SubNavItem
-              icon={<Plus size={12} weight="bold" />}
-              label="Create bill"
-              active={currentPage === 'bill'}
-              onClick={() => navigate('bill')}
-            />
-            <SubNavItem
               icon={<ListBullets size={12} />}
               label="Manage bills"
               active={currentPage === 'manage-bills'}
               onClick={() => navigate('manage-bills')}
+            />
+            <SubNavItem
+              icon={<Plus size={12} weight="bold" />}
+              label="Create bill"
+              active={currentPage === 'bill'}
+              onClick={() => navigate('bill')}
             />
           </div>
         )}
