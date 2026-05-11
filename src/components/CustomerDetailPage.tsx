@@ -17,8 +17,6 @@ import {
   File as FileIcon,
   User,
   Buildings,
-  ChartLine,
-  CreditCard,
   UsersThree,
 } from '@phosphor-icons/react';
 import { Sidebar } from './Sidebar';
@@ -35,6 +33,7 @@ import { formatPHPhone } from '../utils/phoneFormat';
 import { Customer, SupportingDocFile } from '../data/customers';
 import { getBillsByCustomer } from '../data/bills';
 import ReceivablesTable from './ReceivablesTable';
+import CustomerReportsTab from './CustomerReportsTab';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -761,13 +760,7 @@ export default function CustomerDetailPage({
           {/* ── Reports tab ── */}
           <TabsContent value="Reports" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
             <div className="max-w-6xl mx-auto">
-              <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-1">
-                  <ChartLine size={24} className="text-slate-300" />
-                </div>
-                <h3 className="text-base font-semibold text-slate-600">Reports</h3>
-                <p className="text-sm text-slate-400">This section is coming soon.</p>
-              </Card>
+              <CustomerReportsTab />
             </div>
           </TabsContent>
 

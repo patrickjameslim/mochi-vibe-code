@@ -37,6 +37,7 @@ import { Tooltip, TooltipProvider, TooltipRoot, TooltipTrigger, TooltipContent }
 import { Customer, SupportingDocFile } from '../data/customers';
 import { getBillsByCustomer } from '../data/bills';
 import ReceivablesTable from './ReceivablesTable';
+import CustomerReportsTab from './CustomerReportsTab';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -473,18 +474,10 @@ export default function CustomerViewPage({ customer, groups, onBack, onEdit, onC
             </div>
           </TabsContent>
 
-          {/* ── Reports tab (placeholder) ── */}
+          {/* ── Reports tab ── */}
           <TabsContent value="Reports" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
-            <div className="max-w-5xl mx-auto">
-              <Card>
-                <CardContent className="p-16 flex flex-col items-center justify-center text-center">
-                  <FileIcon size={40} className="text-slate-200 mb-3" />
-                  <p className="text-slate-500 font-medium">Reports coming soon</p>
-                  <p className="text-sm text-slate-400 mt-1">
-                    Customer-specific reports and analytics will appear here.
-                  </p>
-                </CardContent>
-              </Card>
+            <div className="max-w-6xl mx-auto">
+              <CustomerReportsTab />
             </div>
           </TabsContent>
         </Tabs>
