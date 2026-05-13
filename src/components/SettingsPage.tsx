@@ -793,8 +793,8 @@ function PlaceholderContent({ label }: { label: string }) {
 
 function SaveBar({ onSave, onDiscard }: { onSave: () => void; onDiscard: () => void }) {
   return (
-    <div className="fixed bottom-0 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] z-10">
-      <div className="max-w-3xl mx-auto px-6 py-3.5 flex items-center justify-between">
+    <div className="shrink-0 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] z-10">
+      <div className="w-full px-6 py-3.5 flex items-center justify-between">
         <p className="text-sm text-slate-600 flex items-center gap-2">
           <span className="inline-block w-2 h-2 rounded-full bg-amber-400 shrink-0" />
           You have unsaved changes
@@ -1018,8 +1018,10 @@ export default function SettingsPage() {
           </nav>
 
           {/* Main content */}
-          <main className="flex-1 overflow-y-auto bg-slate-50">
-            {renderContent()}
+          <main className="flex-1 flex flex-col bg-slate-50">
+            <div className="flex-1 overflow-y-auto">
+              {renderContent()}
+            </div>
             {hasPendingChanges && (
               <SaveBar onSave={handleSave} onDiscard={handleDiscard} />
             )}
