@@ -54,6 +54,7 @@ type SettingsSection =
 interface FieldRow {
   id: string;
   label: string;
+  helperText?: string;
   type: string;
   required: boolean;
   visible: boolean;
@@ -203,13 +204,25 @@ function FieldRowItem({
         className="text-slate-300 w-4 shrink-0 cursor-grab group-hover:text-slate-400 transition-colors"
       />
 
-      {/* Field name — editable for all fields */}
-      <input
-        type="text"
-        value={field.label}
-        onChange={e => onUpdate(field.id, 'label', e.target.value)}
-        className="flex-1 min-w-0 text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
-      />
+      {/* Field name + helper text */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
+        <input
+          type="text"
+          value={field.label}
+          onChange={e => onUpdate(field.id, 'label', e.target.value)}
+          placeholder="Column name"
+          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
+        />
+        {!field.isSystem && (
+          <input
+            type="text"
+            value={field.helperText ?? ''}
+            onChange={e => onUpdate(field.id, 'helperText', e.target.value)}
+            placeholder="Helper text (optional)"
+            className="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-500 bg-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
+          />
+        )}
+      </div>
 
       {/* Field type — disabled for system fields */}
       <div className="w-32 shrink-0">
@@ -323,6 +336,8 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
     'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white ' +
     'text-slate-800 placeholder:text-slate-400 cursor-default focus:outline-none';
 
+  const ph = (fallback: string) => field.helperText || fallback;
+
   switch (field.type) {
     case 'Text':
     case 'Email':
@@ -331,12 +346,12 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
         <input
           readOnly
           type={field.type.toLowerCase()}
-          placeholder={`Enter ${field.label.toLowerCase()}`}
+          placeholder={ph(`Enter ${field.label.toLowerCase()}`)}
           className={base}
         />
       );
     case 'Number':
-      return <input readOnly type="number" placeholder="0" className={base} />;
+      return <input readOnly type="number" placeholder={ph('0')} className={base} />;
     case 'Date':
       return <input readOnly type="date" className={cn(base, 'text-slate-400')} />;
     case 'Textarea':
@@ -344,7 +359,7 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
         <textarea
           readOnly
           rows={3}
-          placeholder={`Enter ${field.label.toLowerCase()}`}
+          placeholder={ph(`Enter ${field.label.toLowerCase()}`)}
           className={cn(base, 'resize-none')}
         />
       );
@@ -715,12 +730,17 @@ function CustomerFormContent({
               Preview
             </button>
           </div>
-          {viewMode === 'build' && (
-            <Button variant="primary" size="md" onClick={onAddCustomField}>
-              <Plus size={14} weight="bold" />
-              Add custom field
-            </Button>
-          )}
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => {
+              if (viewMode === 'preview') setViewMode('build');
+              onAddCustomField();
+            }}
+          >
+            <Plus size={14} weight="bold" />
+            Add custom field
+          </Button>
         </div>
       </div>
 
@@ -883,6 +903,7 @@ export default function SettingsPage() {
       {
         id: `custom-${_customFieldCounter}`,
         label: 'New field',
+        helperText: '',
         type: 'Text',
         required: false,
         visible: true,
