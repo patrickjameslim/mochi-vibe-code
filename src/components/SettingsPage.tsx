@@ -911,7 +911,7 @@ function CustomerFormContent({
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
         {/* Left — title */}
         <div className="min-w-0">
-          <h1 className="text-base font-semibold text-slate-900">Customer form</h1>
+          <h1 className="text-base font-semibold text-slate-900">Customer</h1>
           <p className="text-sm text-slate-500">Configure the fields shown in the customer creation form.</p>
         </div>
 
@@ -1166,8 +1166,8 @@ export default function SettingsPage() {
     'receiving-accounts':  ['Settings', 'Receiving Accounts'],
     'bir-invoicing':       ['Settings', 'BIR Invoicing Registration'],
     'template-library':    ['Settings', 'Template Library'],
-    'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer form'],
-    'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills fields'],
+    'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
+    'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
     'payment-portal':      ['Settings', 'Payment Portal'],
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
@@ -1179,8 +1179,8 @@ export default function SettingsPage() {
     'receiving-accounts':  'Receiving Accounts',
     'bir-invoicing':       'BIR Invoicing Registration',
     'template-library':    'Template Library',
-    'custom-fields-form':  'Customer form',
-    'custom-fields-bills': 'Bills fields',
+    'custom-fields-form':  'Customer',
+    'custom-fields-bills': 'Bills',
     'payment-portal':      'Payment Portal',
     'disbursements':       'Disbursements',
     'users':               'Users',
@@ -1262,8 +1262,8 @@ export default function SettingsPage() {
             </button>
             {customFieldsOpen && (
               <>
-                <SecSubNavItem label="Customer form" active={activeSection === 'custom-fields-form'}  onClick={() => setActiveSection('custom-fields-form')} />
-                <SecSubNavItem label="Bills fields"  active={activeSection === 'custom-fields-bills'} onClick={() => setActiveSection('custom-fields-bills')} />
+                <SecSubNavItem label="Customer" active={activeSection === 'custom-fields-form'}  onClick={() => setActiveSection('custom-fields-form')} />
+                <SecSubNavItem label="Bills"    active={activeSection === 'custom-fields-bills'} onClick={() => setActiveSection('custom-fields-bills')} />
               </>
             )}
 
