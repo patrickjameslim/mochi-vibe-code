@@ -545,16 +545,7 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
         />
       );
     case 'Toggle':
-      return (
-        <div className="flex gap-2 mt-0.5">
-          <span className="px-4 py-2 text-sm rounded-lg border border-violet-300 bg-violet-50 text-violet-700 font-medium">
-            Individual
-          </span>
-          <span className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-500">
-            Business
-          </span>
-        </div>
-      );
+      return <Switch checked={false} onChange={() => {}} />;
     case 'Radio':
       return (
         <div className="flex gap-5 mt-1">
