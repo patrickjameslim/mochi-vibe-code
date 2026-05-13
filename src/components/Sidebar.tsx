@@ -83,7 +83,7 @@ function SubNavItem({
     <button
       onClick={onClick}
       className={[
-        'w-full flex items-center gap-2 pl-9 pr-3 py-1.5 rounded-lg text-xs transition-colors',
+        'w-full flex items-center gap-2 pl-9 pr-3 py-1.5 rounded-lg text-sm transition-colors',
         active
           ? 'bg-violet-50 text-violet-700 font-medium'
           : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
@@ -153,7 +153,12 @@ export function Sidebar() {
         <NavItem icon={<FileText size={18} />}    label="Forms" />
         <NavItem icon={<ChartLine size={18} />}   label="Reports" />
         <NavItem icon={<Graph size={18} />}       label="Workflows" />
-        <NavItem icon={<Gear size={18} />}        label="Settings" />
+        <NavItem
+          icon={<Gear size={18} />}
+          label="Settings"
+          active={currentPage === 'settings'}
+          onClick={() => navigate('settings')}
+        />
       </nav>
 
       <div className="border-t border-slate-100 px-3 py-3 flex items-center gap-2">

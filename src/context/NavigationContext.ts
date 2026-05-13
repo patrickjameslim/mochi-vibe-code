@@ -6,7 +6,8 @@ export type AppPage =
   | 'detail'
   | 'view'
   | 'bill'
-  | 'manage-bills';
+  | 'manage-bills'
+  | 'settings';
 
 interface NavContext {
   currentPage: AppPage;

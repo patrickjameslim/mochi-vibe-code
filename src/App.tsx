@@ -8,6 +8,7 @@ import CustomerDetailPage from './components/CustomerDetailPage';
 import CustomerViewPage from './components/CustomerViewPage';
 import CreateBillPage from './components/CreateBillPage';
 import ManageBillsPage from './components/ManageBillsPage';
+import SettingsPage from './components/SettingsPage';
 
 function App() {
   const [page, setPage] = useState<AppPage>('list');
@@ -110,6 +111,10 @@ function App() {
 
     if (page === 'manage-bills') {
       return <ManageBillsPage />;
+    }
+
+    if (page === 'settings') {
+      return <SettingsPage />;
     }
 
     // Default: customers list
