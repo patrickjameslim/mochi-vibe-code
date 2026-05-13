@@ -28,6 +28,7 @@ export interface Customer {
   notes?: string;
   lastUpdatedAt: string;
   dateCreated: string;
+  customFieldValues?: Record<string, unknown>;
 }
 
 export const CUSTOMERS: Customer[] = [

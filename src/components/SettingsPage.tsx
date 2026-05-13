@@ -1,5 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useCustomFields } from '../context/CustomFieldsContext';
+import {
   BellSimple,
   CaretRight,
   CaretDown,
@@ -192,12 +208,16 @@ function FieldRowItem({
   onDelete,
   isDirty = false,
   isNew = false,
+  dragHandleListeners,
+  dragHandleAttributes,
 }: {
   field: FieldRow;
   onUpdate: (id: string, key: keyof FieldRow, value: unknown) => void;
   onDelete: (id: string) => void;
   isDirty?: boolean;
   isNew?: boolean;
+  dragHandleListeners?: Record<string, unknown>;
+  dragHandleAttributes?: Record<string, unknown>;
 }) {
   const isSelectType = field.type === 'Select' || field.type === 'Multi-select';
   const showOptionsEditor = isSelectType && !field.isSystem;
@@ -231,10 +251,16 @@ function FieldRowItem({
         isNew && 'hover:bg-violet-50/70',
         !isDirty && !isNew && 'hover:bg-slate-50/50',
       )}>
-        <DotsSixVertical
-          size={15}
-          className="text-slate-300 w-4 shrink-0 cursor-grab group-hover:text-slate-400 transition-colors"
-        />
+        <span
+          {...dragHandleListeners}
+          {...dragHandleAttributes}
+          className={cn(
+            'w-4 shrink-0 flex items-center text-slate-300 transition-colors group-hover:text-slate-400',
+            dragHandleListeners ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+          )}
+        >
+          <DotsSixVertical size={15} />
+        </span>
 
         {/* Field name + helper text */}
         <div className="flex-1 min-w-0 flex flex-col gap-1">
@@ -346,6 +372,20 @@ function FieldRowItem({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Sortable wrapper for custom field rows ───────────────────────────────────
+
+function SortableFieldRow(props: Omit<React.ComponentProps<typeof FieldRowItem>, 'dragHandleListeners' | 'dragHandleAttributes'>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.field.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+    >
+      <FieldRowItem {...props} dragHandleListeners={listeners as Record<string, unknown>} dragHandleAttributes={attributes as unknown as Record<string, unknown>} />
     </div>
   );
 }
@@ -827,6 +867,7 @@ function CustomerFormContent({
   onAddCustomField,
   onUpdateCustomField,
   onDeleteCustomField,
+  onReorderCustomFields,
   dirtyFieldIds,
   newFieldIds,
 }: {
@@ -836,12 +877,24 @@ function CustomerFormContent({
   onAddCustomField: () => void;
   onUpdateCustomField: (id: string, key: keyof FieldRow, value: unknown) => void;
   onDeleteCustomField: (id: string) => void;
+  onReorderCustomFields: (fields: FieldRow[]) => void;
   dirtyFieldIds: Set<string>;
   newFieldIds: Set<string>;
 }) {
   const [viewMode, setViewMode] = useState<'build' | 'preview'>('build');
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(customFields.length);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = customFields.findIndex(f => f.id === active.id);
+      const newIndex = customFields.findIndex(f => f.id === over.id);
+      onReorderCustomFields(arrayMove(customFields, oldIndex, newIndex));
+    }
+  }
 
   useEffect(() => {
     if (customFields.length > prevLengthRef.current) {
@@ -948,16 +1001,20 @@ function CustomerFormContent({
                 )}
               </div>
               <ColumnHeader />
-              {customFields.map(field => (
-                <FieldRowItem
-                  key={field.id}
-                  field={field}
-                  onUpdate={onUpdateCustomField}
-                  onDelete={onDeleteCustomField}
-                  isDirty={dirtyFieldIds.has(field.id)}
-                  isNew={newFieldIds.has(field.id)}
-                />
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={customFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                  {customFields.map(field => (
+                    <SortableFieldRow
+                      key={field.id}
+                      field={field}
+                      onUpdate={onUpdateCustomField}
+                      onDelete={onDeleteCustomField}
+                      isDirty={dirtyFieldIds.has(field.id)}
+                      isNew={newFieldIds.has(field.id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
               <div ref={bottomRef} />
             </div>
           )}
@@ -1006,6 +1063,7 @@ function SaveBar({ onSave, onDiscard }: { onSave: () => void; onDiscard: () => v
 let _customFieldCounter = 0;
 
 export default function SettingsPage() {
+  const { saveCustomFields } = useCustomFields();
   const [activeSection, setActiveSection] = useState<SettingsSection>('custom-fields-form');
   const [customFieldsOpen, setCustomFieldsOpen] = useState(true);
 
@@ -1086,11 +1144,16 @@ export default function SettingsPage() {
     setDraftCustomFields(prev => prev.filter(f => f.id !== fieldId));
   }
 
+  function reorderCustomFields(fields: FieldRow[]) {
+    setDraftCustomFields(fields);
+  }
+
   // ── Commit / discard ───────────────────────────────────────────────────────
 
   function handleSave() {
     setSavedSections(draftSections);
     setSavedCustomFields(draftCustomFields);
+    saveCustomFields(draftCustomFields.map(({ isSystem: _s, ...rest }) => rest));
   }
 
   function handleDiscard() {
@@ -1141,6 +1204,7 @@ export default function SettingsPage() {
           onAddCustomField={addCustomField}
           onUpdateCustomField={updateCustomField}
           onDeleteCustomField={deleteCustomField}
+          onReorderCustomFields={reorderCustomFields}
           dirtyFieldIds={dirtyFieldIds}
           newFieldIds={newFieldIds}
         />

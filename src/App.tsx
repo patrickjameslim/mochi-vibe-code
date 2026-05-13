@@ -2,6 +2,7 @@ import { useState } from 'react';
 import './index.css';
 import { Customer, CUSTOMERS } from './data/customers';
 import { NavigationContext, AppPage } from './context/NavigationContext';
+import { CustomFieldsProvider } from './context/CustomFieldsContext';
 import CustomersTable from './components/CustomersTable';
 import CreateCustomerPage from './components/CreateCustomerPage';
 import CustomerDetailPage from './components/CustomerDetailPage';
@@ -133,9 +134,11 @@ function App() {
   }
 
   return (
-    <NavigationContext.Provider value={{ currentPage: page, navigate }}>
-      {renderPage()}
-    </NavigationContext.Provider>
+    <CustomFieldsProvider>
+      <NavigationContext.Provider value={{ currentPage: page, navigate }}>
+        {renderPage()}
+      </NavigationContext.Provider>
+    </CustomFieldsProvider>
   );
 }
 
