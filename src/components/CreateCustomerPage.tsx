@@ -760,20 +760,6 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
 
           </SectionCard>
 
-          {/* ── Custom fields ── */}
-          {savedCustomFields.filter(f => f.visible).length > 0 && (
-            <SectionCard title="Custom fields">
-              {savedCustomFields.filter(f => f.visible).map(field => (
-                <CustomFieldInput
-                  key={field.id}
-                  field={field}
-                  value={customFieldValues[field.id]}
-                  onChange={v => setCustomFieldValue(field.id, v)}
-                />
-              ))}
-            </SectionCard>
-          )}
-
           {/* ── Notes ── */}
           <SectionCard title="Notes">
             <Textarea rows={4} />
@@ -840,6 +826,20 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
               )}
             </CardContent>
           </Card>
+
+          {/* ── Custom fields ── */}
+          {savedCustomFields.filter(f => f.visible).length > 0 && (
+            <SectionCard title="Custom fields">
+              {savedCustomFields.filter(f => f.visible).map(field => (
+                <CustomFieldInput
+                  key={field.id}
+                  field={field}
+                  value={customFieldValues[field.id]}
+                  onChange={v => setCustomFieldValue(field.id, v)}
+                />
+              ))}
+            </SectionCard>
+          )}
 
           {/* Bottom CTAs */}
           <div className="flex items-center justify-end gap-2 py-4">
