@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   BellSimple,
   CaretRight,
@@ -666,6 +666,15 @@ function CustomerFormContent({
   newFieldIds: Set<string>;
 }) {
   const [viewMode, setViewMode] = useState<'build' | 'preview'>('build');
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(customFields.length);
+
+  useEffect(() => {
+    if (customFields.length > prevLengthRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+    prevLengthRef.current = customFields.length;
+  }, [customFields.length]);
 
   const customDirtyCount = customFields.filter(f => dirtyFieldIds.has(f.id)).length;
   const customNewCount = customFields.filter(f => newFieldIds.has(f.id)).length;
@@ -770,6 +779,7 @@ function CustomerFormContent({
                   isNew={newFieldIds.has(field.id)}
                 />
               ))}
+              <div ref={bottomRef} />
             </div>
           )}
         </div>
