@@ -22,9 +22,7 @@ import {
   Check,
   Circle,
   DotsSixVertical,
-  Eye,
   Minus,
-  Sliders,
   Plus,
   Square,
   Trash,
@@ -910,38 +908,35 @@ function CustomerFormContent({
   return (
     <>
       {/* Sticky sub-header — always visible regardless of mode */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-base font-semibold text-slate-900">Customer form</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Configure the fields shown in the customer creation form.</p>
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
+        {/* Left — title */}
+        <div className="min-w-0">
+          <h1 className="text-base font-semibold text-slate-900">Customer</h1>
+          <p className="text-sm text-slate-500">Configure the fields shown in the customer creation form.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="inline-flex items-center rounded-lg bg-slate-100 p-0.5">
-            <button
-              onClick={() => setViewMode('build')}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all',
-                viewMode === 'build'
-                  ? 'bg-white text-slate-900 font-medium shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-            >
-              <Sliders size={13} />
-              Build
-            </button>
-            <button
-              onClick={() => setViewMode('preview')}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all',
-                viewMode === 'preview'
-                  ? 'bg-white text-slate-900 font-medium shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-            >
-              <Eye size={13} />
-              Preview
-            </button>
+
+        {/* Center — Build / Preview toggle */}
+        <div className="flex justify-center">
+          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+            {(['build', 'preview'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setViewMode(v)}
+                className={[
+                  'px-4 py-1.5 text-sm font-medium capitalize transition-colors',
+                  viewMode === v
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-500 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                {v}
+              </button>
+            ))}
           </div>
+        </div>
+
+        {/* Right — Add custom field */}
+        <div className="flex items-center justify-end">
           <Button
             variant="primary"
             size="md"
@@ -1171,8 +1166,8 @@ export default function SettingsPage() {
     'receiving-accounts':  ['Settings', 'Receiving Accounts'],
     'bir-invoicing':       ['Settings', 'BIR Invoicing Registration'],
     'template-library':    ['Settings', 'Template Library'],
-    'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer form'],
-    'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills fields'],
+    'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
+    'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
     'payment-portal':      ['Settings', 'Payment Portal'],
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
@@ -1184,8 +1179,8 @@ export default function SettingsPage() {
     'receiving-accounts':  'Receiving Accounts',
     'bir-invoicing':       'BIR Invoicing Registration',
     'template-library':    'Template Library',
-    'custom-fields-form':  'Customer form',
-    'custom-fields-bills': 'Bills fields',
+    'custom-fields-form':  'Customer',
+    'custom-fields-bills': 'Bills',
     'payment-portal':      'Payment Portal',
     'disbursements':       'Disbursements',
     'users':               'Users',
@@ -1267,8 +1262,8 @@ export default function SettingsPage() {
             </button>
             {customFieldsOpen && (
               <>
-                <SecSubNavItem label="Customer form" active={activeSection === 'custom-fields-form'}  onClick={() => setActiveSection('custom-fields-form')} />
-                <SecSubNavItem label="Bills fields"  active={activeSection === 'custom-fields-bills'} onClick={() => setActiveSection('custom-fields-bills')} />
+                <SecSubNavItem label="Customer" active={activeSection === 'custom-fields-form'}  onClick={() => setActiveSection('custom-fields-form')} />
+                <SecSubNavItem label="Bills"    active={activeSection === 'custom-fields-bills'} onClick={() => setActiveSection('custom-fields-bills')} />
               </>
             )}
 
