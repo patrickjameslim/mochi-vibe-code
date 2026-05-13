@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { useCustomFields } from '../context/CustomFieldsContext';
 import {
   ArrowsDownUp,
   Copy,
@@ -262,6 +263,19 @@ export default function CustomersTable({
   // Column management
   const [columnConfig, setColumnConfig] = useState<ColumnDef[]>(DEFAULT_CUSTOMER_COLS);
   const [colDrawerOpen, setColDrawerOpen] = useState(false);
+
+  const { savedCustomFields } = useCustomFields();
+  useEffect(() => {
+    setColumnConfig(prev => {
+      const standard = prev.filter(c => !c.id.startsWith('cf_'));
+      const cfCols: ColumnDef[] = savedCustomFields
+        .filter(f => f.visible)
+        .map(f => ({ id: `cf_${f.id}`, label: f.label, visible: true, pin: 'none' as const }));
+      const insertAt = standard.findIndex(c => c.id === 'quickActions');
+      const idx = insertAt >= 0 ? insertAt : standard.length;
+      return [...standard.slice(0, idx), ...cfCols, ...standard.slice(idx)];
+    });
+  }, [savedCustomFields]);
 
   // Notes drawer
   const [notesDrawer, setNotesDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
@@ -1063,6 +1077,19 @@ function CustomerRow({
           </td>
         );
       default:
+        if (col.id.startsWith('cf_')) {
+          const cfVal = customer.customFieldValues?.[col.id.slice(3)];
+          const display = Array.isArray(cfVal)
+            ? cfVal.join(', ')
+            : cfVal != null && cfVal !== ''
+              ? String(cfVal)
+              : '—';
+          return (
+            <td key={col.id} className="px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap" style={style}>
+              {display}
+            </td>
+          );
+        }
         return null;
     }
   }
