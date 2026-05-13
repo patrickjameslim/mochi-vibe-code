@@ -3,16 +3,22 @@ import {
   BellSimple,
   CaretRight,
   CaretDown,
+  Check,
+  Circle,
   DotsSixVertical,
   Eye,
+  Minus,
   Sliders,
   Plus,
+  Square,
   Trash,
   UploadSimple,
   User,
   Buildings,
   Info,
   Image as ImageIcon,
+  WarningCircle,
+  X,
 } from '@phosphor-icons/react';
 import { Sidebar } from './Sidebar';
 import { Switch } from './ui/Switch';
@@ -33,7 +39,7 @@ import { cn } from '../lib/utils';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FIELD_TYPES = [
-  'Text', 'Email', 'Tel', 'Number', 'Select',
+  'Text', 'Email', 'Number', 'Select',
   'Multi-select', 'Textarea', 'Toggle', 'Radio', 'File', 'Date',
 ] as const;
 
@@ -56,6 +62,7 @@ interface FieldRow {
   label: string;
   helperText?: string;
   type: string;
+  options?: string[];
   required: boolean;
   visible: boolean;
   isSystem: boolean;
@@ -192,88 +199,153 @@ function FieldRowItem({
   isDirty?: boolean;
   isNew?: boolean;
 }) {
+  const isSelectType = field.type === 'Select' || field.type === 'Multi-select';
+  const showOptionsEditor = isSelectType && !field.isSystem;
+  const options = field.options ?? [];
+
+  function updateOption(i: number, val: string) {
+    const next = [...options];
+    next[i] = val;
+    onUpdate(field.id, 'options', next);
+  }
+
+  function removeOption(i: number) {
+    onUpdate(field.id, 'options', options.filter((_, idx) => idx !== i));
+  }
+
+  function addOption() {
+    onUpdate(field.id, 'options', [...options, `Option ${options.length + 1}`]);
+  }
+
   return (
     <div className={cn(
-      'flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 last:border-0 group transition-colors border-l-[3px]',
-      isDirty && 'bg-amber-50 border-l-amber-400 hover:bg-amber-50',
-      isNew  && 'bg-violet-50/60 border-l-violet-400 hover:bg-violet-50/70',
-      !isDirty && !isNew && 'border-l-transparent hover:bg-slate-50/50',
+      'border-b border-slate-100 last:border-0 border-l-[3px] transition-colors',
+      isDirty && 'bg-amber-50 border-l-amber-400',
+      isNew  && 'bg-violet-50/60 border-l-violet-400',
+      !isDirty && !isNew && 'border-l-transparent',
     )}>
-      <DotsSixVertical
-        size={15}
-        className="text-slate-300 w-4 shrink-0 cursor-grab group-hover:text-slate-400 transition-colors"
-      />
-
-      {/* Field name + helper text */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1">
-        <input
-          type="text"
-          value={field.label}
-          onChange={e => onUpdate(field.id, 'label', e.target.value)}
-          placeholder="Column name"
-          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
+      {/* Main row */}
+      <div className={cn(
+        'flex items-center gap-3 px-4 py-2.5 group',
+        isDirty && 'hover:bg-amber-50',
+        isNew && 'hover:bg-violet-50/70',
+        !isDirty && !isNew && 'hover:bg-slate-50/50',
+      )}>
+        <DotsSixVertical
+          size={15}
+          className="text-slate-300 w-4 shrink-0 cursor-grab group-hover:text-slate-400 transition-colors"
         />
-        {!field.isSystem && (
+
+        {/* Field name + helper text */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
           <input
             type="text"
-            value={field.helperText ?? ''}
-            onChange={e => onUpdate(field.id, 'helperText', e.target.value)}
-            placeholder="Helper text (optional)"
-            className="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-500 bg-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
+            value={field.label}
+            onChange={e => onUpdate(field.id, 'label', e.target.value)}
+            placeholder="Column name"
+            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
           />
-        )}
-      </div>
+          {!field.isSystem && (
+            <input
+              type="text"
+              value={field.helperText ?? ''}
+              onChange={e => onUpdate(field.id, 'helperText', e.target.value)}
+              placeholder="Helper text (optional)"
+              className="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-500 bg-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
+            />
+          )}
+        </div>
 
-      {/* Field type — disabled for system fields */}
-      <div className="w-32 shrink-0">
-        <Select
-          value={field.type}
-          onValueChange={v => onUpdate(field.id, 'type', v)}
+        {/* Field type — disabled for system fields */}
+        <div className="w-32 shrink-0">
+          <Select
+            value={field.type}
+            onValueChange={v => onUpdate(field.id, 'type', v)}
+            disabled={field.isSystem}
+          >
+            <SelectTrigger className={cn(
+              'w-full text-xs py-1.5 h-auto',
+              field.isSystem && 'bg-slate-50 text-slate-400',
+            )}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FIELD_TYPES.map(t => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Required toggle */}
+        <div className="w-[52px] shrink-0 flex justify-center">
+          <Switch
+            checked={field.required}
+            onChange={v => onUpdate(field.id, 'required', v)}
+          />
+        </div>
+
+        {/* Visible toggle */}
+        <div className="w-[44px] shrink-0 flex justify-center">
+          <Switch
+            checked={field.visible}
+            onChange={v => onUpdate(field.id, 'visible', v)}
+          />
+        </div>
+
+        {/* Delete — disabled for system fields */}
+        <button
           disabled={field.isSystem}
+          onClick={() => onDelete(field.id)}
+          className={cn(
+            'w-7 h-7 flex items-center justify-center rounded-md transition-colors shrink-0',
+            field.isSystem
+              ? 'text-slate-200 cursor-not-allowed'
+              : 'text-slate-400 hover:text-red-500 hover:bg-red-50',
+          )}
         >
-          <SelectTrigger className={cn(
-            'w-full text-xs py-1.5 h-auto',
-            field.isSystem && 'bg-slate-50 text-slate-400',
-          )}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FIELD_TYPES.map(t => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Trash size={13} />
+        </button>
       </div>
 
-      {/* Required toggle */}
-      <div className="w-[52px] shrink-0 flex justify-center">
-        <Switch
-          checked={field.required}
-          onChange={v => onUpdate(field.id, 'required', v)}
-        />
-      </div>
-
-      {/* Visible toggle */}
-      <div className="w-[44px] shrink-0 flex justify-center">
-        <Switch
-          checked={field.visible}
-          onChange={v => onUpdate(field.id, 'visible', v)}
-        />
-      </div>
-
-      {/* Delete — disabled for system fields */}
-      <button
-        disabled={field.isSystem}
-        onClick={() => onDelete(field.id)}
-        className={cn(
-          'w-7 h-7 flex items-center justify-center rounded-md transition-colors shrink-0',
-          field.isSystem
-            ? 'text-slate-200 cursor-not-allowed'
-            : 'text-slate-400 hover:text-red-500 hover:bg-red-50',
-        )}
-      >
-        <Trash size={13} />
-      </button>
+      {/* Options editor — Select / Multi-select only */}
+      {showOptionsEditor && (
+        <div className="pl-11 pr-4 pb-3 space-y-1.5">
+          {options.map((opt, i) => (
+            <div key={i} className="flex items-center gap-2">
+              {field.type === 'Select'
+                ? <Circle size={13} className="text-slate-300 shrink-0" />
+                : <Square size={13} className="text-slate-300 shrink-0" />}
+              <input
+                type="text"
+                value={opt}
+                onChange={e => updateOption(i, e.target.value)}
+                placeholder={`Option ${i + 1}`}
+                className="flex-1 text-sm border-b border-slate-200 bg-transparent py-0.5 text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-violet-400 transition-colors"
+              />
+              <button
+                onClick={() => removeOption(i)}
+                disabled={options.length <= 1}
+                className={cn(
+                  'shrink-0 w-5 h-5 flex items-center justify-center rounded transition-colors',
+                  options.length <= 1
+                    ? 'text-slate-200 cursor-not-allowed'
+                    : 'text-slate-300 hover:text-red-400',
+                )}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={addOption}
+            className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 mt-1 transition-colors"
+          >
+            <Plus size={13} weight="bold" />
+            Add option
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -331,6 +403,111 @@ function SectionCard({
 
 // ─── Form preview ─────────────────────────────────────────────────────────────
 
+function EmailPreview({ field }: { field: FieldRow }) {
+  const [val, setVal] = useState('');
+  const [touched, setTouched] = useState(false);
+  const isInvalid = touched && val.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  return (
+    <div>
+      <Input
+        type="email"
+        value={val}
+        onChange={e => { setVal(e.target.value); if (isInvalid) setTouched(false); }}
+        onBlur={() => setTouched(true)}
+        placeholder={field.helperText || 'Enter email address'}
+        error={isInvalid}
+      />
+      {isInvalid && (
+        <p className="mt-1.5 flex items-center gap-1 text-sm text-red-500">
+          <WarningCircle size={14} className="shrink-0" />
+          Please enter a valid email address.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function NumberPreview({ field }: { field: FieldRow }) {
+  const [val, setVal] = useState(0);
+  return (
+    <div className="flex items-center w-fit rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+      <button
+        onClick={() => setVal(v => v - 1)}
+        className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors border-r border-slate-200"
+      >
+        <Minus size={14} />
+      </button>
+      <input
+        type="number"
+        value={val}
+        onChange={e => setVal(Number(e.target.value))}
+        placeholder={field.helperText || '0'}
+        className="w-20 text-center text-sm text-slate-800 bg-white py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <button
+        onClick={() => setVal(v => v + 1)}
+        className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors border-l border-slate-200"
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  );
+}
+
+function SelectPreview({ field }: { field: FieldRow }) {
+  const [val, setVal] = useState('');
+  const options = field.options ?? [];
+  return (
+    <Select value={val} onValueChange={setVal}>
+      <SelectTrigger>
+        <SelectValue placeholder={field.helperText || 'Select an option'} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.length > 0
+          ? options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)
+          : <SelectItem value="__empty__" disabled>No options defined</SelectItem>}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function MultiSelectPreview({ field }: { field: FieldRow }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const options = field.options ?? [];
+
+  function toggle(opt: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(opt) ? next.delete(opt) : next.add(opt);
+      return next;
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      {options.length === 0
+        ? <p className="text-sm text-slate-400 italic">No options defined</p>
+        : options.map(opt => (
+          <button
+            key={opt}
+            onClick={() => toggle(opt)}
+            className="flex items-center gap-2.5 w-full text-left group"
+          >
+            <div className={cn(
+              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
+              selected.has(opt)
+                ? 'border-violet-500 bg-violet-500'
+                : 'border-slate-300 group-hover:border-slate-400',
+            )}>
+              {selected.has(opt) && <Check size={10} weight="bold" className="text-white" />}
+            </div>
+            <span className="text-sm text-slate-700">{opt}</span>
+          </button>
+        ))}
+    </div>
+  );
+}
+
 function PreviewFieldInput({ field }: { field: FieldRow }) {
   const base =
     'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white ' +
@@ -339,19 +516,23 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
   const ph = (fallback: string) => field.helperText || fallback;
 
   switch (field.type) {
-    case 'Text':
     case 'Email':
-    case 'Tel':
+      return <EmailPreview field={field} />;
+    case 'Number':
+      return <NumberPreview field={field} />;
+    case 'Select':
+      return <SelectPreview field={field} />;
+    case 'Multi-select':
+      return <MultiSelectPreview field={field} />;
+    case 'Text':
       return (
         <input
           readOnly
-          type={field.type.toLowerCase()}
+          type="text"
           placeholder={ph(`Enter ${field.label.toLowerCase()}`)}
           className={base}
         />
       );
-    case 'Number':
-      return <input readOnly type="number" placeholder={ph('0')} className={base} />;
     case 'Date':
       return <input readOnly type="date" className={cn(base, 'text-slate-400')} />;
     case 'Textarea':
@@ -362,19 +543,6 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
           placeholder={ph(`Enter ${field.label.toLowerCase()}`)}
           className={cn(base, 'resize-none')}
         />
-      );
-    case 'Select':
-      return (
-        <div className={cn(base, 'flex items-center justify-between text-slate-400')}>
-          <span>Select an option</span>
-          <CaretDown size={13} className="text-slate-300 shrink-0" />
-        </div>
-      );
-    case 'Multi-select':
-      return (
-        <div className={cn(base, 'min-h-[72px] flex flex-wrap gap-1.5 items-start content-start text-slate-400')}>
-          <span className="text-slate-400">Select options…</span>
-        </div>
       );
     case 'Toggle':
       return (
@@ -408,7 +576,7 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
         </div>
       );
     default:
-      return <input readOnly placeholder={`Enter ${field.label.toLowerCase()}`} className={base} />;
+      return <input readOnly placeholder={ph(`Enter ${field.label.toLowerCase()}`)} className={base} />;
   }
 }
 
@@ -913,7 +1081,14 @@ export default function SettingsPage() {
   }
 
   function updateCustomField(fieldId: string, key: keyof FieldRow, value: unknown) {
-    setDraftCustomFields(prev => prev.map(f => f.id === fieldId ? { ...f, [key]: value } : f));
+    setDraftCustomFields(prev => prev.map(f => {
+      if (f.id !== fieldId) return f;
+      const updated = { ...f, [key]: value };
+      if (key === 'type' && (value === 'Select' || value === 'Multi-select') && !f.options?.length) {
+        updated.options = ['Option 1'];
+      }
+      return updated;
+    }));
   }
 
   function deleteCustomField(fieldId: string) {
