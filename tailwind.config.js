@@ -84,6 +84,14 @@ export default {
           from: { opacity: '1' },
           to:   { opacity: '0' },
         },
+        'dialog-in': {
+          from: { opacity: '0', transform: 'translate(-50%, -48%) scale(0.96)' },
+          to:   { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
+        },
+        'dialog-out': {
+          from: { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
+          to:   { opacity: '0', transform: 'translate(-50%, -48%) scale(0.96)' },
+        },
       },
       animation: {
         'bulk-bar-in': 'bulk-bar-in 0.35s cubic-bezier(0.16,1,0.3,1) forwards',
@@ -91,6 +99,8 @@ export default {
         'sheet-out-right': 'sheet-out-right 0.25s ease-in',
         'overlay-in':  'overlay-in 0.25s ease',
         'overlay-out': 'overlay-out 0.2s ease',
+        'dialog-in':  'dialog-in 0.2s cubic-bezier(0.16,1,0.3,1)',
+        'dialog-out': 'dialog-out 0.15s ease-in',
       },
     },
   },

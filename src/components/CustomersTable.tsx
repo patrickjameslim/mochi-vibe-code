@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCustomFields } from '../context/CustomFieldsContext';
 import {
   ArrowsDownUp,
+  ArrowCounterClockwise,
   Copy,
   DotsThreeVertical,
   Funnel,
@@ -42,6 +43,9 @@ import {
 import ColumnManagementDrawer, { ColumnDef } from './ColumnManagementDrawer';
 import { ColumnsButton } from './ui/ColumnsButton';
 import { DataTable } from './DataTable';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from './ui/Dialog';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 // ─── Column config ────────────────────────────────────────────────────────────
 
@@ -190,7 +194,7 @@ export default function CustomersTable({
 }) {
   const { sortKey, sortAsc, toggleSort } = useTableSort<CustomerSortKey>();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'All' | 'Individual' | 'Organization' | 'Customer groups'>('All');
+  const [activeTab, setActiveTab] = useState<'All' | 'Individual' | 'Organization' | 'Customer groups' | 'Archived'>('All');
   const [drawer, setDrawer] = useState<DrawerState>({ open: false, customer: null });
   const [banner, setBanner] = useState<string | null>(null);
   const [search, setSearch]         = useState('');
@@ -218,8 +222,12 @@ export default function CustomersTable({
   const [notesDrawer, setNotesDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
   // Docs viewer drawer
   const [docsDrawer, setDocsDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
-  // Bulk state
+  // Archive state
   const [archivedCustomers, setArchivedCustomers] = useState<Set<string>>(new Set());
+  const [archiveModal, setArchiveModal] = useState<{ open: boolean; customer: Customer | null; inputValue: string }>({ open: false, customer: null, inputValue: '' });
+  const [unarchiveModal, setUnarchiveModal] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
+  const [bulkArchiveModal, setBulkArchiveModal] = useState(false);
+  const [bulkUnarchiveModal, setBulkUnarchiveModal] = useState(false);
   const [bulkGroupsDrawerOpen, setBulkGroupsDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -255,6 +263,24 @@ export default function CustomersTable({
   const q = search.trim().toLowerCase();
 
   const filtered = customers.filter((c) => {
+    const isArchived = archivedCustomers.has(c.id);
+
+    if (activeTab === 'Archived') {
+      if (!isArchived) return false;
+      if (!q) return true;
+      return (
+        c.id.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.type.toLowerCase().includes(q) ||
+        c.address.toLowerCase().includes(q) ||
+        c.phoneNumber.includes(q) ||
+        c.group.toLowerCase().includes(q)
+      );
+    }
+
+    if (isArchived) return false;
+
     const matchesTab =
       activeTab === 'All' ||
       (activeTab === 'Individual' && c.type === 'Individual') ||
@@ -361,12 +387,48 @@ export default function CustomersTable({
   }
 
   function handleBulkArchive() {
+    setBulkArchiveModal(true);
+  }
+
+  function handleConfirmBulkArchive() {
     setArchivedCustomers((prev) => {
       const next = new Set(prev);
       selectedCustomers.forEach((c) => next.add(c.id));
       return next;
     });
+    setBulkArchiveModal(false);
+    const count = selectedCustomers.length;
     setSelected(new Set());
+    setBanner(`${count} customer${count !== 1 ? 's' : ''} archived successfully.`);
+  }
+
+  function handleConfirmBulkUnarchive() {
+    setArchivedCustomers((prev) => {
+      const next = new Set(prev);
+      selectedCustomers.forEach((c) => next.delete(c.id));
+      return next;
+    });
+    setBulkUnarchiveModal(false);
+    const count = selectedCustomers.length;
+    setSelected(new Set());
+    setBanner(`${count} customer${count !== 1 ? 's' : ''} unarchived successfully.`);
+  }
+
+  function handleConfirmArchive() {
+    if (!archiveModal.customer) return;
+    const customer = archiveModal.customer;
+    setArchivedCustomers((prev) => { const next = new Set(prev); next.add(customer.id); return next; });
+    setSelected((prev) => { const next = new Set(prev); next.delete(customer.id); return next; });
+    setArchiveModal({ open: false, customer: null, inputValue: '' });
+    setBanner(`${customer.name} has been archived.`);
+  }
+
+  function handleConfirmUnarchive() {
+    if (!unarchiveModal.customer) return;
+    const customer = unarchiveModal.customer;
+    setArchivedCustomers((prev) => { const next = new Set(prev); next.delete(customer.id); return next; });
+    setUnarchiveModal({ open: false, customer: null });
+    setBanner(`${customer.name} has been unarchived.`);
   }
 
   const bulkCustomerActions = useMemo((): BulkAction[] => {
@@ -378,14 +440,22 @@ export default function CustomersTable({
         onClick: () => setBulkGroupsDrawerOpen(true),
       });
     }
-    actions.push({
-      label: 'Archive',
-      icon: <Archive size={15} />,
-      onClick: handleBulkArchive,
-      variant: 'destructive',
-    });
+    if (activeTab === 'Archived') {
+      actions.push({
+        label: 'Unarchive',
+        icon: <ArrowCounterClockwise size={15} />,
+        onClick: () => setBulkUnarchiveModal(true),
+      });
+    } else {
+      actions.push({
+        label: 'Archive',
+        icon: <Archive size={15} />,
+        onClick: handleBulkArchive,
+        variant: 'destructive',
+      });
+    }
     return actions;
-  }, [allSelectedSameGroups, selectedCustomers]);
+  }, [allSelectedSameGroups, selectedCustomers, activeTab]);
 
   function handleSaveGroups(customerId: string, groups: string[]) {
     setCustomerGroups((prev) => ({ ...prev, [customerId]: groups }));
@@ -446,6 +516,7 @@ export default function CustomersTable({
       checkboxSeparator={!hasLeftPinned}
       isExpanded={expandedRows.has(customer.id)}
       isSelected={selected.has(customer.id)}
+      isArchived={archivedCustomers.has(customer.id)}
       query={q}
       onToggle={() => toggleRow(customer.id)}
       onAssignGroups={() => openAssignGroups(customer)}
@@ -454,6 +525,8 @@ export default function CustomersTable({
       onViewDocs={() => setDocsDrawer({ open: true, customer })}
       onEdit={() => onEdit?.(customer, customerGroups[customer.id] ?? [customer.group])}
       onView={() => onViewCustomer?.(customer, customerGroups[customer.id] ?? [customer.group])}
+      onArchive={() => setArchiveModal({ open: true, customer, inputValue: '' })}
+      onUnarchive={() => setUnarchiveModal({ open: true, customer })}
     />
   ));
 
@@ -510,6 +583,7 @@ export default function CustomersTable({
                 { value: 'Individual', label: 'Individual' },
                 { value: 'Organization', label: 'Organization' },
                 { value: 'Customer groups', label: 'Customer groups' },
+                { value: 'Archived', label: 'Archived', count: archivedCustomers.size },
               ]}
               activeTab={activeTab}
               onTabChange={(v) => handleTabChange(v as typeof activeTab)}
@@ -546,6 +620,8 @@ export default function CustomersTable({
                   : undefined
               }
               isEmpty={paginated.length === 0}
+              emptyTitle={activeTab === 'Archived' ? 'No archived customers' : 'No results'}
+              emptyMessage={activeTab === 'Archived' ? 'Customers you archive will appear here.' : 'Nothing to show here.'}
               currentPage={activeTab === 'Customer groups' ? 1 : safePage}
               totalPages={activeTab === 'Customer groups' ? 1 : totalPages}
               perPage={perPage}
@@ -625,6 +701,115 @@ export default function CustomersTable({
           onDismiss={() => setSelected(new Set())}
         />
       )}
+
+      {/* Bulk Archive Modal */}
+      <Modal open={bulkArchiveModal} onClose={() => setBulkArchiveModal(false)}>
+        <ModalHeader title="Archive customers?" onClose={() => setBulkArchiveModal(false)} />
+        <ModalBody>
+          <p className="text-sm text-slate-600">
+            <span className="font-medium text-slate-800">{selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''}</span> will
+            be moved to the Archived tab and hidden from active customer lists. You can restore them at any time.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" size="md" onClick={() => setBulkArchiveModal(false)}>Cancel</Button>
+          <Button variant="destructive" size="md" onClick={handleConfirmBulkArchive}>
+            Archive {selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Bulk Unarchive Modal */}
+      <Modal open={bulkUnarchiveModal} onClose={() => setBulkUnarchiveModal(false)}>
+        <ModalHeader title="Unarchive customers?" onClose={() => setBulkUnarchiveModal(false)} />
+        <ModalBody>
+          <p className="text-sm text-slate-600">
+            <span className="font-medium text-slate-800">{selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''}</span> will
+            be restored and appear in active customer lists again.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" size="md" onClick={() => setBulkUnarchiveModal(false)}>Cancel</Button>
+          <Button variant="primary" size="md" onClick={handleConfirmBulkUnarchive}>
+            Unarchive {selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Archive Customer Modal */}
+      <Modal
+        open={archiveModal.open}
+        onClose={() => setArchiveModal({ open: false, customer: null, inputValue: '' })}
+      >
+        <ModalHeader
+          title="Archive customer?"
+          onClose={() => setArchiveModal({ open: false, customer: null, inputValue: '' })}
+        />
+        <ModalBody>
+          <p className="text-sm text-slate-600">
+            <span className="font-medium text-slate-800">{archiveModal.customer?.name}</span> will be
+            moved to the Archived tab and hidden from active customer lists. You can restore them at any time.
+          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-slate-600">Type the customer ID to confirm:</p>
+            <code className="block text-sm font-mono font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 select-all">
+              {archiveModal.customer?.id}
+            </code>
+            <Input
+              autoFocus
+              placeholder={archiveModal.customer?.id ?? ''}
+              value={archiveModal.inputValue}
+              onChange={(e) => setArchiveModal((prev) => ({ ...prev, inputValue: e.target.value }))}
+            />
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => setArchiveModal({ open: false, customer: null, inputValue: '' })}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="md"
+            disabled={archiveModal.inputValue !== archiveModal.customer?.id}
+            onClick={handleConfirmArchive}
+          >
+            Archive
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Unarchive Customer Modal */}
+      <Modal
+        open={unarchiveModal.open}
+        onClose={() => setUnarchiveModal({ open: false, customer: null })}
+      >
+        <ModalHeader
+          title="Unarchive customer?"
+          onClose={() => setUnarchiveModal({ open: false, customer: null })}
+        />
+        <ModalBody>
+          <p className="text-sm text-slate-600">
+            <span className="font-medium text-slate-800">{unarchiveModal.customer?.name}</span> will be
+            restored and appear in active customer lists again.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => setUnarchiveModal({ open: false, customer: null })}
+          >
+            Cancel
+          </Button>
+          <Button variant="primary" size="md" onClick={handleConfirmUnarchive}>
+            Unarchive
+          </Button>
+        </ModalFooter>
+      </Modal>
     </TooltipProvider>
   );
 }
@@ -732,6 +917,7 @@ function CustomerRow({
   checkboxSeparator,
   isSelected,
   isExpanded,
+  isArchived,
   query = '',
   onToggle,
   onAssignGroups,
@@ -740,6 +926,8 @@ function CustomerRow({
   onViewDocs,
   onEdit,
   onView,
+  onArchive,
+  onUnarchive,
 }: {
   customer: Customer;
   groups: string[];
@@ -748,6 +936,7 @@ function CustomerRow({
   checkboxSeparator: boolean;
   isSelected: boolean;
   isExpanded: boolean;
+  isArchived: boolean;
   query?: string;
   onToggle: () => void;
   onAssignGroups: () => void;
@@ -756,6 +945,8 @@ function CustomerRow({
   onViewDocs?: () => void;
   onEdit?: () => void;
   onView?: () => void;
+  onArchive?: () => void;
+  onUnarchive?: () => void;
 }) {
   const rowBg = isSelected ? '#f5f3ff' : '#ffffff';
 
@@ -920,10 +1111,17 @@ function CustomerRow({
               Duplicate
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem destructive>
-              <Archive size={14} />
-              Archive
-            </DropdownMenuItem>
+            {isArchived ? (
+              <DropdownMenuItem onSelect={onUnarchive}>
+                <ArrowCounterClockwise size={14} className="text-slate-400" />
+                Unarchive
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem destructive onSelect={onArchive}>
+                <Archive size={14} />
+                Archive
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </td>
