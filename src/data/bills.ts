@@ -1,4 +1,4 @@
-export type BillStatus = 'draft' | 'sent' | 'scheduled' | 'verifying' | 'paid' | 'overdue' | 'void';
+export type BillStatus = 'draft' | 'sent' | 'scheduled' | 'verifying' | 'paid' | 'overdue' | 'void' | 'archived';
 export type BillType   = 'one-time' | 'recurring' | 'installment';
 
 export interface Bill {
@@ -19,6 +19,7 @@ export interface Bill {
   paymentDate?: string;
   paymentMethod?: string;
   tags?: string[];
+  groups?: string[];
 }
 
 export const BILLS: Bill[] = [

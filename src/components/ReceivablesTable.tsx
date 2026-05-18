@@ -10,6 +10,8 @@ import {
   FileText,
   Link as LinkIcon,
   Tag,
+  Prohibit,
+  UsersThree,
 } from '@phosphor-icons/react';
 import {
   DropdownMenu,
@@ -64,6 +66,7 @@ const STATUS_CFG: Record<BillStatus, { label: string; className: string; dotColo
   paid:      { label: 'Paid',      className: 'bg-green-100 text-[#14532D]',    dotColor: '#16A34A' },
   overdue:   { label: 'Overdue',   className: 'bg-red-100 text-red-900',        dotColor: '#DC2626' },
   void:      { label: 'Void',      className: 'bg-slate-100 text-slate-400' },
+  archived:  { label: 'Archived',  className: 'bg-slate-100 text-slate-500' },
 };
 
 const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
@@ -85,6 +88,7 @@ const FILTER_TABS: { value: Filter; label: string }[] = [
   { value: 'verifying', label: 'Verifying' },
   { value: 'paid',      label: 'Paid' },
   { value: 'void',      label: 'Void' },
+  { value: 'archived',  label: 'Archived' },
 ];
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
@@ -111,7 +115,8 @@ interface Props {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }: Props) {
+export default function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateBill }: Props) {
+  const [bills, setBills]       = useState<Bill[]>(initialBills);
   const [filter, setFilter]     = useState<Filter>('all');
   const [search, setSearch]     = useState('');
   const { sortKey, sortAsc, toggleSort } = useTableSort<SortKey>();
@@ -122,6 +127,9 @@ export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }:
 
   const [columnConfig, setColumnConfig] = useState<ColumnDef[]>(DEFAULT_BILLS_COLS);
   const [colDrawerOpen, setColDrawerOpen] = useState(false);
+
+  // Assign Groups Drawer (single-row)
+  const [assignGroupsDrawer, setAssignGroupsDrawer] = useState<{ open: boolean; bill: Bill | null }>({ open: false, bill: null });
 
   const counts = bills.reduce<Record<string, number>>((acc, b) => {
     acc[b.status] = (acc[b.status] ?? 0) + 1;
@@ -478,6 +486,28 @@ export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }:
         columns={columnConfig}
         onChange={setColumnConfig}
       />
+
+      {/* Single-row Assign Groups Drawer */}
+      {assignGroupsDrawer.bill && (
+        <AssignGroupsDrawer
+          open={assignGroupsDrawer.open}
+          onClose={() => setAssignGroupsDrawer({ open: false, bill: null })}
+          onSave={handleSingleGroupsSave}
+          customerName={assignGroupsDrawer.bill.customerName}
+          entityLabel={assignGroupsDrawer.bill.title}
+          initialGroups={assignGroupsDrawer.bill.groups ?? []}
+        />
+      )}
+
+      {/* Bulk Actions Bar */}
+      {selected.size > 0 && (
+        <BulkActionsBar
+          selectedCount={selected.size}
+          subtitle={`${formatPeso(selectedTotal)} in total`}
+          actions={bulkActions}
+          onDismiss={() => setSelected(new Set())}
+        />
+      )}
     </>
   );
 }
