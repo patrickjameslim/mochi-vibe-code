@@ -64,6 +64,10 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       keyframes: {
+        'bulk-bar-in': {
+          from: { transform: 'translateY(120%)', opacity: '0' },
+          to:   { transform: 'translateY(0)',    opacity: '1' },
+        },
         'sheet-in-right': {
           from: { transform: 'translateX(100%)' },
           to:   { transform: 'translateX(0)' },
@@ -82,6 +86,7 @@ export default {
         },
       },
       animation: {
+        'bulk-bar-in': 'bulk-bar-in 0.35s cubic-bezier(0.16,1,0.3,1) forwards',
         'sheet-in-right':  'sheet-in-right 0.3s cubic-bezier(0.16,1,0.3,1)',
         'sheet-out-right': 'sheet-out-right 0.25s ease-in',
         'overlay-in':  'overlay-in 0.25s ease',

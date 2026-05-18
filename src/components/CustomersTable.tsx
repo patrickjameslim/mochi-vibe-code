@@ -15,6 +15,7 @@ import {
   Archive,
   X,
 } from '@phosphor-icons/react';
+import BulkActionsBar, { BulkAction } from './ui/BulkActionsBar';
 import { Customer, CUSTOMERS, SupportingDocFile } from '../data/customers';
 import { Tooltip, TooltipProvider } from './ui/Tooltip';
 import {
@@ -267,6 +268,9 @@ export default function CustomersTable({
   const [notesDrawer, setNotesDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
   // Docs viewer drawer
   const [docsDrawer, setDocsDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
+  // Bulk state
+  const [archivedCustomers, setArchivedCustomers] = useState<Set<string>>(new Set());
+  const [bulkGroupsDrawerOpen, setBulkGroupsDrawerOpen] = useState(false);
 
   // Synchronized scrollbar refs
   const topScrollRef   = useRef<HTMLDivElement>(null);
@@ -342,9 +346,10 @@ export default function CustomersTable({
     );
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const visible    = filtered.filter((c) => !archivedCustomers.has(c.id));
+  const totalPages = Math.max(1, Math.ceil(visible.length / perPage));
   const safePage   = Math.min(currentPage, totalPages);
-  const paginated  = filtered.slice((safePage - 1) * perPage, safePage * perPage);
+  const paginated  = visible.slice((safePage - 1) * perPage, safePage * perPage);
 
   function handleTabChange(tab: typeof activeTab) {
     setActiveTab(tab);
@@ -383,6 +388,62 @@ export default function CustomersTable({
   function closeDrawer() {
     setDrawer((prev) => ({ ...prev, open: false }));
   }
+
+  // ─── Bulk helpers ─────────────────────────────────────────────────────────────
+  const selectedCustomers = useMemo(
+    () => paginated.filter((c) => selected.has(c.id)),
+    [paginated, selected],
+  );
+
+  const allSelectedSameGroups = useMemo(() => {
+    if (selectedCustomers.length === 0) return false;
+    const first = JSON.stringify([...(customerGroups[selectedCustomers[0].id] ?? [selectedCustomers[0].group])].sort());
+    return selectedCustomers.every(
+      (c) => JSON.stringify([...(customerGroups[c.id] ?? [c.group])].sort()) === first,
+    );
+  }, [selectedCustomers, customerGroups]);
+
+  const bulkCustomerInitialGroups = useMemo(
+    () => selectedCustomers.length > 0 ? (customerGroups[selectedCustomers[0].id] ?? [selectedCustomers[0].group]) : [],
+    [selectedCustomers, customerGroups],
+  );
+
+  function handleBulkGroupsSave(groups: string[]) {
+    setCustomerGroups((prev) => {
+      const next = { ...prev };
+      selectedCustomers.forEach((c) => { next[c.id] = groups; });
+      return next;
+    });
+    setBulkGroupsDrawerOpen(false);
+    setSelected(new Set());
+  }
+
+  function handleBulkArchive() {
+    setArchivedCustomers((prev) => {
+      const next = new Set(prev);
+      selectedCustomers.forEach((c) => next.add(c.id));
+      return next;
+    });
+    setSelected(new Set());
+  }
+
+  const bulkCustomerActions = useMemo((): BulkAction[] => {
+    const actions: BulkAction[] = [];
+    if (allSelectedSameGroups) {
+      actions.push({
+        label: 'Assign group',
+        icon: <UsersThree size={15} />,
+        onClick: () => setBulkGroupsDrawerOpen(true),
+      });
+    }
+    actions.push({
+      label: 'Archive',
+      icon: <Archive size={15} />,
+      onClick: handleBulkArchive,
+      variant: 'destructive',
+    });
+    return actions;
+  }, [allSelectedSameGroups, selectedCustomers]);
 
   function handleSaveGroups(customerId: string, groups: string[]) {
     setCustomerGroups((prev) => ({ ...prev, [customerId]: groups }));
@@ -712,6 +773,25 @@ export default function CustomersTable({
           onChange={setColumnConfig}
         />
       </div>
+
+      {/* Bulk Assign Groups Drawer */}
+      <AssignGroupsDrawer
+        open={bulkGroupsDrawerOpen}
+        onClose={() => setBulkGroupsDrawerOpen(false)}
+        onSave={handleBulkGroupsSave}
+        customerName=""
+        entityLabel={`${selected.size} selected customer${selected.size !== 1 ? 's' : ''}`}
+        initialGroups={bulkCustomerInitialGroups}
+      />
+
+      {/* Bulk Actions Bar */}
+      {selected.size > 0 && (
+        <BulkActionsBar
+          selectedCount={selected.size}
+          actions={bulkCustomerActions}
+          onDismiss={() => setSelected(new Set())}
+        />
+      )}
     </TooltipProvider>
   );
 }

@@ -13,6 +13,8 @@ import {
   FileText,
   Link as LinkIcon,
   Tag,
+  Prohibit,
+  UsersThree,
 } from '@phosphor-icons/react';
 import {
   DropdownMenu,
@@ -24,6 +26,8 @@ import {
 import { Bill, BillStatus, BillType, formatPeso } from '../data/bills';
 import ColumnManagementDrawer, { ColumnDef } from './ColumnManagementDrawer';
 import { ColumnsButton } from './ui/ColumnsButton';
+import AssignGroupsDrawer from './AssignGroupsDrawer';
+import BulkActionsBar, { BulkAction } from './ui/BulkActionsBar';
 
 // ─── Column config ────────────────────────────────────────────────────────────
 
@@ -65,6 +69,7 @@ const STATUS_CFG: Record<BillStatus, { label: string; className: string; dotColo
   paid:      { label: 'Paid',      className: 'bg-green-100 text-[#14532D]',   dotColor: '#16A34A' },
   overdue:   { label: 'Overdue',   className: 'bg-red-100 text-red-900',       dotColor: '#DC2626' },
   void:      { label: 'Void',      className: 'bg-slate-100 text-slate-400' },
+  archived:  { label: 'Archived',  className: 'bg-slate-100 text-slate-500' },
 };
 
 const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
@@ -86,6 +91,7 @@ const FILTER_TABS: { value: Filter; label: string }[] = [
   { value: 'verifying', label: 'Verifying' },
   { value: 'paid',      label: 'Paid' },
   { value: 'void',      label: 'Void' },
+  { value: 'archived',  label: 'Archived' },
 ];
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
@@ -277,7 +283,8 @@ interface Props {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }: Props) {
+export default function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateBill }: Props) {
+  const [bills, setBills]       = useState<Bill[]>(initialBills);
   const [filter, setFilter]     = useState<Filter>('all');
   const [search, setSearch]     = useState('');
   const [sortKey, setSortKey]   = useState<SortKey>('id');
@@ -291,6 +298,9 @@ export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }:
   // Column management
   const [columnConfig, setColumnConfig] = useState<ColumnDef[]>(DEFAULT_BILLS_COLS);
   const [colDrawerOpen, setColDrawerOpen] = useState(false);
+
+  // Assign Groups Drawer (single-row)
+  const [assignGroupsDrawer, setAssignGroupsDrawer] = useState<{ open: boolean; bill: Bill | null }>({ open: false, bill: null });
 
   const counts = bills.reduce<Record<string, number>>((acc, b) => {
     acc[b.status] = (acc[b.status] ?? 0) + 1;
@@ -355,6 +365,71 @@ export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }:
     setCopiedLink(link);
     setTimeout(() => setCopiedLink(null), 1500);
   }
+
+  // ─── Bulk action helpers ─────────────────────────────────────────────────────
+
+  // Actions available per status
+  const BILL_STATUS_ACTIONS: Partial<Record<BillStatus, string[]>> = {
+    draft:     ['send', 'archive', 'void'],
+    scheduled: ['send', 'archive', 'void'],
+    verifying: ['archive', 'void'],
+    overdue:   ['send', 'archive', 'void'],
+    paid:      ['archive'],
+  };
+
+  const selectedBills = useMemo(
+    () => bills.filter((b) => selected.has(b.id)),
+    [bills, selected],
+  );
+
+  // Intersection of available actions across all selected bills
+  const availableActions = useMemo((): Set<string> => {
+    if (selectedBills.length === 0) return new Set();
+    const sets = selectedBills.map((b) => new Set(BILL_STATUS_ACTIONS[b.status] ?? []));
+    const [first, ...rest] = sets;
+    return new Set([...first].filter((a) => rest.every((s) => s.has(a))));
+  }, [selectedBills]);
+
+  const selectedTotal = selectedBills.reduce((sum, b) => sum + b.amount, 0);
+
+  function bulkSetStatus(status: BillStatus) {
+    setBills((prev) => prev.map((b) => selected.has(b.id) ? { ...b, status } : b));
+    setSelected(new Set());
+  }
+
+  function handleSingleGroupsSave(groups: string[]) {
+    if (!assignGroupsDrawer.bill) return;
+    const id = assignGroupsDrawer.bill.id;
+    setBills((prev) => prev.map((b) => b.id === id ? { ...b, groups } : b));
+  }
+
+  // Build the action list for BulkActionsBar
+  const bulkActions = useMemo((): BulkAction[] => {
+    const list: BulkAction[] = [];
+    if (availableActions.has('send')) {
+      list.push({
+        label: 'Send',
+        icon: <PaperPlaneTilt size={15} />,
+        onClick: () => {/* wire up send flow */},
+      });
+    }
+    if (availableActions.has('void')) {
+      list.push({
+        label: 'Void',
+        icon: <Prohibit size={15} />,
+        onClick: () => bulkSetStatus('void'),
+      });
+    }
+    if (availableActions.has('archive')) {
+      list.push({
+        label: 'Archive',
+        icon: <Archive size={15} />,
+        onClick: () => bulkSetStatus('archived'),
+        variant: 'destructive',
+      });
+    }
+    return list;
+  }, [availableActions]);
 
   // ─── Compute visible ordered columns + sticky offsets ────────────────────────
   const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned } = useMemo(() => {
@@ -707,6 +782,10 @@ export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }:
                               <CheckCircle size={14} className="text-slate-400" />
                               Mark as paid
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setAssignGroupsDrawer({ open: true, bill })}>
+                              <UsersThree size={14} className="text-slate-400" />
+                              Assign groups
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem destructive>
                               <Archive size={14} />
@@ -740,6 +819,28 @@ export default function ReceivablesTable({ bills, onCreateBill: _onCreateBill }:
         columns={columnConfig}
         onChange={setColumnConfig}
       />
+
+      {/* Single-row Assign Groups Drawer */}
+      {assignGroupsDrawer.bill && (
+        <AssignGroupsDrawer
+          open={assignGroupsDrawer.open}
+          onClose={() => setAssignGroupsDrawer({ open: false, bill: null })}
+          onSave={handleSingleGroupsSave}
+          customerName={assignGroupsDrawer.bill.customerName}
+          entityLabel={assignGroupsDrawer.bill.title}
+          initialGroups={assignGroupsDrawer.bill.groups ?? []}
+        />
+      )}
+
+      {/* Bulk Actions Bar */}
+      {selected.size > 0 && (
+        <BulkActionsBar
+          selectedCount={selected.size}
+          subtitle={`${formatPeso(selectedTotal)} in total`}
+          actions={bulkActions}
+          onDismiss={() => setSelected(new Set())}
+        />
+      )}
     </>
   );
 }

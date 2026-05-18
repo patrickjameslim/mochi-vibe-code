@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MagnifyingGlass, Plus, Check } from '@phosphor-icons/react';
 import { Sheet, SheetHeader, SheetBody, SheetFooter } from './ui/Sheet';
 import { Input } from './ui/Input';
@@ -20,6 +20,7 @@ interface AssignGroupsDrawerProps {
   onSave: (groups: string[]) => void;
   customerName: string;
   initialGroups: string[];
+  entityLabel?: string;
 }
 
 export default function AssignGroupsDrawer({
@@ -28,10 +29,26 @@ export default function AssignGroupsDrawer({
   onSave,
   customerName,
   initialGroups,
+  entityLabel,
 }: AssignGroupsDrawerProps) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set(initialGroups));
-  const [groups, setGroups] = useState<string[]>(ALL_GROUPS);
+  const [groups, setGroups] = useState<string[]>(() => {
+    const extra = initialGroups.filter((g) => !ALL_GROUPS.includes(g));
+    return extra.length > 0 ? [...ALL_GROUPS, ...extra] : ALL_GROUPS;
+  });
+
+  // Re-sync state whenever the drawer opens so it always reflects the latest initialGroups
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(initialGroups));
+      setSearch('');
+      setGroups((prev) => {
+        const extra = initialGroups.filter((g) => !prev.includes(g));
+        return extra.length > 0 ? [...prev, ...extra] : prev;
+      });
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -80,10 +97,10 @@ export default function AssignGroupsDrawer({
       <SheetHeader title="Assign groups" onClose={handleCancel} />
 
       <SheetBody>
-        {/* Customer label */}
+        {/* Entity label */}
         <p className="mb-4 text-sm text-slate-500">
           Assigning groups to{' '}
-          <span className="font-medium text-slate-900">{customerName}</span>
+          <span className="font-medium text-slate-900">{entityLabel ?? customerName}</span>
         </p>
 
         {/* Assigned groups summary */}
