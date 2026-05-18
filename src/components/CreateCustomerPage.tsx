@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useCustomFields } from '../context/CustomFieldsContext';
+import type { SavedCustomField } from '../types/customFields';
 import {
   ArrowLeft,
   CaretRight,
@@ -140,8 +142,105 @@ function SectionCard({ title, description, children }: { title: string; descript
   );
 }
 
+// ─── Custom field input renderer ─────────────────────────────────────────────
+
+function CustomFieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: SavedCustomField;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const ph = field.helperText || `Enter ${field.label.toLowerCase()}`;
+  const strVal = (value as string) ?? '';
+  const numVal = (value as number) ?? 0;
+  const arrVal = (value as string[]) ?? [];
+
+  return (
+    <div>
+      <FormLabel required={field.required}>{field.label}</FormLabel>
+      {field.type === 'Text' && (
+        <Input value={strVal} onChange={e => onChange(e.target.value)} placeholder={ph} />
+      )}
+      {field.type === 'Email' && (
+        <Input type="email" value={strVal} onChange={e => onChange(e.target.value)} placeholder={ph} />
+      )}
+      {field.type === 'Number' && (
+        <div className="flex items-center w-fit rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <button type="button" onClick={() => onChange(numVal - 1)} className="px-3 py-2 text-slate-500 hover:bg-slate-50 border-r border-slate-200">
+            <span className="text-sm font-medium">−</span>
+          </button>
+          <input
+            type="number"
+            value={numVal}
+            onChange={e => onChange(Number(e.target.value))}
+            className="w-20 text-center text-sm text-slate-800 bg-white py-2 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <button type="button" onClick={() => onChange(numVal + 1)} className="px-3 py-2 text-slate-500 hover:bg-slate-50 border-l border-slate-200">
+            <span className="text-sm font-medium">+</span>
+          </button>
+        </div>
+      )}
+      {field.type === 'Textarea' && (
+        <Textarea value={strVal} onChange={e => onChange(e.target.value)} placeholder={ph} rows={3} />
+      )}
+      {field.type === 'Select' && (
+        <Select value={strVal} onValueChange={onChange}>
+          <SelectTrigger><SelectValue placeholder={field.helperText || 'Select an option'} /></SelectTrigger>
+          <SelectContent>
+            {(field.options ?? []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
+      {field.type === 'Multi-select' && (
+        <div className="space-y-2 mt-1">
+          {(field.options ?? []).map(opt => {
+            const checked = arrVal.includes(opt);
+            return (
+              <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onChange(checked ? arrVal.filter(v => v !== opt) : [...arrVal, opt])}
+                  className="w-4 h-4 rounded border-slate-300 accent-violet-600"
+                />
+                <span className="text-sm text-slate-700">{opt}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+      {field.type === 'Toggle' && (
+        <div className="flex items-center gap-2 mt-1">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!value}
+            onClick={() => onChange(!value)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${value ? 'bg-violet-600' : 'bg-slate-200'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+          <span className="text-sm text-slate-600">{value ? 'On' : 'Off'}</span>
+        </div>
+      )}
+      {field.type === 'Date' && (
+        <Input type="date" value={strVal} onChange={e => onChange(e.target.value)} />
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
+  const { savedCustomFields } = useCustomFields();
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
+  const setCustomFieldValue = useCallback((id: string, value: unknown) => {
+    setCustomFieldValues(prev => ({ ...prev, [id]: value }));
+  }, []);
+
   const [customerType, setCustomerType] = useState<'Individual' | 'Organization'>('Individual');
   const [vatStatus, setVatStatus] = useState<'vatable' | 'zero' | 'exempt'>('vatable');
   const [withholding, setWithholding] = useState('0');
@@ -299,6 +398,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
       notes: note.trim() || undefined,
       lastUpdatedAt: formatNow(),
       dateCreated: formatNow(),
+      customFieldValues: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
     };
 
     onSubmit?.(customer);
@@ -726,6 +826,20 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
               )}
             </CardContent>
           </Card>
+
+          {/* ── Custom fields ── */}
+          {savedCustomFields.filter(f => f.visible).length > 0 && (
+            <SectionCard title="Custom fields">
+              {savedCustomFields.filter(f => f.visible).map(field => (
+                <CustomFieldInput
+                  key={field.id}
+                  field={field}
+                  value={customFieldValues[field.id]}
+                  onChange={v => setCustomFieldValue(field.id, v)}
+                />
+              ))}
+            </SectionCard>
+          )}
 
           {/* Bottom CTAs */}
           <div className="flex items-center justify-end gap-2 py-4">

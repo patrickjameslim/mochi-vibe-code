@@ -99,12 +99,12 @@ function SubNavItem({
 
 export function Sidebar() {
   const { currentPage, navigate } = useNavigation();
-  const [billingOpen, setBillingOpen] = useState(
-    currentPage === 'manage-bills' || currentPage === 'bill',
-  );
 
-  const billingActive =
-    currentPage === 'manage-bills' || currentPage === 'bill';
+  const customersActive = ['list', 'create', 'detail', 'view'].includes(currentPage);
+  const [customersOpen, setCustomersOpen] = useState(customersActive);
+
+  const billingActive = currentPage === 'manage-bills' || currentPage === 'bill';
+  const [billingOpen, setBillingOpen] = useState(billingActive);
 
   return (
     <aside className="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0">
@@ -114,18 +114,38 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-        <NavItem icon={<House size={18} />}      label="Dashboard" />
+        <NavItem icon={<House size={18} />} label="Dashboard" />
+
+        {/* ── Customers (expandable) ── */}
         <NavItem
           icon={<Users size={18} />}
           label="Customers"
-          active={['list', 'create', 'detail', 'view'].includes(currentPage)}
-          onClick={() => navigate('list')}
+          active={customersActive}
+          expandable
+          expanded={customersOpen}
+          onClick={() => setCustomersOpen((o) => !o)}
         />
+        {customersOpen && (
+          <div className="space-y-0.5">
+            <SubNavItem
+              icon={<ListBullets size={12} />}
+              label="Manage customers"
+              active={['list', 'detail', 'view'].includes(currentPage)}
+              onClick={() => navigate('list')}
+            />
+            <SubNavItem
+              icon={<Plus size={12} weight="bold" />}
+              label="Create customer"
+              active={currentPage === 'create'}
+              onClick={() => navigate('create')}
+            />
+          </div>
+        )}
 
-        {/* ── Billing (expandable) ── */}
+        {/* ── Bills (expandable) ── */}
         <NavItem
           icon={<CreditCard size={18} />}
-          label="Billing"
+          label="Bills"
           active={billingActive}
           expandable
           expanded={billingOpen}

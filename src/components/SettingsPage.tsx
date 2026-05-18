@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useCustomFields } from '../context/CustomFieldsContext';
 import {
   BellSimple,
   CaretRight,
   CaretDown,
+  Check,
+  Circle,
   DotsSixVertical,
-  Eye,
-  Sliders,
+  Minus,
   Plus,
+  Square,
   Trash,
   UploadSimple,
   User,
   Buildings,
   Info,
   Image as ImageIcon,
+  WarningCircle,
+  X,
 } from '@phosphor-icons/react';
 import { Sidebar } from './Sidebar';
 import { Switch } from './ui/Switch';
@@ -33,7 +53,7 @@ import { cn } from '../lib/utils';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FIELD_TYPES = [
-  'Text', 'Email', 'Tel', 'Number', 'Select',
+  'Text', 'Email', 'Number', 'Select',
   'Multi-select', 'Textarea', 'Toggle', 'Radio', 'File', 'Date',
 ] as const;
 
@@ -54,7 +74,9 @@ type SettingsSection =
 interface FieldRow {
   id: string;
   label: string;
+  helperText?: string;
   type: string;
+  options?: string[];
   required: boolean;
   visible: boolean;
   isSystem: boolean;
@@ -184,83 +206,184 @@ function FieldRowItem({
   onDelete,
   isDirty = false,
   isNew = false,
+  dragHandleListeners,
+  dragHandleAttributes,
 }: {
   field: FieldRow;
   onUpdate: (id: string, key: keyof FieldRow, value: unknown) => void;
   onDelete: (id: string) => void;
   isDirty?: boolean;
   isNew?: boolean;
+  dragHandleListeners?: Record<string, unknown>;
+  dragHandleAttributes?: Record<string, unknown>;
 }) {
+  const isSelectType = field.type === 'Select' || field.type === 'Multi-select';
+  const showOptionsEditor = isSelectType && !field.isSystem;
+  const options = field.options ?? [];
+
+  function updateOption(i: number, val: string) {
+    const next = [...options];
+    next[i] = val;
+    onUpdate(field.id, 'options', next);
+  }
+
+  function removeOption(i: number) {
+    onUpdate(field.id, 'options', options.filter((_, idx) => idx !== i));
+  }
+
+  function addOption() {
+    onUpdate(field.id, 'options', [...options, `Option ${options.length + 1}`]);
+  }
+
   return (
     <div className={cn(
-      'flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 last:border-0 group transition-colors border-l-[3px]',
-      isDirty && 'bg-amber-50 border-l-amber-400 hover:bg-amber-50',
-      isNew  && 'bg-violet-50/60 border-l-violet-400 hover:bg-violet-50/70',
-      !isDirty && !isNew && 'border-l-transparent hover:bg-slate-50/50',
+      'border-b border-slate-100 last:border-0 border-l-[3px] transition-colors',
+      isDirty && 'bg-amber-50 border-l-amber-400',
+      isNew  && 'bg-violet-50/60 border-l-violet-400',
+      !isDirty && !isNew && 'border-l-transparent',
     )}>
-      <DotsSixVertical
-        size={15}
-        className="text-slate-300 w-4 shrink-0 cursor-grab group-hover:text-slate-400 transition-colors"
-      />
-
-      {/* Field name — editable for all fields */}
-      <input
-        type="text"
-        value={field.label}
-        onChange={e => onUpdate(field.id, 'label', e.target.value)}
-        className="flex-1 min-w-0 text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
-      />
-
-      {/* Field type — disabled for system fields */}
-      <div className="w-32 shrink-0">
-        <Select
-          value={field.type}
-          onValueChange={v => onUpdate(field.id, 'type', v)}
-          disabled={field.isSystem}
+      {/* Main row */}
+      <div className={cn(
+        'flex items-center gap-3 px-4 py-2.5 group',
+        isDirty && 'hover:bg-amber-50',
+        isNew && 'hover:bg-violet-50/70',
+        !isDirty && !isNew && 'hover:bg-slate-50/50',
+      )}>
+        <span
+          {...dragHandleListeners}
+          {...dragHandleAttributes}
+          className={cn(
+            'w-4 shrink-0 flex items-center text-slate-300 transition-colors group-hover:text-slate-400',
+            dragHandleListeners ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+          )}
         >
-          <SelectTrigger className={cn(
-            'w-full text-xs py-1.5 h-auto',
-            field.isSystem && 'bg-slate-50 text-slate-400',
-          )}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FIELD_TYPES.map(t => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <DotsSixVertical size={15} />
+        </span>
+
+        {/* Field name + helper text */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <input
+            type="text"
+            value={field.label}
+            onChange={e => onUpdate(field.id, 'label', e.target.value)}
+            placeholder="Column name"
+            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
+          />
+          {!field.isSystem && (
+            <input
+              type="text"
+              value={field.helperText ?? ''}
+              onChange={e => onUpdate(field.id, 'helperText', e.target.value)}
+              placeholder="Helper text (optional)"
+              className="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-500 bg-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-shadow"
+            />
+          )}
+        </div>
+
+        {/* Field type — disabled for system fields */}
+        <div className="w-32 shrink-0">
+          <Select
+            value={field.type}
+            onValueChange={v => onUpdate(field.id, 'type', v)}
+            disabled={field.isSystem}
+          >
+            <SelectTrigger className={cn(
+              'w-full text-xs py-1.5 h-auto',
+              field.isSystem && 'bg-slate-50 text-slate-400',
+            )}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FIELD_TYPES.map(t => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Required toggle */}
+        <div className="w-[52px] shrink-0 flex justify-center">
+          <Switch
+            checked={field.required}
+            onChange={v => onUpdate(field.id, 'required', v)}
+          />
+        </div>
+
+        {/* Visible toggle */}
+        <div className="w-[44px] shrink-0 flex justify-center">
+          <Switch
+            checked={field.visible}
+            onChange={v => onUpdate(field.id, 'visible', v)}
+          />
+        </div>
+
+        {/* Delete — disabled for system fields */}
+        <button
+          disabled={field.isSystem}
+          onClick={() => onDelete(field.id)}
+          className={cn(
+            'w-7 h-7 flex items-center justify-center rounded-md transition-colors shrink-0',
+            field.isSystem
+              ? 'text-slate-200 cursor-not-allowed'
+              : 'text-slate-400 hover:text-red-500 hover:bg-red-50',
+          )}
+        >
+          <Trash size={13} />
+        </button>
       </div>
 
-      {/* Required toggle */}
-      <div className="w-[52px] shrink-0 flex justify-center">
-        <Switch
-          checked={field.required}
-          onChange={v => onUpdate(field.id, 'required', v)}
-        />
-      </div>
+      {/* Options editor — Select / Multi-select only */}
+      {showOptionsEditor && (
+        <div className="pl-11 pr-4 pb-3 space-y-1.5">
+          {options.map((opt, i) => (
+            <div key={i} className="flex items-center gap-2">
+              {field.type === 'Select'
+                ? <Circle size={13} className="text-slate-300 shrink-0" />
+                : <Square size={13} className="text-slate-300 shrink-0" />}
+              <input
+                type="text"
+                value={opt}
+                onChange={e => updateOption(i, e.target.value)}
+                placeholder={`Option ${i + 1}`}
+                className="flex-1 text-sm border-b border-slate-200 bg-transparent py-0.5 text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-violet-400 transition-colors"
+              />
+              <button
+                onClick={() => removeOption(i)}
+                disabled={options.length <= 1}
+                className={cn(
+                  'shrink-0 w-5 h-5 flex items-center justify-center rounded transition-colors',
+                  options.length <= 1
+                    ? 'text-slate-200 cursor-not-allowed'
+                    : 'text-slate-300 hover:text-red-400',
+                )}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={addOption}
+            className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 mt-1 transition-colors"
+          >
+            <Plus size={13} weight="bold" />
+            Add option
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
-      {/* Visible toggle */}
-      <div className="w-[44px] shrink-0 flex justify-center">
-        <Switch
-          checked={field.visible}
-          onChange={v => onUpdate(field.id, 'visible', v)}
-        />
-      </div>
+// ─── Sortable wrapper for custom field rows ───────────────────────────────────
 
-      {/* Delete — disabled for system fields */}
-      <button
-        disabled={field.isSystem}
-        onClick={() => onDelete(field.id)}
-        className={cn(
-          'w-7 h-7 flex items-center justify-center rounded-md transition-colors shrink-0',
-          field.isSystem
-            ? 'text-slate-200 cursor-not-allowed'
-            : 'text-slate-400 hover:text-red-500 hover:bg-red-50',
-        )}
-      >
-        <Trash size={13} />
-      </button>
+function SortableFieldRow(props: Omit<React.ComponentProps<typeof FieldRowItem>, 'dragHandleListeners' | 'dragHandleAttributes'>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.field.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+    >
+      <FieldRowItem {...props} dragHandleListeners={listeners as Record<string, unknown>} dragHandleAttributes={attributes as unknown as Record<string, unknown>} />
     </div>
   );
 }
@@ -318,25 +441,136 @@ function SectionCard({
 
 // ─── Form preview ─────────────────────────────────────────────────────────────
 
+function EmailPreview({ field }: { field: FieldRow }) {
+  const [val, setVal] = useState('');
+  const [touched, setTouched] = useState(false);
+  const isInvalid = touched && val.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  return (
+    <div>
+      <Input
+        type="email"
+        value={val}
+        onChange={e => { setVal(e.target.value); if (isInvalid) setTouched(false); }}
+        onBlur={() => setTouched(true)}
+        placeholder={field.helperText || 'Enter email address'}
+        error={isInvalid}
+      />
+      {isInvalid && (
+        <p className="mt-1.5 flex items-center gap-1 text-sm text-red-500">
+          <WarningCircle size={14} className="shrink-0" />
+          Please enter a valid email address.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function NumberPreview({ field }: { field: FieldRow }) {
+  const [val, setVal] = useState(0);
+  return (
+    <div className="flex items-center w-fit rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+      <button
+        onClick={() => setVal(v => v - 1)}
+        className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors border-r border-slate-200"
+      >
+        <Minus size={14} />
+      </button>
+      <input
+        type="number"
+        value={val}
+        onChange={e => setVal(Number(e.target.value))}
+        placeholder={field.helperText || '0'}
+        className="w-20 text-center text-sm text-slate-800 bg-white py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <button
+        onClick={() => setVal(v => v + 1)}
+        className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors border-l border-slate-200"
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  );
+}
+
+function SelectPreview({ field }: { field: FieldRow }) {
+  const [val, setVal] = useState('');
+  const options = field.options ?? [];
+  return (
+    <Select value={val} onValueChange={setVal}>
+      <SelectTrigger>
+        <SelectValue placeholder={field.helperText || 'Select an option'} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.length > 0
+          ? options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)
+          : <SelectItem value="__empty__" disabled>No options defined</SelectItem>}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function MultiSelectPreview({ field }: { field: FieldRow }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const options = field.options ?? [];
+
+  function toggle(opt: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(opt) ? next.delete(opt) : next.add(opt);
+      return next;
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      {options.length === 0
+        ? <p className="text-sm text-slate-400 italic">No options defined</p>
+        : options.map(opt => (
+          <button
+            key={opt}
+            onClick={() => toggle(opt)}
+            className="flex items-center gap-2.5 w-full text-left group"
+          >
+            <div className={cn(
+              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
+              selected.has(opt)
+                ? 'border-violet-500 bg-violet-500'
+                : 'border-slate-300 group-hover:border-slate-400',
+            )}>
+              {selected.has(opt) && <Check size={10} weight="bold" className="text-white" />}
+            </div>
+            <span className="text-sm text-slate-700">{opt}</span>
+          </button>
+        ))}
+    </div>
+  );
+}
+
 function PreviewFieldInput({ field }: { field: FieldRow }) {
   const base =
     'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white ' +
     'text-slate-800 placeholder:text-slate-400 cursor-default focus:outline-none';
 
+  const ph = (fallback: string) => field.helperText || fallback;
+
   switch (field.type) {
-    case 'Text':
     case 'Email':
-    case 'Tel':
+      return <EmailPreview field={field} />;
+    case 'Number':
+      return <NumberPreview field={field} />;
+    case 'Select':
+      return <SelectPreview field={field} />;
+    case 'Multi-select':
+      return <MultiSelectPreview field={field} />;
+    case 'Text':
       return (
         <input
           readOnly
-          type={field.type.toLowerCase()}
-          placeholder={`Enter ${field.label.toLowerCase()}`}
+          type="text"
+          placeholder={ph(`Enter ${field.label.toLowerCase()}`)}
           className={base}
         />
       );
-    case 'Number':
-      return <input readOnly type="number" placeholder="0" className={base} />;
     case 'Date':
       return <input readOnly type="date" className={cn(base, 'text-slate-400')} />;
     case 'Textarea':
@@ -344,34 +578,12 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
         <textarea
           readOnly
           rows={3}
-          placeholder={`Enter ${field.label.toLowerCase()}`}
+          placeholder={ph(`Enter ${field.label.toLowerCase()}`)}
           className={cn(base, 'resize-none')}
         />
       );
-    case 'Select':
-      return (
-        <div className={cn(base, 'flex items-center justify-between text-slate-400')}>
-          <span>Select an option</span>
-          <CaretDown size={13} className="text-slate-300 shrink-0" />
-        </div>
-      );
-    case 'Multi-select':
-      return (
-        <div className={cn(base, 'min-h-[72px] flex flex-wrap gap-1.5 items-start content-start text-slate-400')}>
-          <span className="text-slate-400">Select options…</span>
-        </div>
-      );
     case 'Toggle':
-      return (
-        <div className="flex gap-2 mt-0.5">
-          <span className="px-4 py-2 text-sm rounded-lg border border-violet-300 bg-violet-50 text-violet-700 font-medium">
-            Individual
-          </span>
-          <span className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-500">
-            Business
-          </span>
-        </div>
-      );
+      return <Switch checked={false} onChange={() => {}} />;
     case 'Radio':
       return (
         <div className="flex gap-5 mt-1">
@@ -393,7 +605,7 @@ function PreviewFieldInput({ field }: { field: FieldRow }) {
         </div>
       );
     default:
-      return <input readOnly placeholder={`Enter ${field.label.toLowerCase()}`} className={base} />;
+      return <input readOnly placeholder={ph(`Enter ${field.label.toLowerCase()}`)} className={base} />;
   }
 }
 
@@ -653,6 +865,7 @@ function CustomerFormContent({
   onAddCustomField,
   onUpdateCustomField,
   onDeleteCustomField,
+  onReorderCustomFields,
   dirtyFieldIds,
   newFieldIds,
 }: {
@@ -662,10 +875,31 @@ function CustomerFormContent({
   onAddCustomField: () => void;
   onUpdateCustomField: (id: string, key: keyof FieldRow, value: unknown) => void;
   onDeleteCustomField: (id: string) => void;
+  onReorderCustomFields: (fields: FieldRow[]) => void;
   dirtyFieldIds: Set<string>;
   newFieldIds: Set<string>;
 }) {
   const [viewMode, setViewMode] = useState<'build' | 'preview'>('build');
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(customFields.length);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = customFields.findIndex(f => f.id === active.id);
+      const newIndex = customFields.findIndex(f => f.id === over.id);
+      onReorderCustomFields(arrayMove(customFields, oldIndex, newIndex));
+    }
+  }
+
+  useEffect(() => {
+    if (customFields.length > prevLengthRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+    prevLengthRef.current = customFields.length;
+  }, [customFields.length]);
 
   const customDirtyCount = customFields.filter(f => dirtyFieldIds.has(f.id)).length;
   const customNewCount = customFields.filter(f => newFieldIds.has(f.id)).length;
@@ -674,44 +908,46 @@ function CustomerFormContent({
   return (
     <>
       {/* Sticky sub-header — always visible regardless of mode */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-base font-semibold text-slate-900">Customer form</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Configure the fields shown in the customer creation form.</p>
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
+        {/* Left — title */}
+        <div className="min-w-0">
+          <h1 className="text-base font-semibold text-slate-900">Customer</h1>
+          <p className="text-sm text-slate-500">Configure the fields shown in the customer creation form.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="inline-flex items-center rounded-lg bg-slate-100 p-0.5">
-            <button
-              onClick={() => setViewMode('build')}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all',
-                viewMode === 'build'
-                  ? 'bg-white text-slate-900 font-medium shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-            >
-              <Sliders size={13} />
-              Build
-            </button>
-            <button
-              onClick={() => setViewMode('preview')}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all',
-                viewMode === 'preview'
-                  ? 'bg-white text-slate-900 font-medium shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-            >
-              <Eye size={13} />
-              Preview
-            </button>
+
+        {/* Center — Build / Preview toggle */}
+        <div className="flex justify-center">
+          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+            {(['build', 'preview'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setViewMode(v)}
+                className={[
+                  'px-4 py-1.5 text-sm font-medium capitalize transition-colors',
+                  viewMode === v
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-500 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                {v}
+              </button>
+            ))}
           </div>
-          {viewMode === 'build' && (
-            <Button variant="primary" size="md" onClick={onAddCustomField}>
-              <Plus size={14} weight="bold" />
-              Add custom field
-            </Button>
-          )}
+        </div>
+
+        {/* Right — Add custom field */}
+        <div className="flex items-center justify-end">
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => {
+              if (viewMode === 'preview') setViewMode('build');
+              onAddCustomField();
+            }}
+          >
+            <Plus size={14} weight="bold" />
+            Add custom field
+          </Button>
         </div>
       </div>
 
@@ -760,16 +996,21 @@ function CustomerFormContent({
                 )}
               </div>
               <ColumnHeader />
-              {customFields.map(field => (
-                <FieldRowItem
-                  key={field.id}
-                  field={field}
-                  onUpdate={onUpdateCustomField}
-                  onDelete={onDeleteCustomField}
-                  isDirty={dirtyFieldIds.has(field.id)}
-                  isNew={newFieldIds.has(field.id)}
-                />
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={customFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                  {customFields.map(field => (
+                    <SortableFieldRow
+                      key={field.id}
+                      field={field}
+                      onUpdate={onUpdateCustomField}
+                      onDelete={onDeleteCustomField}
+                      isDirty={dirtyFieldIds.has(field.id)}
+                      isNew={newFieldIds.has(field.id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+              <div ref={bottomRef} />
             </div>
           )}
         </div>
@@ -817,6 +1058,7 @@ function SaveBar({ onSave, onDiscard }: { onSave: () => void; onDiscard: () => v
 let _customFieldCounter = 0;
 
 export default function SettingsPage() {
+  const { saveCustomFields } = useCustomFields();
   const [activeSection, setActiveSection] = useState<SettingsSection>('custom-fields-form');
   const [customFieldsOpen, setCustomFieldsOpen] = useState(true);
 
@@ -873,6 +1115,7 @@ export default function SettingsPage() {
       {
         id: `custom-${_customFieldCounter}`,
         label: 'New field',
+        helperText: '',
         type: 'Text',
         required: false,
         visible: true,
@@ -882,11 +1125,22 @@ export default function SettingsPage() {
   }
 
   function updateCustomField(fieldId: string, key: keyof FieldRow, value: unknown) {
-    setDraftCustomFields(prev => prev.map(f => f.id === fieldId ? { ...f, [key]: value } : f));
+    setDraftCustomFields(prev => prev.map(f => {
+      if (f.id !== fieldId) return f;
+      const updated = { ...f, [key]: value };
+      if (key === 'type' && (value === 'Select' || value === 'Multi-select') && !f.options?.length) {
+        updated.options = ['Option 1'];
+      }
+      return updated;
+    }));
   }
 
   function deleteCustomField(fieldId: string) {
     setDraftCustomFields(prev => prev.filter(f => f.id !== fieldId));
+  }
+
+  function reorderCustomFields(fields: FieldRow[]) {
+    setDraftCustomFields(fields);
   }
 
   // ── Commit / discard ───────────────────────────────────────────────────────
@@ -894,6 +1148,7 @@ export default function SettingsPage() {
   function handleSave() {
     setSavedSections(draftSections);
     setSavedCustomFields(draftCustomFields);
+    saveCustomFields(draftCustomFields.map(({ isSystem: _s, ...rest }) => rest));
   }
 
   function handleDiscard() {
@@ -911,8 +1166,8 @@ export default function SettingsPage() {
     'receiving-accounts':  ['Settings', 'Receiving Accounts'],
     'bir-invoicing':       ['Settings', 'BIR Invoicing Registration'],
     'template-library':    ['Settings', 'Template Library'],
-    'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer form'],
-    'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills fields'],
+    'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
+    'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
     'payment-portal':      ['Settings', 'Payment Portal'],
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
@@ -924,8 +1179,8 @@ export default function SettingsPage() {
     'receiving-accounts':  'Receiving Accounts',
     'bir-invoicing':       'BIR Invoicing Registration',
     'template-library':    'Template Library',
-    'custom-fields-form':  'Customer form',
-    'custom-fields-bills': 'Bills fields',
+    'custom-fields-form':  'Customer',
+    'custom-fields-bills': 'Bills',
     'payment-portal':      'Payment Portal',
     'disbursements':       'Disbursements',
     'users':               'Users',
@@ -944,6 +1199,7 @@ export default function SettingsPage() {
           onAddCustomField={addCustomField}
           onUpdateCustomField={updateCustomField}
           onDeleteCustomField={deleteCustomField}
+          onReorderCustomFields={reorderCustomFields}
           dirtyFieldIds={dirtyFieldIds}
           newFieldIds={newFieldIds}
         />
@@ -1006,8 +1262,8 @@ export default function SettingsPage() {
             </button>
             {customFieldsOpen && (
               <>
-                <SecSubNavItem label="Customer form" active={activeSection === 'custom-fields-form'}  onClick={() => setActiveSection('custom-fields-form')} />
-                <SecSubNavItem label="Bills fields"  active={activeSection === 'custom-fields-bills'} onClick={() => setActiveSection('custom-fields-bills')} />
+                <SecSubNavItem label="Customer" active={activeSection === 'custom-fields-form'}  onClick={() => setActiveSection('custom-fields-form')} />
+                <SecSubNavItem label="Bills"    active={activeSection === 'custom-fields-bills'} onClick={() => setActiveSection('custom-fields-bills')} />
               </>
             )}
 

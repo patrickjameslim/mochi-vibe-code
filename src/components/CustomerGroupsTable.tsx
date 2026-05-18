@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   CaretDown,
-  ArrowsDownUp,
   DownloadSimple,
   Copy,
   DotsThreeVertical,
@@ -12,6 +11,7 @@ import {
 import { Customer } from '../data/customers';
 import { GROUP_STATS, GroupStat } from '../data/customerGroups';
 import { Tooltip } from './ui/Tooltip';
+import { SortTh } from './ui/SortTh';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -60,17 +60,6 @@ function Avatar({ initials, color, size = 26 }: { initials: string; color: strin
     >
       {initials}
     </span>
-  );
-}
-
-function SortTh({ children }: { children: React.ReactNode }) {
-  return (
-    <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
-      <button className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors">
-        {children}
-        <ArrowsDownUp size={12} weight="bold" className="text-slate-400" />
-      </button>
-    </th>
   );
 }
 
@@ -186,9 +175,7 @@ export default function CustomerGroupsTable({
             <SortTh>Total customers</SortTh>
             <SortTh>Amount collected</SortTh>
             <SortTh>Total amount due</SortTh>
-            <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em]">
-              Quick actions
-            </th>
+            <SortTh>Quick actions</SortTh>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">

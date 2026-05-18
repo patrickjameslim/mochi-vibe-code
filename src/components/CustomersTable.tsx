@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { useCustomFields } from '../context/CustomFieldsContext';
 import {
   ArrowsDownUp,
   Copy,
   DotsThreeVertical,
-  MagnifyingGlass,
   Funnel,
   CaretDown,
   Plus,
@@ -18,6 +18,10 @@ import {
 import BulkActionsBar, { BulkAction } from './ui/BulkActionsBar';
 import { Customer, CUSTOMERS, SupportingDocFile } from '../data/customers';
 import { Tooltip, TooltipProvider } from './ui/Tooltip';
+import { Highlight } from './ui/Highlight';
+import { SortTh } from './ui/SortTh';
+import { useTableSort } from '../hooks/useTableSort';
+import { useStickyColumns } from '../hooks/useStickyColumns';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -37,6 +41,7 @@ import {
 } from '@phosphor-icons/react';
 import ColumnManagementDrawer, { ColumnDef } from './ColumnManagementDrawer';
 import { ColumnsButton } from './ui/ColumnsButton';
+import { DataTable } from './DataTable';
 
 // ─── Column config ────────────────────────────────────────────────────────────
 
@@ -55,15 +60,28 @@ const DEFAULT_CUSTOMER_COLS: ColumnDef[] = [
   { id: 'quickActions',    label: 'Quick actions',        visible: true,  pin: 'none' },
 ];
 
+// ─── Sort config ──────────────────────────────────────────────────────────────
+
+type CustomerSortKey = 'id' | 'type' | 'name' | 'email' | 'address' | 'phone' | 'group' | 'lastUpdatedAt' | 'dateCreated';
+
+const COL_SORT_KEY: Partial<Record<string, CustomerSortKey>> = {
+  customerID:    'id',
+  type:          'type',
+  name:          'name',
+  email:         'email',
+  address:       'address',
+  phone:         'phone',
+  group:         'group',
+  lastUpdatedAt: 'lastUpdatedAt',
+  dateCreated:   'dateCreated',
+};
+
 // Approximate column widths (px) for sticky offset calculation
 const COL_WIDTH: Record<string, number> = {
   customerID: 120, type: 130, name: 165, email: 195, address: 210,
   phone: 145, group: 165, supportingDocs: 165, notes: 85,
   lastUpdatedAt: 145, dateCreated: 135, quickActions: 115,
 };
-
-const CHECKBOX_W = 40;
-const KEBAB_W    = 44;
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 function Avatar({ initials, color, size = 28 }: { initials: string; color: string; size?: number }) {
@@ -98,88 +116,6 @@ function IconButton({
       ].join(' ')}
     >
       {children}
-    </button>
-  );
-}
-
-// ─── Sort Header Cell ─────────────────────────────────────────────────────────
-function SortTh({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <th
-      style={style}
-      className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em] bg-slate-50"
-    >
-      <button className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors">
-        {children}
-        <ArrowsDownUp size={12} weight="bold" className="text-slate-400" />
-      </button>
-    </th>
-  );
-}
-
-function PlainTh({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <th
-      style={style}
-      className="px-3 py-2.5 text-left text-[11px] font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em] bg-slate-50"
-    >
-      {children}
-    </th>
-  );
-}
-
-function Highlight({ text, query }: { text: string; query: string }) {
-  const q = query.trim().toLowerCase();
-  if (!q) return <>{text}</>;
-
-  const parts: { str: string; match: boolean }[] = [];
-  const lower = text.toLowerCase();
-  let last = 0;
-  let idx = lower.indexOf(q, last);
-  while (idx !== -1) {
-    if (idx > last) parts.push({ str: text.slice(last, idx), match: false });
-    parts.push({ str: text.slice(idx, idx + q.length), match: true });
-    last = idx + q.length;
-    idx = lower.indexOf(q, last);
-  }
-  if (last < text.length) parts.push({ str: text.slice(last), match: false });
-
-  return (
-    <>
-      {parts.map((p, i) =>
-        p.match ? (
-          <mark key={i} className="bg-yellow-200 text-yellow-900 rounded px-0.5 not-italic">
-            {p.str}
-          </mark>
-        ) : (
-          <span key={i}>{p.str}</span>
-        )
-      )}
-    </>
-  );
-}
-
-// ─── Tab ─────────────────────────────────────────────────────────────────────
-function Tab({
-  label,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={[
-        'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
-        active
-          ? 'border-violet-600 text-violet-700'
-          : 'border-transparent text-slate-500 hover:text-slate-700',
-      ].join(' ')}
-    >
-      {label}
     </button>
   );
 }
@@ -252,6 +188,7 @@ export default function CustomersTable({
   groupOverride?: { id: string; groups: string[] } | null;
   onGroupOverrideApplied?: () => void;
 }) {
+  const { sortKey, sortAsc, toggleSort } = useTableSort<CustomerSortKey>();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'All' | 'Individual' | 'Organization' | 'Customer groups'>('All');
   const [drawer, setDrawer] = useState<DrawerState>({ open: false, customer: null });
@@ -264,6 +201,19 @@ export default function CustomersTable({
   const [columnConfig, setColumnConfig] = useState<ColumnDef[]>(DEFAULT_CUSTOMER_COLS);
   const [colDrawerOpen, setColDrawerOpen] = useState(false);
 
+  const { savedCustomFields } = useCustomFields();
+  useEffect(() => {
+    setColumnConfig(prev => {
+      const standard = prev.filter(c => !c.id.startsWith('cf_'));
+      const cfCols: ColumnDef[] = savedCustomFields
+        .filter(f => f.visible)
+        .map(f => ({ id: `cf_${f.id}`, label: f.label, visible: true, pin: 'none' as const }));
+      const insertAt = standard.findIndex(c => c.id === 'quickActions');
+      const idx = insertAt >= 0 ? insertAt : standard.length;
+      return [...standard.slice(0, idx), ...cfCols, ...standard.slice(idx)];
+    });
+  }, [savedCustomFields]);
+
   // Notes drawer
   const [notesDrawer, setNotesDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
   // Docs viewer drawer
@@ -271,27 +221,6 @@ export default function CustomersTable({
   // Bulk state
   const [archivedCustomers, setArchivedCustomers] = useState<Set<string>>(new Set());
   const [bulkGroupsDrawerOpen, setBulkGroupsDrawerOpen] = useState(false);
-
-  // Synchronized scrollbar refs
-  const topScrollRef   = useRef<HTMLDivElement>(null);
-  const tableScrollRef = useRef<HTMLDivElement>(null);
-  const spacerRef      = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Keep spacer width = table scroll width so the top scrollbar thumb is sized correctly
-  useEffect(() => {
-    const tableEl = tableScrollRef.current;
-    if (!tableEl || !spacerRef.current) return;
-    const sync = () => {
-      if (spacerRef.current && tableEl) {
-        spacerRef.current.style.width = tableEl.scrollWidth + 'px';
-      }
-    };
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(tableEl);
-    return () => ro.disconnect();
-  }, [activeTab, perPage, currentPage, columnConfig]);
 
   useEffect(() => {
     if (initialBanner) {
@@ -346,10 +275,23 @@ export default function CustomersTable({
     );
   });
 
-  const visible    = filtered.filter((c) => !archivedCustomers.has(c.id));
-  const totalPages = Math.max(1, Math.ceil(visible.length / perPage));
+  const sorted = sortKey === null ? filtered : [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if      (sortKey === 'id')            cmp = a.id.localeCompare(b.id);
+    else if (sortKey === 'type')          cmp = a.type.localeCompare(b.type);
+    else if (sortKey === 'name')          cmp = a.name.localeCompare(b.name);
+    else if (sortKey === 'email')         cmp = a.email.localeCompare(b.email);
+    else if (sortKey === 'address')       cmp = a.address.localeCompare(b.address);
+    else if (sortKey === 'phone')         cmp = a.phoneNumber.localeCompare(b.phoneNumber);
+    else if (sortKey === 'group')         cmp = a.group.localeCompare(b.group);
+    else if (sortKey === 'lastUpdatedAt') cmp = new Date(a.lastUpdatedAt).getTime() - new Date(b.lastUpdatedAt).getTime();
+    else if (sortKey === 'dateCreated')   cmp = new Date(a.dateCreated).getTime()   - new Date(b.dateCreated).getTime();
+    return sortAsc ? cmp : -cmp;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / perPage));
   const safePage   = Math.min(currentPage, totalPages);
-  const paginated  = visible.slice((safePage - 1) * perPage, safePage * perPage);
+  const paginated  = sorted.slice((safePage - 1) * perPage, safePage * perPage);
 
   function handleTabChange(tab: typeof activeTab) {
     setActiveTab(tab);
@@ -469,51 +411,51 @@ export default function CustomersTable({
   }
 
   // ─── Compute visible ordered columns + sticky offsets ────────────────────────
-  const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned } = useMemo(() => {
-    const leftPinned  = columnConfig.filter((c) => c.pin === 'left'  && c.visible);
-    const center      = columnConfig.filter((c) => c.pin === 'none'  && c.visible);
-    const rightPinned = columnConfig.filter((c) => c.pin === 'right' && c.visible);
-
-    const ordered = [...leftPinned, ...center, ...rightPinned];
-
-    // Compute left offsets
-    const leftOffsets: Record<string, number> = {};
-    let leftCursor = CHECKBOX_W;
-    for (const col of leftPinned) {
-      leftOffsets[col.id] = leftCursor;
-      leftCursor += COL_WIDTH[col.id] ?? 130;
-    }
-
-    // Compute right offsets (columns render left→right, rightPinned[last] is closest to kebab)
-    const rightOffsets: Record<string, number> = {};
-    let rightCursor = KEBAB_W;
-    for (let i = rightPinned.length - 1; i >= 0; i--) {
-      rightOffsets[rightPinned[i].id] = rightCursor;
-      rightCursor += COL_WIDTH[rightPinned[i].id] ?? 130;
-    }
-
-    const lastLeftId   = leftPinned.length > 0 ? leftPinned[leftPinned.length - 1].id : null;
-    const firstRightId = rightPinned.length > 0 ? rightPinned[0].id : null;
-    const SEP_R = { borderRight: '1px solid #d1d5db' };
-    const SEP_L = { borderLeft:  '1px solid #d1d5db' };
-
-    function colHeaderStyle(id: string): React.CSSProperties {
-      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 2, backgroundColor: '#f8fafc', ...(id === lastLeftId   ? SEP_R : {}) };
-      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 2, backgroundColor: '#f8fafc', ...(id === firstRightId ? SEP_L : {}) };
-      return {};
-    }
-
-    function colCellStyle(id: string): React.CSSProperties {
-      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 1, ...(id === lastLeftId   ? SEP_R : {}) };
-      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 1, ...(id === firstRightId ? SEP_L : {}) };
-      return {};
-    }
-
-    return { visibleCols: ordered, colHeaderStyle, colCellStyle, hasLeftPinned: leftPinned.length > 0, hasRightPinned: rightPinned.length > 0 };
-  }, [columnConfig]);
+  const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned } = useStickyColumns(columnConfig, COL_WIDTH);
 
   // Count active pins/hidden for button badge
   const activeColChanges = columnConfig.filter((c) => !c.visible || c.pin !== 'none').length;
+
+  // ─── Headers ─────────────────────────────────────────────────────────────────
+  const headers = visibleCols.map((col) => {
+    const style = colHeaderStyle(col.id);
+    const isPinned = !!style.position;
+    return (
+      <SortTh
+        key={col.id}
+        colSortKey={COL_SORT_KEY[col.id]}
+        activeSortKey={sortKey}
+        sortAsc={sortAsc}
+        onSort={toggleSort as (key: string) => void}
+        style={style}
+      >
+        {isPinned && <PinIndicator />}
+        {col.label}
+      </SortTh>
+    );
+  });
+
+  // ─── Rows ─────────────────────────────────────────────────────────────────────
+  const rows = paginated.map((customer) => (
+    <CustomerRow
+      key={customer.id}
+      customer={customer}
+      groups={customerGroups[customer.id] ?? [customer.group]}
+      visibleCols={visibleCols}
+      colStyle={colCellStyle}
+      checkboxSeparator={!hasLeftPinned}
+      isExpanded={expandedRows.has(customer.id)}
+      isSelected={selected.has(customer.id)}
+      query={q}
+      onToggle={() => toggleRow(customer.id)}
+      onAssignGroups={() => openAssignGroups(customer)}
+      onToggleExpand={() => toggleExpand(customer.id)}
+      onViewNotes={() => setNotesDrawer({ open: true, customer })}
+      onViewDocs={() => setDocsDrawer({ open: true, customer })}
+      onEdit={() => onEdit?.(customer, customerGroups[customer.id] ?? [customer.group])}
+      onView={() => onViewCustomer?.(customer, customerGroups[customer.id] ?? [customer.group])}
+    />
+  ));
 
   return (
     <TooltipProvider>
@@ -561,54 +503,21 @@ export default function CustomersTable({
             </div>
 
             {/* Card */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              {/* Tabs */}
-              <div className="border-b border-slate-200 px-4 flex items-center gap-0">
-                {(['All', 'Individual', 'Organization', 'Customer groups'] as const).map((t) => (
-                  <Tab key={t} label={t} active={activeTab === t} onClick={() => handleTabChange(t)} />
-                ))}
-              </div>
-
-              {/* Synchronized top scrollbar — hidden on Customer groups tab */}
-              <div className={activeTab === 'Customer groups' ? 'hidden' : 'border-b border-slate-100'}>
-                <div
-                  ref={topScrollRef}
-                  className="overflow-x-scroll"
-                  onScroll={() => {
-                    if (tableScrollRef.current && topScrollRef.current)
-                      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
-                  }}
-                >
-                  <div ref={spacerRef} style={{ height: 1 }} />
-                </div>
-              </div>
-
-              {/* Toolbar */}
-              <div className="px-4 py-3 flex items-center gap-2 border-b border-slate-100">
-                <div className="relative flex-1 max-w-xs">
-                  <MagnifyingGlass
-                    size={14}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search"
-                    value={search}
-                    onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                    className={`w-full pl-8 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 ${search ? 'pr-7' : 'pr-3'}`}
-                  />
-                  {search && (
-                    <button
-                      onClick={() => { setSearch(''); setCurrentPage(1); searchInputRef.current?.blur(); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      <X size={14} weight="bold" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="ml-auto flex items-center gap-2">
+            <DataTable
+              cardClass="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+              tabs={[
+                { value: 'All', label: 'All' },
+                { value: 'Individual', label: 'Individual' },
+                { value: 'Organization', label: 'Organization' },
+                { value: 'Customer groups', label: 'Customer groups' },
+              ]}
+              activeTab={activeTab}
+              onTabChange={(v) => handleTabChange(v as typeof activeTab)}
+              showTopScrollbar={activeTab !== 'Customer groups'}
+              search={search}
+              onSearch={(v) => { setSearch(v); setCurrentPage(1); }}
+              toolbarEnd={
+                <>
                   <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                     <Funnel size={14} />
                     Filter
@@ -617,109 +526,33 @@ export default function CustomersTable({
                     <ArrowsDownUp size={14} />
                     Last updated at
                   </button>
-                  <ColumnsButton
-                    onClick={() => setColDrawerOpen(true)}
-                    activeChanges={activeColChanges}
-                  />
-                </div>
-              </div>
-
-              {/* ── Customer groups view ── */}
-              {activeTab === 'Customer groups' ? (
-                <>
-                  <CustomerGroupsTable
-                    customers={customers}
-                    customerGroups={customerGroups}
-                    onAssignGroups={openAssignGroups}
-                    searchQuery={search}
-                  />
-                  <Pagination
-                    currentPage={1}
-                    totalPages={1}
-                    perPage={perPage}
-                    totalRows={CUSTOMERS.length}
-                    onPageChange={() => {}}
-                    onPerPageChange={handlePerPageChange}
-                  />
+                  <ColumnsButton onClick={() => setColDrawerOpen(true)} activeChanges={activeColChanges} />
                 </>
-              ) : (
-                <>
-                  {/* ── Customers table ── */}
-                  <div
-                    ref={tableScrollRef}
-                    className="overflow-x-auto"
-                    onScroll={() => {
-                      if (topScrollRef.current && tableScrollRef.current)
-                        topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
-                    }}
-                  >
-                    <table className="w-full text-sm" style={{ borderSpacing: 0 }}>
-                      <thead className="bg-slate-50 border-b border-slate-100">
-                        <tr>
-                          <th className="sticky left-0 z-[3] w-10 px-3 py-2.5 bg-slate-50" style={!hasLeftPinned ? { borderRight: '1px solid #d1d5db' } : undefined}>
-                            <input
-                              type="checkbox"
-                              checked={allChecked}
-                              ref={(el) => {
-                                if (el) el.indeterminate = someChecked;
-                              }}
-                              onChange={toggleAll}
-                              className="w-4 h-4 rounded border-slate-300 accent-violet-600 cursor-pointer"
-                            />
-                          </th>
-                          {visibleCols.map((col) => {
-                            const style = colHeaderStyle(col.id);
-                            const isPinned = !!style.position;
-                            return col.id === 'notes' || col.id === 'quickActions' ? (
-                              <PlainTh key={col.id} style={style}>
-                                {isPinned && <PinIndicator />}
-                                {col.label}
-                              </PlainTh>
-                            ) : (
-                              <SortTh key={col.id} style={style}>
-                                {isPinned && <PinIndicator />}
-                                {col.label}
-                              </SortTh>
-                            );
-                          })}
-                          <th className="sticky right-0 z-[3] w-10 bg-slate-50 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_#f9fafb]" />
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {paginated.map((customer) => (
-                          <CustomerRow
-                            key={customer.id}
-                            customer={customer}
-                            groups={customerGroups[customer.id] ?? [customer.group]}
-                            visibleCols={visibleCols}
-                            colStyle={colCellStyle}
-                            checkboxSeparator={!hasLeftPinned}
-                            isExpanded={expandedRows.has(customer.id)}
-                            isSelected={selected.has(customer.id)}
-                            query={q}
-                            onToggle={() => toggleRow(customer.id)}
-                            onAssignGroups={() => openAssignGroups(customer)}
-                            onToggleExpand={() => toggleExpand(customer.id)}
-                            onViewNotes={() => setNotesDrawer({ open: true, customer })}
-                            onViewDocs={() => setDocsDrawer({ open: true, customer })}
-                            onEdit={() => onEdit?.(customer, customerGroups[customer.id] ?? [customer.group])}
-                            onView={() => onViewCustomer?.(customer, customerGroups[customer.id] ?? [customer.group])}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <Pagination
-                    currentPage={safePage}
-                    totalPages={totalPages}
-                    perPage={perPage}
-                    totalRows={filtered.length}
-                    onPageChange={setCurrentPage}
-                    onPerPageChange={handlePerPageChange}
-                  />
-                </>
-              )}
-            </div>
+              }
+              allChecked={allChecked}
+              someChecked={someChecked}
+              onToggleAll={toggleAll}
+              hasLeftPinned={hasLeftPinned}
+              headers={headers}
+              rows={rows}
+              customContent={
+                activeTab === 'Customer groups'
+                  ? <CustomerGroupsTable
+                      customers={customers}
+                      customerGroups={customerGroups}
+                      onAssignGroups={openAssignGroups}
+                      searchQuery={search}
+                    />
+                  : undefined
+              }
+              isEmpty={paginated.length === 0}
+              currentPage={activeTab === 'Customer groups' ? 1 : safePage}
+              totalPages={activeTab === 'Customer groups' ? 1 : totalPages}
+              perPage={perPage}
+              totalRows={activeTab === 'Customer groups' ? customers.length : filtered.length}
+              onPageChange={activeTab === 'Customer groups' ? () => {} : setCurrentPage}
+              onPerPageChange={handlePerPageChange}
+            />
           </div>
         </div>
 
@@ -890,114 +723,6 @@ function DocsViewer({ customer }: { customer: Customer }) {
   );
 }
 
-// ─── Per-page dropdown ────────────────────────────────────────────────────────
-const PER_PAGE_OPTIONS = [10, 25, 50, 100];
-
-function PerPageDropdown({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 px-2 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50 transition-colors"
-      >
-        {value}
-        <CaretDown size={12} className={['transition-transform duration-150', open ? 'rotate-180' : ''].join(' ')} />
-      </button>
-      {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 min-w-[72px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-          {PER_PAGE_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              onClick={() => { onChange(opt); setOpen(false); }}
-              className={[
-                'w-full px-3 py-1.5 text-left text-sm transition-colors',
-                opt === value ? 'bg-violet-50 text-violet-700 font-medium' : 'text-slate-700 hover:bg-slate-50',
-              ].join(' ')}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Pagination helpers ───────────────────────────────────────────────────────
-function getPageNumbers(current: number, total: number): (number | '…')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
-  if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total];
-  return [1, '…', current - 1, current, current + 1, '…', total];
-}
-
-function Pagination({
-  currentPage, totalPages, perPage, totalRows, onPageChange, onPerPageChange,
-}: {
-  currentPage: number; totalPages: number; perPage: number; totalRows: number;
-  onPageChange: (p: number) => void; onPerPageChange: (v: number) => void;
-}) {
-  const pages = getPageNumbers(currentPage, totalPages);
-  const start = (currentPage - 1) * perPage + 1;
-  const end   = Math.min(currentPage * perPage, totalRows);
-
-  return (
-    <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-      <div className="flex items-center gap-2 text-sm text-slate-600">
-        <span>Show</span>
-        <PerPageDropdown value={perPage} onChange={onPerPageChange} />
-        <span>per page</span>
-        <span className="ml-2 text-slate-400">· {start}–{end} of {totalRows}</span>
-      </div>
-      <div className="flex items-center gap-1 text-sm">
-        <button
-          disabled={currentPage === 1}
-          onClick={() => onPageChange(currentPage - 1)}
-          className="px-3 py-1.5 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Previous
-        </button>
-        {pages.map((p, i) =>
-          p === '…' ? (
-            <span key={`e-${i}`} className="w-8 text-center text-slate-400 text-sm">…</span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onPageChange(p as number)}
-              className={[
-                'w-8 h-8 rounded border text-sm transition-colors',
-                p === currentPage
-                  ? 'border-violet-500 bg-violet-50 text-violet-700 font-medium'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-              ].join(' ')}
-            >
-              {p}
-            </button>
-          )
-        )}
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-          className="px-3 py-1.5 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
-        >
-          Next <CaretDown size={12} className="-rotate-90" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Row ──────────────────────────────────────────────────────────────────────
 function CustomerRow({
   customer,
@@ -1040,7 +765,7 @@ function CustomerRow({
     switch (col.id) {
       case 'customerID':
         return (
-          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-700 font-mono text-xs whitespace-nowrap">
+          <td key={col.id} style={style} className="px-3 py-2.5 text-slate-600 text-sm whitespace-nowrap">
             <Highlight text={customer.id} query={query} />
           </td>
         );
@@ -1143,6 +868,19 @@ function CustomerRow({
           </td>
         );
       default:
+        if (col.id.startsWith('cf_')) {
+          const cfVal = customer.customFieldValues?.[col.id.slice(3)];
+          const display = Array.isArray(cfVal)
+            ? cfVal.join(', ')
+            : cfVal != null && cfVal !== ''
+              ? String(cfVal)
+              : '—';
+          return (
+            <td key={col.id} className="px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap" style={style}>
+              {display}
+            </td>
+          );
+        }
         return null;
     }
   }
