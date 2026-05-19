@@ -8,6 +8,24 @@ export interface SupportingDocFile {
   url: string;
 }
 
+/** Raw form values preserved so a draft can be fully restored in the create form. */
+export interface CustomerDraftFormData {
+  customerType: 'Individual' | 'Organization';
+  addrLine1: string;
+  addrLine2: string;
+  city: string;
+  province: string;
+  country: string;
+  zip: string;
+  phone: string;
+  tin: string;
+  paymentTerms: string;
+  paymentMethod: string;
+  vatStatus: 'vatable' | 'zero' | 'exempt';
+  withholding: string;
+  selectedGroups: string[];
+}
+
 export interface Customer {
   id: string;
   type: CustomerType;
@@ -29,6 +47,10 @@ export interface Customer {
   lastUpdatedAt: string;
   dateCreated: string;
   customFieldValues?: Record<string, unknown>;
+  /** Present only on draft customers; omitted for active/archived customers. */
+  status?: 'draft';
+  /** Raw form field values so the create form can be fully restored from a draft. */
+  draftFormData?: CustomerDraftFormData;
 }
 
 export const CUSTOMERS: Customer[] = [

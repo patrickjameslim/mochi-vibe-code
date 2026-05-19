@@ -14,6 +14,7 @@ interface DataTableProps {
 
   // Tabs
   tabs?: DataTableTabDef[];
+  rightTabs?: DataTableTabDef[];
   activeTab?: string;
   onTabChange?: (value: string) => void;
 
@@ -77,6 +78,7 @@ function Tab({ label, count, active, onClick }: Omit<DataTableTabDef, 'value'> &
 export function DataTable({
   cardClass = 'bg-white rounded-xl border border-slate-200 overflow-hidden',
   tabs,
+  rightTabs,
   activeTab,
   onTabChange,
   showTopScrollbar = false,
@@ -124,16 +126,30 @@ export function DataTable({
   return (
     <div className={cardClass}>
       {/* ── Tabs ── */}
-      {tabs && (
-        <div className="border-b border-slate-200 px-4 flex items-center gap-0">
-          {tabs.map((tab) => (
-            <Tab
-              key={tab.value}
-              {...tab}
-              active={activeTab === tab.value}
-              onClick={() => onTabChange?.(tab.value)}
-            />
-          ))}
+      {(tabs || rightTabs) && (
+        <div className="border-b border-slate-200 px-4 flex items-center justify-between">
+          <div className="flex items-center">
+            {tabs?.map((tab) => (
+              <Tab
+                key={tab.value}
+                {...tab}
+                active={activeTab === tab.value}
+                onClick={() => onTabChange?.(tab.value)}
+              />
+            ))}
+          </div>
+          {rightTabs && (
+            <div className="flex items-center">
+              {rightTabs.map((tab) => (
+                <Tab
+                  key={tab.value}
+                  {...tab}
+                  active={activeTab === tab.value}
+                  onClick={() => onTabChange?.(tab.value)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

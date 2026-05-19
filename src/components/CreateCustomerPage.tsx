@@ -35,6 +35,10 @@ import { Customer } from '../data/customers';
 interface Props {
   onBack: () => void;
   onSubmit?: (customer: Customer) => void;
+  /** Pre-populate the form when continuing an existing draft. */
+  draft?: Customer;
+  /** Called when the user clicks "Save as draft". */
+  onSaveDraft?: (customer: Customer) => void;
 }
 
 const AVATAR_COLORS = [
@@ -234,41 +238,43 @@ function CustomFieldInput({
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
+export default function CreateCustomerPage({ onBack, onSubmit, draft, onSaveDraft }: Props) {
   const { savedCustomFields } = useCustomFields();
-  const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>(
+    (draft?.customFieldValues as Record<string, unknown>) ?? {}
+  );
   const setCustomFieldValue = useCallback((id: string, value: unknown) => {
     setCustomFieldValues(prev => ({ ...prev, [id]: value }));
   }, []);
 
-  const [customerType, setCustomerType] = useState<'Individual' | 'Organization'>('Individual');
-  const [vatStatus, setVatStatus] = useState<'vatable' | 'zero' | 'exempt'>('vatable');
-  const [withholding, setWithholding] = useState('0');
+  const fd = draft?.draftFormData;
+
+  const [customerType, setCustomerType] = useState<'Individual' | 'Organization'>(fd?.customerType ?? draft?.type ?? 'Individual');
+  const [vatStatus, setVatStatus] = useState<'vatable' | 'zero' | 'exempt'>(fd?.vatStatus ?? draft?.vatStatus ?? 'vatable');
+  const [withholding, setWithholding] = useState(fd?.withholding ?? '0');
   const [dragOver, setDragOver] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<{ url: string; name: string; size: string } | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [idPrefix, setIdPrefix] = useState('CST-');
   const [idNumber, setIdNumber] = useState('2025-0249');
   const [prefixPopoverOpen, setPrefixPopoverOpen] = useState(false);
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [docs, setDocs] = useState<DocFile[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>(fd?.selectedGroups ?? (draft?.group ? [draft.group] : []));
+  const [docs, setDocs] = useState<DocFile[]>(draft?.supportingDocumentFiles ?? []);
   const [draftPrefix, setDraftPrefix] = useState('CST-');
 
-  // Form fields
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [addrLine1, setAddrLine1] = useState('');
-  const [addrLine2, setAddrLine2] = useState('');
-  const [city, setCity] = useState('');
-  const [province, setProvince] = useState('');
-  const [country, setCountry] = useState('Philippines');
-  const [zip, setZip] = useState('');
-  const [tin, setTin] = useState('');
-  const [paymentTerms, setPaymentTerms] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
-  const [note, setNote] = useState('');
-
+  // Form fields — pre-filled from draft when continuing
+  const [name, setName] = useState(draft?.name === 'Untitled Draft' ? '' : (draft?.name ?? ''));
+  const [email, setEmail] = useState(draft?.email ?? '');
+  const [phone, setPhone] = useState(fd?.phone ?? draft?.phoneNumber ?? '');
+  const [addrLine1, setAddrLine1] = useState(fd?.addrLine1 ?? '');
+  const [addrLine2, setAddrLine2] = useState(fd?.addrLine2 ?? '');
+  const [city, setCity] = useState(fd?.city ?? '');
+  const [province, setProvince] = useState(fd?.province ?? '');
+  const [country, setCountry] = useState(fd?.country ?? 'Philippines');
+  const [zip, setZip] = useState(fd?.zip ?? '');
+  const [tin, setTin] = useState(fd?.tin ?? draft?.tin ?? '');
+  const [paymentTerms, setPaymentTerms] = useState(fd?.paymentTerms ?? draft?.paymentTerms ?? '');
+  const [paymentMethod, setPaymentMethod] = useState(fd?.paymentMethod ?? draft?.paymentMethod ?? '');
   // Validation errors
   const [errors, setErrors] = useState<{ name?: string; email?: string; address?: string }>({});
 
@@ -347,6 +353,66 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
     });
   }
 
+  /** Build the Customer object from current form state. */
+  function buildCustomer(overrides: Partial<Customer> = {}): Customer {
+    const addressParts = [addrLine1, addrLine2, city, province, country !== 'Philippines' ? country : '', zip]
+      .map((s) => s.trim()).filter(Boolean);
+    const address = addressParts.join(', ');
+    const resolvedName = name.trim() || 'Untitled Draft';
+
+    return {
+      id: draft?.id ?? (idPrefix + idNumber),
+      type: customerType,
+      name: resolvedName,
+      avatarInitials: buildInitials(resolvedName),
+      avatarColor: pickColor(resolvedName),
+      avatarUrl: uploadedImage?.url,
+      email: email.trim(),
+      address,
+      phoneNumber: phone.trim(),
+      group: selectedGroups[0] ?? '',
+      tin: tin.trim() || undefined,
+      paymentMethod: paymentMethod || undefined,
+      paymentTerms: paymentTerms.trim() || undefined,
+      vatStatus,
+      supportingDocuments: docs.map((d) => d.name),
+      supportingDocumentFiles: docs,
+      lastUpdatedAt: formatNow(),
+      dateCreated: draft?.dateCreated ?? formatNow(),
+      customFieldValues: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
+      ...overrides,
+    };
+  }
+
+  /**
+   * Save whatever the user has typed so far as a draft — no validation.
+   * Required-field asterisks remain visible because they still apply when
+   * the customer is eventually finalised via "Create customer".
+   */
+  function handleSaveAsDraft() {
+    const customer = buildCustomer({
+      status: 'draft',
+      draftFormData: {
+        customerType,
+        addrLine1,
+        addrLine2,
+        city,
+        province,
+        country,
+        zip,
+        phone,
+        tin,
+        paymentTerms,
+        paymentMethod,
+        vatStatus,
+        withholding,
+        selectedGroups,
+      },
+    });
+    onSaveDraft?.(customer);
+    onBack();
+  }
+
   function validate(): boolean {
     const next: typeof errors = {};
 
@@ -373,34 +439,8 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
 
   function handleSubmit() {
     if (!validate()) return;
-
-    const addressParts = [addrLine1, addrLine2, city, province, country !== 'Philippines' ? country : '', zip]
-      .map((s) => s.trim()).filter(Boolean);
-    const address = addressParts.join(', ');
-
-    const customer: Customer = {
-      id: idPrefix + idNumber,
-      type: customerType,
-      name: name.trim(),
-      avatarInitials: buildInitials(name.trim()),
-      avatarColor: pickColor(name.trim()),
-      avatarUrl: uploadedImage?.url,
-      email: email.trim(),
-      address,
-      phoneNumber: phone.trim(),
-      group: selectedGroups[0] ?? '',
-      tin: tin.trim() || undefined,
-      paymentMethod: paymentMethod || undefined,
-      paymentTerms: paymentTerms.trim() || undefined,
-      vatStatus,
-      supportingDocuments: docs.map((d) => d.name),
-      supportingDocumentFiles: docs,
-      notes: note.trim() || undefined,
-      lastUpdatedAt: formatNow(),
-      dateCreated: formatNow(),
-      customFieldValues: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
-    };
-
+    // Build without draft fields — this finalises the customer
+    const customer = buildCustomer({ status: undefined, draftFormData: undefined, name: name.trim() });
     onSubmit?.(customer);
     onBack();
   }
@@ -425,7 +465,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
               <CaretRight size={12} />
               <button onClick={onBack} className="hover:text-slate-700 transition-colors">Customers</button>
               <CaretRight size={12} />
-              <span className="text-slate-900 font-medium">Create customer</span>
+              <span className="text-slate-900 font-medium">{draft ? 'Continue draft' : 'Create customer'}</span>
             </nav>
           </div>
           <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
@@ -436,7 +476,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
         {/* Form action bar */}
         <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-end gap-2">
           <Button variant="outline" onClick={onBack}>Cancel</Button>
-          <Button variant="outline">Save as draft</Button>
+          <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
           <Button variant="primary" onClick={handleSubmit}>Create customer</Button>
         </div>
 
@@ -747,17 +787,6 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
               <GroupCombobox selected={selectedGroups} onChange={setSelectedGroups} groups={ALL_GROUPS} />
             </div>
 
-            {/* Customer note */}
-            <div>
-              <FormLabel>Customer note</FormLabel>
-              <Textarea
-                placeholder="Add additional details about the customer"
-                rows={3}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </div>
-
           </SectionCard>
 
           {/* ── Notes ── */}
@@ -844,7 +873,7 @@ export default function CreateCustomerPage({ onBack, onSubmit }: Props) {
           {/* Bottom CTAs */}
           <div className="flex items-center justify-end gap-2 py-4">
             <Button variant="outline" onClick={onBack}>Cancel</Button>
-            <Button variant="outline">Save as draft</Button>
+            <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
             <Button variant="primary" onClick={handleSubmit}>Create customer</Button>
           </div>
           </div>

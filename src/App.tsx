@@ -17,6 +17,7 @@ function App() {
   const [pendingBanner, setPendingBanner] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingGroups, setEditingGroups] = useState<string[]>([]);
+  const [editingDraft, setEditingDraft] = useState<Customer | null>(null);
   const [groupOverride, setGroupOverride] = useState<{ id: string; groups: string[] } | null>(null);
   const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
 
@@ -28,9 +29,29 @@ function App() {
   }
 
   function handleCustomerCreated(customer: Customer) {
-    setCustomers((prev) => [customer, ...prev]);
+    // If this customer was previously a draft, replace the draft entry; otherwise prepend.
+    setCustomers((prev) => {
+      const exists = prev.some((c) => c.id === customer.id);
+      return exists ? prev.map((c) => c.id === customer.id ? customer : c) : [customer, ...prev];
+    });
+    setEditingDraft(null);
     setPendingBanner(`${customer.name} has been added successfully.`);
     setPage('list');
+  }
+
+  function handleDraftSaved(draft: Customer) {
+    setCustomers((prev) => {
+      const exists = prev.some((c) => c.id === draft.id);
+      return exists ? prev.map((c) => c.id === draft.id ? draft : c) : [draft, ...prev];
+    });
+    setEditingDraft(null);
+    setPendingBanner('Draft saved.');
+    setPage('list');
+  }
+
+  function handleContinueDraft(customer: Customer) {
+    setEditingDraft(customer);
+    setPage('create');
   }
 
   function handleView(customer: Customer, groups: string[]) {
@@ -68,8 +89,10 @@ function App() {
     if (page === 'create') {
       return (
         <CreateCustomerPage
-          onBack={() => setPage('list')}
+          onBack={() => { setEditingDraft(null); setPage('list'); }}
           onSubmit={handleCustomerCreated}
+          draft={editingDraft ?? undefined}
+          onSaveDraft={handleDraftSaved}
         />
       );
     }
@@ -127,6 +150,7 @@ function App() {
         onCreateCustomer={() => setPage('create')}
         onEdit={handleEdit}
         onViewCustomer={handleView}
+        onContinueDraft={handleContinueDraft}
         groupOverride={groupOverride}
         onGroupOverrideApplied={() => setGroupOverride(null)}
       />
