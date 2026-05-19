@@ -101,7 +101,7 @@ const SYSTEM_SECTIONS: FieldSection[] = [
       { id: 'name',          label: 'Customer Name',           type: 'Text',         required: true,  visible: true, isSystem: true },
       { id: 'email',         label: 'Customer Email',          type: 'Email',        required: true,  visible: true, isSystem: true },
       { id: 'phone',         label: 'Customer Phone Number',   type: 'Tel',          required: false, visible: true, isSystem: true },
-      { id: 'note',          label: 'Customer Note',           type: 'Textarea',     required: false, visible: true, isSystem: true },
+
     ],
   },
   {
@@ -805,14 +805,6 @@ function FormPreview({ sections, customFields }: { sections: FieldSection[]; cus
             </div>
           )}
 
-          {/* Customer note */}
-          {vis('note') && (
-            <div>
-              <PreviewLabel>{lbl('note', 'Customer note')}</PreviewLabel>
-              <Textarea readOnly rows={3} placeholder="Add additional details about the customer"
-                className="cursor-default focus:ring-0 focus:border-slate-200 focus:shadow-none resize-none" />
-            </div>
-          )}
 
         </CardContent>
       </Card>

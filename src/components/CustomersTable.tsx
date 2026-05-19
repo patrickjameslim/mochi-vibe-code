@@ -180,6 +180,7 @@ export default function CustomersTable({
   onCreateCustomer,
   onEdit,
   onViewCustomer,
+  onContinueDraft,
   groupOverride = null,
   onGroupOverrideApplied,
 }: {
@@ -189,12 +190,13 @@ export default function CustomersTable({
   onCreateCustomer?: () => void;
   onEdit?: (customer: Customer, groups: string[]) => void;
   onViewCustomer?: (customer: Customer, groups: string[]) => void;
+  onContinueDraft?: (customer: Customer) => void;
   groupOverride?: { id: string; groups: string[] } | null;
   onGroupOverrideApplied?: () => void;
 }) {
   const { sortKey, sortAsc, toggleSort } = useTableSort<CustomerSortKey>();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'All' | 'Individual' | 'Organization' | 'Customer groups' | 'Archived'>('All');
+  const [activeTab, setActiveTab] = useState<'All' | 'Individual' | 'Organization' | 'Customer groups' | 'Draft' | 'Archived'>('All');
   const [drawer, setDrawer] = useState<DrawerState>({ open: false, customer: null });
   const [banner, setBanner] = useState<string | null>(null);
   const [search, setSearch]         = useState('');
@@ -262,35 +264,13 @@ export default function CustomersTable({
 
   const q = search.trim().toLowerCase();
 
+  const draftCount = customers.filter((c) => c.status === 'draft' && !archivedCustomers.has(c.id)).length;
+
   const filtered = customers.filter((c) => {
     const isArchived = archivedCustomers.has(c.id);
+    const isDraft = c.status === 'draft';
 
-    if (activeTab === 'Archived') {
-      if (!isArchived) return false;
-      if (!q) return true;
-      return (
-        c.id.toLowerCase().includes(q) ||
-        c.name.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.type.toLowerCase().includes(q) ||
-        c.address.toLowerCase().includes(q) ||
-        c.phoneNumber.includes(q) ||
-        c.group.toLowerCase().includes(q)
-      );
-    }
-
-    if (isArchived) return false;
-
-    const matchesTab =
-      activeTab === 'All' ||
-      (activeTab === 'Individual' && c.type === 'Individual') ||
-      (activeTab === 'Organization' && c.type === 'Organization') ||
-      activeTab === 'Customer groups';
-
-    if (!matchesTab) return false;
-    if (!q) return true;
-
-    return (
+    const matchesSearch = !q || (
       c.id.toLowerCase().includes(q) ||
       c.name.toLowerCase().includes(q) ||
       c.email.toLowerCase().includes(q) ||
@@ -299,6 +279,25 @@ export default function CustomersTable({
       c.phoneNumber.includes(q) ||
       c.group.toLowerCase().includes(q)
     );
+
+    if (activeTab === 'Archived') {
+      return isArchived && matchesSearch;
+    }
+
+    if (activeTab === 'Draft') {
+      return isDraft && !isArchived && matchesSearch;
+    }
+
+    // All other tabs: exclude archived and drafts
+    if (isArchived || isDraft) return false;
+
+    const matchesTab =
+      activeTab === 'All' ||
+      (activeTab === 'Individual' && c.type === 'Individual') ||
+      (activeTab === 'Organization' && c.type === 'Organization') ||
+      activeTab === 'Customer groups';
+
+    return matchesTab && matchesSearch;
   });
 
   const sorted = sortKey === null ? filtered : [...filtered].sort((a, b) => {
@@ -524,7 +523,11 @@ export default function CustomersTable({
       onViewNotes={() => setNotesDrawer({ open: true, customer })}
       onViewDocs={() => setDocsDrawer({ open: true, customer })}
       onEdit={() => onEdit?.(customer, customerGroups[customer.id] ?? [customer.group])}
-      onView={() => onViewCustomer?.(customer, customerGroups[customer.id] ?? [customer.group])}
+      onView={() =>
+        customer.status === 'draft'
+          ? onContinueDraft?.(customer)
+          : onViewCustomer?.(customer, customerGroups[customer.id] ?? [customer.group])
+      }
       onArchive={() => setArchiveModal({ open: true, customer, inputValue: '' })}
       onUnarchive={() => setUnarchiveModal({ open: true, customer })}
     />
@@ -583,6 +586,9 @@ export default function CustomersTable({
                 { value: 'Individual', label: 'Individual' },
                 { value: 'Organization', label: 'Organization' },
                 { value: 'Customer groups', label: 'Customer groups' },
+              ]}
+              rightTabs={[
+                { value: 'Draft', label: 'Draft', count: draftCount },
                 { value: 'Archived', label: 'Archived', count: archivedCustomers.size },
               ]}
               activeTab={activeTab}
@@ -620,8 +626,16 @@ export default function CustomersTable({
                   : undefined
               }
               isEmpty={paginated.length === 0}
-              emptyTitle={activeTab === 'Archived' ? 'No archived customers' : 'No results'}
-              emptyMessage={activeTab === 'Archived' ? 'Customers you archive will appear here.' : 'Nothing to show here.'}
+              emptyTitle={
+                activeTab === 'Archived' ? 'No archived customers' :
+                activeTab === 'Draft'    ? 'No draft customers' :
+                'No results'
+              }
+              emptyMessage={
+                activeTab === 'Archived' ? 'Customers you archive will appear here.' :
+                activeTab === 'Draft'    ? 'Customers saved as drafts will appear here.' :
+                'Nothing to show here.'
+              }
               currentPage={activeTab === 'Customer groups' ? 1 : safePage}
               totalPages={activeTab === 'Customer groups' ? 1 : totalPages}
               perPage={perPage}
