@@ -42,6 +42,12 @@ import {
 } from '@phosphor-icons/react';
 import ColumnManagementDrawer, { ColumnDef } from './ColumnManagementDrawer';
 import { ColumnsButton } from './ui/ColumnsButton';
+import FilterDrawer, {
+  FilterSectionDef,
+  FilterValue,
+  countActiveFilters,
+  matchesDateRange,
+} from './FilterDrawer';
 import { DataTable } from './DataTable';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from './ui/Dialog';
 import { Button } from './ui/Button';
@@ -207,6 +213,10 @@ export default function CustomersTable({
   const [columnConfig, setColumnConfig] = useState<ColumnDef[]>(DEFAULT_CUSTOMER_COLS);
   const [colDrawerOpen, setColDrawerOpen] = useState(false);
 
+  // Filter drawer
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<FilterValue>({});
+
   const { savedCustomFields } = useCustomFields();
   useEffect(() => {
     setColumnConfig(prev => {
@@ -297,7 +307,20 @@ export default function CustomersTable({
       (activeTab === 'Organization' && c.type === 'Organization') ||
       activeTab === 'Customer groups';
 
-    return matchesTab && matchesSearch;
+    if (!(matchesTab && matchesSearch)) return false;
+
+    // Drawer filters
+    const fType = appliedFilters.type ?? [];
+    if (fType.length > 0 && !fType.includes(c.type)) return false;
+
+    const fGroup = appliedFilters.group ?? [];
+    const cGroups = customerGroups[c.id] ?? [c.group];
+    if (fGroup.length > 0 && !fGroup.some((g) => cGroups.includes(g))) return false;
+
+    if (!matchesDateRange(c.dateCreated,   appliedFilters.dateCreated   ?? [])) return false;
+    if (!matchesDateRange(c.lastUpdatedAt, appliedFilters.lastUpdatedAt ?? [])) return false;
+
+    return true;
   });
 
   const sorted = sortKey === null ? filtered : [...filtered].sort((a, b) => {
@@ -485,6 +508,34 @@ export default function CustomersTable({
   // Count active pins/hidden for button badge
   const activeColChanges = columnConfig.filter((c) => !c.visible || c.pin !== 'none').length;
 
+  // Filter sections — derived from column list; group options from live data
+  const availableGroups = useMemo(
+    () => [...new Set(Object.values(customerGroups).flat())].sort(),
+    [customerGroups],
+  );
+
+  const filterSections = useMemo((): FilterSectionDef[] => [
+    {
+      id: 'type',
+      label: 'Customer type',
+      type: 'checkbox',
+      options: [
+        { value: 'Organization', label: 'Organization' },
+        { value: 'Individual',   label: 'Individual' },
+      ],
+    },
+    {
+      id: 'group',
+      label: 'Customer group',
+      type: 'checkbox',
+      options: availableGroups.map((g) => ({ value: g, label: g })),
+    },
+    { id: 'dateCreated',   label: 'Date created',    type: 'dateRange' },
+    { id: 'lastUpdatedAt', label: 'Last updated at',  type: 'dateRange' },
+  ], [availableGroups]);
+
+  const activeFilterCount = countActiveFilters(filterSections, appliedFilters);
+
   // ─── Headers ─────────────────────────────────────────────────────────────────
   const headers = visibleCols.map((col) => {
     const style = colHeaderStyle(col.id);
@@ -598,9 +649,22 @@ export default function CustomersTable({
               onSearch={(v) => { setSearch(v); setCurrentPage(1); }}
               toolbarEnd={
                 <>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                  <button
+                    onClick={() => setFilterDrawerOpen(true)}
+                    className={[
+                      'relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                      activeFilterCount > 0
+                        ? 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                    ].join(' ')}
+                  >
                     <Funnel size={14} />
                     Filter
+                    {activeFilterCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold leading-none">
+                        {activeFilterCount}
+                      </span>
+                    )}
                   </button>
                   <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                     <ArrowsDownUp size={14} />
@@ -694,6 +758,15 @@ export default function CustomersTable({
           onClose={() => setColDrawerOpen(false)}
           columns={columnConfig}
           onChange={setColumnConfig}
+        />
+
+        {/* Filter Drawer */}
+        <FilterDrawer
+          open={filterDrawerOpen}
+          onClose={() => setFilterDrawerOpen(false)}
+          sections={filterSections}
+          value={appliedFilters}
+          onApply={setAppliedFilters}
         />
       </div>
 
