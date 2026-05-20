@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ArrowsDownUp,
   Funnel,
@@ -23,6 +23,13 @@ import {
 import { Bill, BillStatus, BillType, formatPeso } from '../data/bills';
 import ColumnManagementDrawer, { ColumnDef } from './ColumnManagementDrawer';
 import { ColumnsButton } from './ui/ColumnsButton';
+import FilterDrawer, {
+  FilterSectionDef,
+  FilterValue,
+  countActiveFilters,
+  matchesDateRange,
+  matchesNumberRange,
+} from './FilterDrawer';
 import { Highlight } from './ui/Highlight';
 import { SortTh } from './ui/SortTh';
 import { useTableSort } from '../hooks/useTableSort';
@@ -128,6 +135,10 @@ export default function ReceivablesTable({ bills: initialBills, onCreateBill: _o
   const [columnConfig, setColumnConfig] = useState<ColumnDef[]>(DEFAULT_BILLS_COLS);
   const [colDrawerOpen, setColDrawerOpen] = useState(false);
 
+  // Filter drawer
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<FilterValue>({});
+
   // Assign Groups Drawer (single-row)
   const [assignGroupsDrawer, setAssignGroupsDrawer] = useState<{ open: boolean; bill: Bill | null }>({ open: false, bill: null });
 
@@ -147,7 +158,30 @@ export default function ReceivablesTable({ bills: initialBills, onCreateBill: _o
       )
     : afterFilter;
 
-  const sorted = sortKey === null ? [...afterSearch] : [...afterSearch].sort((a, b) => {
+  const afterDrawerFilter = afterSearch.filter((b) => {
+    const fStatus = appliedFilters.status ?? [];
+    if (fStatus.length > 0 && !fStatus.includes(b.status)) return false;
+
+    const fType = appliedFilters.billingType ?? [];
+    if (fType.length > 0 && !fType.includes(b.type)) return false;
+
+    if (!matchesNumberRange(b.amount,         appliedFilters.amount          ?? [])) return false;
+    if (!matchesNumberRange(b.daysOutstanding, appliedFilters.daysOutstanding ?? [])) return false;
+
+    if (!matchesDateRange(b.billDate,    appliedFilters.billDate    ?? [])) return false;
+    if (!matchesDateRange(b.dueDate,     appliedFilters.dueDate     ?? [])) return false;
+    if (!matchesDateRange(b.paymentDate, appliedFilters.paymentDate ?? [])) return false;
+
+    const fPM = appliedFilters.paymentMethod ?? [];
+    if (fPM.length > 0 && !(b.paymentMethod && fPM.includes(b.paymentMethod))) return false;
+
+    const fTags = appliedFilters.tags ?? [];
+    if (fTags.length > 0 && !(b.tags && fTags.some((t) => b.tags!.includes(t)))) return false;
+
+    return true;
+  });
+
+  const sorted = sortKey === null ? [...afterDrawerFilter] : [...afterDrawerFilter].sort((a, b) => {
     let cmp = 0;
     if      (sortKey === 'amount')          cmp = a.amount - b.amount;
     else if (sortKey === 'daysOutstanding') cmp = a.daysOutstanding - b.daysOutstanding;
@@ -193,6 +227,51 @@ export default function ReceivablesTable({ bills: initialBills, onCreateBill: _o
   const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned } = useStickyColumns(columnConfig, COL_WIDTH);
 
   const activeColChanges = columnConfig.filter((c) => !c.visible || c.pin !== 'none').length;
+
+  const filterSections = useMemo((): FilterSectionDef[] => {
+    const pmOptions = [...new Set(bills.flatMap((b) => (b.paymentMethod ? [b.paymentMethod] : [])))].sort();
+    const tagOptions = [...new Set(bills.flatMap((b) => b.tags ?? []))].filter(Boolean).sort();
+    return [
+      {
+        id: 'status',
+        label: 'Status',
+        type: 'checkbox',
+        options: [
+          { value: 'draft',     label: 'Draft' },
+          { value: 'sent',      label: 'Sent' },
+          { value: 'scheduled', label: 'Scheduled' },
+          { value: 'verifying', label: 'Verifying' },
+          { value: 'paid',      label: 'Paid' },
+          { value: 'overdue',   label: 'Overdue' },
+          { value: 'void',      label: 'Void' },
+          { value: 'archived',  label: 'Archived' },
+        ],
+      },
+      {
+        id: 'billingType',
+        label: 'Billing type',
+        type: 'checkbox',
+        options: [
+          { value: 'one-time',    label: 'One-time' },
+          { value: 'recurring',   label: 'Recurring' },
+          { value: 'installment', label: 'Installment' },
+        ],
+      },
+      { id: 'amount',          label: 'Amount',           type: 'numberRange', prefix: '₱' },
+      { id: 'billDate',        label: 'Bill date',        type: 'dateRange' },
+      { id: 'dueDate',         label: 'Due date',         type: 'dateRange' },
+      { id: 'daysOutstanding', label: 'Days outstanding', type: 'numberRange' },
+      { id: 'paymentDate',     label: 'Payment date',     type: 'dateRange' },
+      ...(pmOptions.length > 0
+        ? [{ id: 'paymentMethod', label: 'Payment method', type: 'checkbox' as const, options: pmOptions.map((v) => ({ value: v, label: v })) }]
+        : []),
+      ...(tagOptions.length > 0
+        ? [{ id: 'tags', label: 'Tags', type: 'checkbox' as const, options: tagOptions.map((v) => ({ value: v, label: v })) }]
+        : []),
+    ];
+  }, [bills]);
+
+  const activeFilterCount = countActiveFilters(filterSections, appliedFilters);
 
   const tabs: DataTableTabDef[] = FILTER_TABS.map(({ value, label }) => ({
     value,
@@ -451,9 +530,22 @@ export default function ReceivablesTable({ bills: initialBills, onCreateBill: _o
         searchPlaceholder="Search by bill ID or customer"
         toolbarEnd={
           <>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+            <button
+              onClick={() => setFilterDrawerOpen(true)}
+              className={[
+                'relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                activeFilterCount > 0
+                  ? 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+              ].join(' ')}
+            >
               <Funnel size={14} />
               Filter
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold leading-none">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
             <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
               <ArrowsDownUp size={14} />
@@ -485,6 +577,14 @@ export default function ReceivablesTable({ bills: initialBills, onCreateBill: _o
         onClose={() => setColDrawerOpen(false)}
         columns={columnConfig}
         onChange={setColumnConfig}
+      />
+
+      <FilterDrawer
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        sections={filterSections}
+        value={appliedFilters}
+        onApply={setAppliedFilters}
       />
 
       {/* Single-row Assign Groups Drawer */}
