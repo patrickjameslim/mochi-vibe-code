@@ -171,7 +171,12 @@ export function Sidebar() {
         <NavItem icon={<ShoppingBag size={18} />} label="Orders"    expandable />
         <NavItem icon={<Cube size={18} />}        label="Catalog"   expandable />
         <NavItem icon={<FileText size={18} />}    label="Forms" />
-        <NavItem icon={<ChartLine size={18} />}   label="Reports" />
+        <NavItem
+          icon={<ChartLine size={18} />}
+          label="Reports"
+          active={currentPage === 'reports'}
+          onClick={() => navigate('reports')}
+        />
         <NavItem icon={<Graph size={18} />}       label="Workflows" />
         <NavItem
           icon={<Gear size={18} />}
