@@ -7,6 +7,7 @@ export type AppPage =
   | 'view'
   | 'bill'
   | 'manage-bills'
+  | 'reports'
   | 'settings';
 
 interface NavContext {

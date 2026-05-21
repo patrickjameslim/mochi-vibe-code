@@ -9,6 +9,7 @@ import CustomerDetailPage from './components/CustomerDetailPage';
 import CustomerViewPage from './components/CustomerViewPage';
 import CreateBillPage from './components/CreateBillPage';
 import ManageBillsPage from './components/ManageBillsPage';
+import ReportsPage from './components/ReportsPage';
 import SettingsPage from './components/SettingsPage';
 
 function App() {
@@ -135,6 +136,10 @@ function App() {
 
     if (page === 'manage-bills') {
       return <ManageBillsPage />;
+    }
+
+    if (page === 'reports') {
+      return <ReportsPage />;
     }
 
     if (page === 'settings') {
