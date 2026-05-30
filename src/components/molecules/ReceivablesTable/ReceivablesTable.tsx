@@ -12,6 +12,10 @@ import {
   Tag,
   Prohibit,
   UsersThree,
+  Check,
+  EnvelopeSimple,
+  BellSimple,
+  Receipt,
 } from '@phosphor-icons/react';
 import {
   DropdownMenu,
@@ -21,6 +25,7 @@ import {
   DropdownMenuSeparator,
 } from '#/components/atoms/DropdownMenu';
 import { Badge, type BadgeVariants } from '#/components/atoms/Badge';
+import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
 import { cn } from '#/components/utils';
 import { Bill, BillStatus, BillType, formatPeso } from '#/data/bills';
 import { ColumnManagementDrawer, ColumnDef } from '#/components/molecules/ColumnManagementDrawer';
@@ -66,6 +71,13 @@ const COL_WIDTH: Record<string, number> = {
 };
 
 // ─── Status & type config ─────────────────────────────────────────────────────
+
+// Quick-action icon buttons share the mochi-labs Button look (filled primary
+// for the positive action, outline for secondary actions).
+const QUICK_ACTION_BASE =
+  'inline-flex items-center justify-center h-8 w-8 rounded-md transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]';
+const QUICK_ACTION_PRIMARY = `${QUICK_ACTION_BASE} bg-primary text-primary-foreground hover:bg-primary-600`;
+const QUICK_ACTION_OUTLINE = `${QUICK_ACTION_BASE} bg-white border text-secondary-foreground hover:bg-secondary/70 hover:border-secondary-600/80`;
 
 type BadgeColorScheme = NonNullable<BadgeVariants['colorScheme']>;
 
@@ -466,18 +478,48 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
-                    <button
-                      title="Send"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-                    >
-                      <PaperPlaneTilt size={14} />
-                    </button>
-                    <button
-                      title="Mark as paid"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
-                    >
-                      <CheckCircle size={14} />
-                    </button>
+                    {bill.status === 'verifying' && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Mark as paid" className={QUICK_ACTION_PRIMARY}>
+                            <Check size={14} weight="bold" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Mark as paid</TooltipContent>
+                      </Tooltip>
+                    )}
+
+                    {(bill.status === 'sent' || bill.status === 'scheduled') && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button aria-label="Send" className={QUICK_ACTION_OUTLINE}>
+                              <EnvelopeSimple size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Send</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button aria-label="Send payment reminder" className={QUICK_ACTION_OUTLINE}>
+                              <BellSimple size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Send payment reminder</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+
+                    {bill.status === 'paid' && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Resend receipt" className={QUICK_ACTION_OUTLINE}>
+                            <Receipt size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Resend receipt</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </td>
               );
