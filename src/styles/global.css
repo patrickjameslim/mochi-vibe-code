@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import 'tailwindcss' source('../');
+@import 'tw-animate-css';
+@import './mochi/colors.css';
+@import './mochi/light-vars.css';
+
+@source "../components/";
+@source "../pages/";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-xs: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-success: var(--color-emerald-500);
+
+  --color-warning-50: var(--color-yellow-50);
+  --color-warning-100: var(--color-yellow-100);
+  --color-warning-200: var(--color-yellow-200);
+  --color-warning-300: var(--color-yellow-300);
+  --color-warning-400: var(--color-yellow-400);
+  --color-warning-500: var(--color-yellow-500);
+  --color-warning-600: var(--color-yellow-600);
+  --color-warning-700: var(--color-yellow-700);
+  --color-warning-800: var(--color-yellow-800);
+
+  --font-sans: var(--font-family-sans);
+  --font-heading: var(--font-family-heading);
+
+  --height-xs: var(--base-height-xs);
+  --height-sm: var(--base-height-sm);
+  --height-md: var(--base-height-md);
+  --height-lg: var(--base-height-lg);
+  --height-xl: var(--base-height-xl);
+
+  --color-button-outline: var(--button-outline);
+  --color-button-outline-accent: var(--button-outline-accent);
+  --color-button-outline-accent-foreground: var(--button-outline-accent-foreground);
+  --color-skeleton: var(--skeleton-bg);
+
+  --breakpoint-xs: 30rem;
+
+  --color-primary-50: var(--primary-50);
+  --color-primary-600: var(--primary-600);
+  --color-secondary-600: var(--secondary-600);
+  --color-destructive-600: var(--destructive-600);
+}
+
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --radius: 0.625rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground text-sm;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 100%;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out forwards;
+}
+
+.animate-slide-out {
+  animation: slide-out 0.2s ease-in forwards;
+}
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type='number'] {
+  -moz-appearance: textfield;
+}

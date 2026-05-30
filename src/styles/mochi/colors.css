@@ -1,0 +1,10 @@
+:root {
+  --primary-50: oklch(0.9684 0.016 289.93);
+  --primary-500: oklch(0.5291 0.2345 287.73);
+  --primary-600: oklch(0.4841 0.2345 287.73);
+
+  --secondary-600: oklch(82.001% 0.02263 256.81);
+
+  --destructive-500: oklch(57.573% 0.21646 27.461);
+  --destructive-600: oklch(51.68% 0.19855 27.859);
+}
