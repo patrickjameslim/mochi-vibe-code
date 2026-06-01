@@ -12,6 +12,10 @@ import {
   Tag,
   Prohibit,
   UsersThree,
+  Check,
+  EnvelopeSimple,
+  BellSimple,
+  Receipt,
 } from '@phosphor-icons/react';
 import {
   DropdownMenu,
@@ -20,6 +24,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '#/components/atoms/DropdownMenu';
+import { Badge, type BadgeVariants } from '#/components/atoms/Badge';
+import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
+import { cn } from '#/components/utils';
 import { Bill, BillStatus, BillType, formatPeso } from '#/data/bills';
 import { ColumnManagementDrawer, ColumnDef } from '#/components/molecules/ColumnManagementDrawer';
 import { ColumnsButton } from '#/components/molecules/ColumnsButton';
@@ -65,15 +72,29 @@ const COL_WIDTH: Record<string, number> = {
 
 // ─── Status & type config ─────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<BillStatus, { label: string; className: string; dotColor?: string }> = {
-  draft:     { label: 'Draft',     className: 'bg-slate-100 text-slate-800' },
-  sent:      { label: 'Sent',      className: 'bg-violet-100 text-violet-800',  dotColor: '#6D41E8' },
-  scheduled: { label: 'Scheduled', className: 'bg-[#CDEFC3] text-[#14532D]' },
-  verifying: { label: 'Verifying', className: 'bg-amber-100 text-amber-900',    dotColor: '#D97706' },
-  paid:      { label: 'Paid',      className: 'bg-green-100 text-[#14532D]',    dotColor: '#16A34A' },
-  overdue:   { label: 'Overdue',   className: 'bg-red-100 text-red-900',        dotColor: '#DC2626' },
-  void:      { label: 'Void',      className: 'bg-slate-100 text-slate-400' },
-  archived:  { label: 'Archived',  className: 'bg-slate-100 text-slate-500' },
+// Quick-action icon buttons share the mochi-labs Button look (filled primary
+// for the positive action, outline for secondary actions).
+const QUICK_ACTION_BASE =
+  'inline-flex items-center justify-center h-8 w-8 rounded-md transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]';
+const QUICK_ACTION_PRIMARY = `${QUICK_ACTION_BASE} bg-primary text-primary-foreground hover:bg-primary-600`;
+const QUICK_ACTION_OUTLINE = `${QUICK_ACTION_BASE} bg-white border text-secondary-foreground hover:bg-secondary/70 hover:border-secondary-600/80`;
+
+type BadgeColorScheme = NonNullable<BadgeVariants['colorScheme']>;
+
+// Neutral statuses have no Badge colorScheme token, so they use a slate
+// className following the same structure as the colored statuses
+// (light bg / dark text / matching border).
+const NEUTRAL_STATUS_CLASS = 'bg-slate-100 text-slate-700 border-slate-300';
+
+const STATUS_CFG: Record<BillStatus, { label: string; colorScheme?: BadgeColorScheme; className?: string }> = {
+  draft:     { label: 'Draft',     className: NEUTRAL_STATUS_CLASS },
+  sent:      { label: 'Sent',      colorScheme: 'blue' },
+  scheduled: { label: 'Scheduled', colorScheme: 'yellow' },
+  verifying: { label: 'Verifying', colorScheme: 'amber' },
+  paid:      { label: 'Paid',      colorScheme: 'emerald' },
+  overdue:   { label: 'Overdue',   colorScheme: 'red' },
+  void:      { label: 'Void',      colorScheme: 'violet' },
+  archived:  { label: 'Archived',  className: NEUTRAL_STATUS_CLASS },
 };
 
 const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
@@ -329,12 +350,9 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
             case 'status':
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
-                    {status.dotColor && (
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: status.dotColor }} />
-                    )}
+                  <Badge colorScheme={status.colorScheme} className={cn('min-w-20', status.className)}>
                     {status.label}
-                  </span>
+                  </Badge>
                 </td>
               );
             case 'billID':
@@ -460,18 +478,48 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
-                    <button
-                      title="Send"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-                    >
-                      <PaperPlaneTilt size={14} />
-                    </button>
-                    <button
-                      title="Mark as paid"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
-                    >
-                      <CheckCircle size={14} />
-                    </button>
+                    {bill.status === 'verifying' && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Mark as paid" className={QUICK_ACTION_PRIMARY}>
+                            <Check size={14} weight="bold" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Mark as paid</TooltipContent>
+                      </Tooltip>
+                    )}
+
+                    {(bill.status === 'sent' || bill.status === 'scheduled') && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button aria-label="Send" className={QUICK_ACTION_OUTLINE}>
+                              <EnvelopeSimple size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Send</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button aria-label="Send payment reminder" className={QUICK_ACTION_OUTLINE}>
+                              <BellSimple size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Send payment reminder</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+
+                    {bill.status === 'paid' && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button aria-label="Resend receipt" className={QUICK_ACTION_OUTLINE}>
+                            <Receipt size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Resend receipt</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </td>
               );
