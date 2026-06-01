@@ -1,6 +1,6 @@
 # Mochi — Vibecoders Frontend
 
-A React + TypeScript frontend prototype for the Mochi billing and customer management platform.
+A React + TypeScript frontend prototype for the Mochi billing and customer management platform, aligned with the mochi-labs production codebase standards.
 
 ---
 
@@ -10,12 +10,18 @@ A React + TypeScript frontend prototype for the Mochi billing and customer manag
 |---|---|
 | Framework | React 18 |
 | Language | TypeScript 5 |
-| Build tool | Vite 4 |
-| Styling | Tailwind CSS 3 (custom Mochi design tokens) |
-| UI primitives | Radix UI |
+| Build tool | Vite 8 |
+| Styling | Tailwind CSS 4 |
+| Routing | TanStack Router v1 (file-based) |
+| Table | TanStack Table v8 |
+| UI primitives | Radix UI + Base UI |
 | Icons | Phosphor Icons |
 | Drag & drop | dnd-kit |
 | Charts | Chart.js + react-chartjs-2 |
+| Date handling | Day.js + react-day-picker |
+| Phone input | libphonenumber-js + react-phone-number-input |
+| Toasts | Sonner |
+| File upload | react-dropzone |
 | Linting | ESLint + TypeScript ESLint |
 
 > **No backend.** All data lives in-memory inside `src/data/`. There is no `.env` file or API to configure.
@@ -76,19 +82,32 @@ The app opens at **http://localhost:5174** by default. Vite will pick the next a
 
 ```
 src/
-├── assets/          # SVG logos and static images
 ├── components/
-│   ├── ui/          # Reusable design-system primitives (Button, Badge, Input, …)
-│   └── *.tsx        # Page-level and feature components
-├── context/         # React contexts (Navigation, CustomFields)
-├── data/            # In-memory seed data (customers, bills, groups)
-├── hooks/           # Shared custom hooks (useTableSort, useStickyColumns)
-├── lib/             # Utility helpers (cn / class merging)
-├── types/           # Shared TypeScript type definitions
-├── utils/           # Formatting helpers (phone numbers, etc.)
-├── App.tsx          # Root component — page routing lives here
-├── main.tsx         # React entry point
-└── index.css        # Tailwind base + CSS custom properties (design tokens)
+│   ├── atoms/           # Base design-system primitives (Button, Badge, Input, …)
+│   ├── molecules/       # Composite components (DataTable, FilterDrawer, Field, …)
+│   ├── organisms/       # Feature-level components (AppSidebar, AssignGroupsDrawer, …)
+│   ├── templates/       # Page layout shells (AppTemplate)
+│   └── index.ts         # Barrel export for all components
+├── context/             # React contexts (Navigation, CustomFields, Customers)
+├── data/                # In-memory seed data (customers, bills, groups)
+├── pages/
+│   ├── billings/        # Billings list & create pages
+│   ├── customers/       # Customers list, create, edit, view, groups pages
+│   ├── dashboard/       # Dashboard page
+│   ├── reports/         # Reports page (Billed vs Collected)
+│   ├── settings/        # Settings page (custom fields builder)
+│   └── shared/          # Shared page-level components (AppSidebar)
+├── routes/              # TanStack Router file-based route tree
+│   ├── __root.tsx
+│   ├── _layout.tsx
+│   └── _layout/         # Nested route files per page
+├── styles/
+│   ├── global.css       # Tailwind base + global resets
+│   └── mochi/           # Mochi design tokens (colors, light theme variables)
+├── utils/
+│   └── formatters/      # Formatting helpers (currency, date, phone, ordinal, etc.)
+├── main.tsx             # React entry point
+└── index.css            # CSS entry (imports styles/global.css)
 ```
 
 ### Path alias
@@ -97,14 +116,15 @@ src/
 
 ```ts
 import { cn } from '@/lib/utils';
-import Button from '@/components/ui/Button';
+import { Button } from '@/components/atoms/Button';
 ```
 
 ---
 
 ## Key Features
 
-- **Customers** — list, create, edit, view, archive, draft-save
+- **Dashboard** — overview page
+- **Customers** — list, create, edit, view, archive, draft-save, assign groups
 - **Bills** — manage bills table with filtering and column management
 - **Reports** — Billed vs Collected bar chart
 - **Settings** — custom fields builder (Customer and Bills)
@@ -114,11 +134,20 @@ import Button from '@/components/ui/Button';
 
 ## Design System
 
-Custom design tokens are defined in `src/index.css` as CSS variables and consumed by the Tailwind config in `tailwind.config.js`. The Mochi violet scale (`violet-50` → `violet-950`) overrides Tailwind's built-in violet.
+Mochi design tokens are defined in `src/styles/mochi/` as CSS variables (colors, light theme) and consumed globally. Tailwind CSS 4 is used via the `@tailwindcss/vite` plugin — no `tailwind.config.js` required.
 
-UI primitives live in `src/components/ui/` and wrap Radix UI with Mochi-specific styling using `class-variance-authority`.
+UI primitives live in `src/components/atoms/` and wrap Radix UI / Base UI with Mochi-specific styling using `class-variance-authority`. Molecules and organisms compose these primitives into larger patterns.
 
-Reference specs are in the `Mochi Design System/` folder at the repo root (if present locally — not committed to version control).
+---
+
+## Component Architecture
+
+Components follow an atoms → molecules → organisms → templates hierarchy aligned with the mochi-labs production standards:
+
+- **atoms** — stateless, styled primitives with no business logic
+- **molecules** — combinations of atoms with light interaction (e.g. `Field`, `DataTable`, `FilterDrawer`)
+- **organisms** — feature-aware components that may consume context or page data (e.g. `AppSidebar`, `AssignGroupsDrawer`)
+- **templates** — layout shells that compose organisms into full-page structures
 
 ---
 
