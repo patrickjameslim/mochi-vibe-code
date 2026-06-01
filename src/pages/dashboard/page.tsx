@@ -218,7 +218,7 @@ export function DashboardPage() {
                       {INVOICES.map((inv) => (
                         <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
-                            <Badge colorScheme={inv.status === 'OVERDUE' ? 'red' : inv.status === 'SENT' ? 'primary' : 'secondary'} className="rounded-md font-bold px-2">
+                            <Badge colorScheme={inv.status === 'OVERDUE' ? 'red' : inv.status === 'SENT' ? 'blue' : 'amber'} className="rounded-md font-bold px-2">
                               {inv.status}
                             </Badge>
                           </td>
@@ -265,8 +265,8 @@ export function DashboardPage() {
                             <Badge
                               colorScheme={
                                 order.payStatus === 'OVERDUE' ? 'red' :
-                                order.payStatus === 'SENT' ? 'primary' :
-                                order.payStatus === 'FULLY PAID' ? 'emerald' : 'secondary'
+                                order.payStatus === 'SENT' ? 'blue' :
+                                order.payStatus === 'FULLY PAID' ? 'emerald' : 'amber'
                               }
                               className="rounded-md font-bold px-2"
                             >
