@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   CaretDown,
   CaretRight,
@@ -13,6 +13,8 @@ import {
   Gear,
   Plus,
   ListBullets,
+  AppWindow,
+  Wallet,
 } from '@phosphor-icons/react';
 import mochiLogo from '#/assets/mochi-logo.svg';
 import { useNavigate, useLocation } from '@tanstack/react-router';
@@ -95,6 +97,56 @@ function SubNavItem({
   );
 }
 
+// ─── App Switcher Dropdown ────────────────────────────────────────────────────
+
+function AppSwitcher() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 w-full px-5 h-14 border-b border-slate-100 hover:bg-slate-50 transition-colors"
+      >
+        <img src={mochiLogo} alt="Mochi" className="h-7 w-auto" />
+        <CaretDown
+          size={14}
+          className={['text-slate-400 shrink-0 ml-auto transition-transform', open ? 'rotate-180' : ''].join(' ')}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-b-xl shadow-lg overflow-hidden">
+          <button
+            onClick={() => { navigate({ to: '/dashboard' }); setOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-violet-50 hover:text-violet-700 transition-colors"
+          >
+            <AppWindow size={16} className="text-slate-400" />
+            Mochi app
+          </button>
+          <button
+            onClick={() => { navigate({ to: '/payment-portal' }); setOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-violet-50 hover:text-violet-700 transition-colors border-t border-slate-100"
+          >
+            <Wallet size={16} className="text-slate-400" />
+            Payment portal
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── AppSidebar ───────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
@@ -111,10 +163,7 @@ export function AppSidebar() {
 
   return (
     <aside className="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0">
-      <div className="flex items-center justify-between px-5 h-14 border-b border-slate-100">
-        <img src={mochiLogo} alt="Mochi" className="h-7 w-auto" />
-        <CaretDown size={14} className="text-slate-400 shrink-0" />
-      </div>
+      <AppSwitcher />
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
         <NavItem
