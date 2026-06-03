@@ -33,11 +33,11 @@ export const DropzoneProvider: FC<PropsWithChildren<DropzoneProviderProps>> = ({
   const [files, dispatch] = useReducer(dropzoneReducer, initialFiles ?? [])
 
   return (
-    <DropzoneContext value={files}>
-      <DropzoneDispatchContext value={dispatch}>
+    <DropzoneContext.Provider value={files}>
+      <DropzoneDispatchContext.Provider value={dispatch}>
         {children}
-      </DropzoneDispatchContext>
-    </DropzoneContext>
+      </DropzoneDispatchContext.Provider>
+    </DropzoneContext.Provider>
   )
 }
 

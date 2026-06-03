@@ -1,4 +1,4 @@
-import { Button, Text } from '../../components'
+import { Button, Text } from '../../atoms'
 import * as React from 'react'
 import { cn } from '../../utils'
 
