@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   ArrowSquareOut,
   DeviceMobile,
+  EnvelopeSimple,
   Bank,
   QrCode,
   CloudArrowUp,
@@ -1632,6 +1633,7 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
 
   // Upload state (supports multiple proofs)
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [remarks, setRemarks] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [submitError, setSubmitError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1750,8 +1752,20 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
                   Proof of payment could not be submitted. Please try again.
                 </div>
               )}
-              <div className="bg-white border border-slate-200 rounded-lg p-5">
+              <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col gap-5">
                 <UploadProofCard files={files} onAddFile={handleAddFile} onChangeFile={handleChangeFile} onRemove={handleRemove} error={uploadError} />
+
+                {/* Remarks */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-800">Remarks <span className="font-normal text-slate-400">(optional)</span></label>
+                  <textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    rows={3}
+                    placeholder="Add a note for this payment (e.g. reference number, sender name)…"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 resize-y"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1772,7 +1786,7 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
             className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {submitting && <Spinner size={16} className="animate-spin" />}
-            {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Submit Payment'}
+            {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Continue'}
           </button>
         </div>
       </div>
@@ -2021,6 +2035,649 @@ function Step3({ selected, total, method, onBackToPortal }: {
   );
 }
 
+// ─── PayMongo Hosted Checkout ─────────────────────────────────────────────────
+
+function genReference() {
+  const hex = (n: number) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  return `${hex(8)}-${hex(4)}-4${hex(3)}-${hex(4)}-${hex(12)}`;
+}
+
+/** Method-specific payment field shown in the PayMongo "Payment Method" card */
+function CheckoutMethodField({ method, onClick }: { method: PaymentMethod; onClick?: () => void }) {
+  if (method === 'qrph') {
+    const qrContent = (
+      <>
+        <span className="text-base">Scan</span>
+        <span className="inline-flex items-center gap-1 font-bold">
+          <span className="text-amber-500">▦</span>
+          <span className="text-slate-800">QR</span>
+          <span className="text-red-500">Ph</span>
+        </span>
+        <span className="text-base">code to pay</span>
+      </>
+    );
+    if (onClick) {
+      return (
+        <button
+          onClick={onClick}
+          className="w-full border border-slate-200 rounded-lg px-4 py-4 flex items-center justify-center gap-2 text-slate-800 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+        >
+          {qrContent}
+        </button>
+      );
+    }
+    return (
+      <div className="border border-slate-200 rounded-lg px-4 py-4 flex items-center justify-center gap-2 text-slate-800">
+        {qrContent}
+      </div>
+    );
+  }
+
+  const label = method === 'bank' ? 'Online Banking' : method === 'card' ? 'Card' : 'E-Wallets';
+
+  // Right-side brand badge
+  let badge: React.ReactNode = null;
+  if (method === 'card') {
+    badge = (
+      <div className="flex items-center gap-1.5">
+        <span className="inline-flex items-center justify-center w-7 h-5 rounded bg-gradient-to-r from-red-500 to-amber-400" />
+        <span className="text-[10px] font-black italic text-blue-700">VISA</span>
+      </div>
+    );
+  } else if (method === 'gcash') {
+    badge = <span className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-blue-600 text-white text-[10px] font-bold">GC</span>;
+  } else if (method === 'maya') {
+    badge = <span className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-slate-900 text-white text-[10px] font-bold lowercase">maya</span>;
+  } else if (method === 'bank') {
+    badge = <span className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-red-700 text-white text-[10px] font-bold">BPI</span>;
+  }
+
+  const hasCaret = method === 'gcash' || method === 'maya' || method === 'bank';
+
+  const content = (
+    <>
+      <span className="text-sm font-medium">{label}</span>
+      <div className="flex items-center gap-2">
+        {badge}
+        {hasCaret && <CaretDown size={16} className="text-slate-400" />}
+      </div>
+    </>
+  );
+
+  // The Card field is itself the button that opens the card form
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className="w-full border border-slate-200 rounded-lg px-4 py-3.5 flex items-center justify-between text-slate-800 text-left hover:border-slate-300 hover:bg-slate-50 transition-colors"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-lg px-4 py-3.5 flex items-center justify-between text-slate-800">
+      {content}
+    </div>
+  );
+}
+
+/** Small brand badge for a payment method (reused in field rows and option rows) */
+function MethodBadge({ method }: { method: PaymentMethod }) {
+  if (method === 'card') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="inline-flex items-center justify-center w-7 h-5 rounded bg-gradient-to-r from-red-500 to-amber-400" />
+        <span className="text-[10px] font-black italic text-blue-700">VISA</span>
+      </div>
+    );
+  }
+  if (method === 'gcash') return <span className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-blue-600 text-white text-[10px] font-bold">GC</span>;
+  if (method === 'maya') return <span className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-slate-900 text-white text-[10px] font-bold lowercase">maya</span>;
+  if (method === 'bank') return <span className="inline-flex items-center justify-center px-1.5 h-5 rounded bg-red-700 text-white text-[10px] font-bold">BPI</span>;
+  return null;
+}
+
+/** Countdown timer for the QR Ph screen — starts at 30:00 and ticks down */
+function QrCountdown() {
+  const [seconds, setSeconds] = useState(30 * 60);
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setSeconds((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const ss = String(seconds % 60).padStart(2, '0');
+  return <>{mm}:{ss}</>;
+}
+
+/** Decorative faux QR code (prototype only) */
+function FauxQR() {
+  const N = 25;
+  const cells: boolean[] = [];
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      // Finder squares in three corners
+      const inFinder = (r < 7 && c < 7) || (r < 7 && c >= N - 7) || (r >= N - 7 && c < 7);
+      const on = inFinder ? ((r < 1 || r > 5 || c < 1 || c > 5) ? ((r === 0 || r === 6 || c === 0 || c === 6) ? true : (r >= 2 && r <= 4 && c >= 2 && c <= 4)) : false)
+                          : ((r * 7 + c * 13 + r * c) % 3 === 0);
+      cells.push(on);
+    }
+  }
+  return (
+    <div className="relative">
+      <div className="grid bg-white p-2 rounded" style={{ gridTemplateColumns: `repeat(${N}, 1fr)`, width: '13rem', height: '13rem' }}>
+        {cells.map((on, i) => (
+          <div key={i} className={on ? 'bg-slate-900' : 'bg-white'} />
+        ))}
+      </div>
+      {/* Center QR Ph logo */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="w-9 h-9 rounded bg-white flex items-center justify-center shadow">
+          <div className="w-6 h-6 grid grid-cols-2 gap-0.5">
+            <span className="bg-blue-600 rounded-sm" />
+            <span className="bg-amber-400 rounded-sm" />
+            <span className="bg-red-500 rounded-sm" />
+            <span className="bg-blue-600 rounded-sm" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface CardForm {
+  name: string; email: string; phone: string;
+  country: string; address1: string; address2: string; city: string; state: string; postal: string;
+  cardNumber: string; mm: string; yy: string; cvc: string; fullName: string;
+}
+
+const EMPTY_CARD_FORM: CardForm = {
+  name: '', email: '', phone: '',
+  country: '', address1: '', address2: '', city: '', state: '', postal: '',
+  cardNumber: '', mm: '', yy: '', cvc: '', fullName: '',
+};
+
+const CARD_REQUIRED: (keyof CardForm)[] = ['name', 'email', 'country', 'address1', 'city', 'state', 'postal', 'cardNumber', 'mm', 'yy', 'cvc', 'fullName'];
+
+function isCardFormValid(form: CardForm) {
+  return CARD_REQUIRED.every((k) => form[k].trim() !== '');
+}
+
+/** Controlled PayMongo card form fields (Customer Information + Billing Address + Card Information). */
+function PayMongoCardForm({ form, onChange }: { form: CardForm; onChange: (k: keyof CardForm, v: string) => void }) {
+  const labelCls = 'text-sm font-medium text-slate-700 mb-1.5 block';
+  const inputCls = 'w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100';
+
+  const set = (k: keyof CardForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => onChange(k, e.target.value);
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Customer Information */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Customer Information</h2>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className={labelCls}>Name</label>
+            <div className="relative">
+              <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={form.name} onChange={set('name')} placeholder="John Doe" className={`${inputCls} pl-9`} />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Email</label>
+            <div className="relative">
+              <EnvelopeSimple size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={form.email} onChange={set('email')} type="email" placeholder="email@example.com" className={`${inputCls} pl-9`} />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Mobile Phone (optional)</label>
+            <div className="relative">
+              <DeviceMobile size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={form.phone} onChange={set('phone')} placeholder="+63  917 123 4567" className={`${inputCls} pl-9`} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Billing Address */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Billing Address</h2>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className={labelCls}>Country</label>
+            <div className="relative">
+              <select value={form.country} onChange={set('country')} className={`${inputCls} appearance-none ${form.country ? 'text-slate-700' : 'text-slate-400'}`}>
+                <option value="">Select a country</option>
+                <option value="PH">Philippines</option>
+                <option value="US">United States</option>
+                <option value="SG">Singapore</option>
+                <option value="JP">Japan</option>
+              </select>
+              <CaretDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Address Line 1</label>
+            <input value={form.address1} onChange={set('address1')} placeholder="123 Main St" className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Address Line 2 (optional)</label>
+            <input value={form.address2} onChange={set('address2')} placeholder="Apt 123" className={inputCls} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>City</label>
+              <input value={form.city} onChange={set('city')} placeholder="Manila" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>State / Province</label>
+              <input value={form.state} onChange={set('state')} placeholder="Metro Manila" className={inputCls} />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Postal Code</label>
+            <input value={form.postal} onChange={set('postal')} placeholder="12345" className={inputCls} />
+          </div>
+        </div>
+      </div>
+
+      {/* Card Information */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Card Information</h2>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className={labelCls}>Card Number</label>
+            <div className="relative">
+              <CreditCard size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={form.cardNumber} onChange={set('cardNumber')} inputMode="numeric" placeholder="1234 1234 1234 1234" className={`${inputCls} pl-9`} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelCls}>MM</label>
+              <input value={form.mm} onChange={set('mm')} inputMode="numeric" placeholder="01" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>YY</label>
+              <input value={form.yy} onChange={set('yy')} inputMode="numeric" placeholder="31" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>CVC</label>
+              <input value={form.cvc} onChange={set('cvc')} inputMode="numeric" placeholder="123" className={inputCls} />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Full Name</label>
+            <input value={form.fullName} onChange={set('fullName')} placeholder="John Doe" className={inputCls} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PayMongoCheckout({ method, selectedBills, gatewayFee, total, onPay, onBack }: {
+  method: PaymentMethod;
+  selectedBills: Bill[];
+  gatewayFee: number;
+  total: number;
+  onPay: () => void;
+  onBack: () => void;
+}) {
+  type Stage = 'method' | 'mobile' | 'otp' | 'bankauth' | 'qrconfirm' | 'success';
+  const [reference] = useState(genReference);
+  const [stage, setStage] = useState<Stage>('method');
+  const [expanded, setExpanded] = useState(false);
+  const [cardForm, setCardForm] = useState<CardForm>(EMPTY_CARD_FORM);
+  const cardValid = isCardFormValid(cardForm);
+  const setCardField = (k: keyof CardForm, v: string) => setCardForm((f) => ({ ...f, [k]: v }));
+
+  const [mobile, setMobile] = useState('');
+  const [otp, setOtp] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [paidAt, setPaidAt] = useState('');
+
+  const ewalletLabel = method === 'bank' ? 'Online Banking' : 'E-Wallets';
+  const optionLabel = method === 'gcash' ? 'GCash' : method === 'maya' ? 'Maya' : method === 'bank' ? 'BPI Online' : '';
+
+  const inputCls = 'w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100';
+
+  function goSuccess() {
+    setProcessing(false);
+    setPaidAt(new Date().toLocaleString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+    setStage('success');
+  }
+  function verifyAndPay() {
+    setProcessing(true);
+    window.setTimeout(goSuccess, 1200);
+  }
+  function startQr() {
+    setStage('qrconfirm');
+    window.setTimeout(goSuccess, 2200);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white overflow-auto">
+      {/* Header */}
+      <div className="border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-1 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors" aria-label="Back to merchant">
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold">M</span>
+            <span className="text-lg font-semibold text-slate-800">Mochi</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-slate-400">Reference Number</p>
+          <p className="text-sm font-semibold text-slate-700 tracking-wide">{reference}</p>
+        </div>
+      </div>
+
+      {stage === 'success' ? (
+        /* ── Hosted Payment Success ── */
+        <div className="max-w-md mx-auto px-6 py-16 flex flex-col items-center text-center gap-5">
+          <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+            <CheckCircle size={48} className="text-emerald-500" weight="fill" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Payment Successful</h1>
+            <p className="text-sm text-slate-500 mt-2">Your payment has been received and confirmed.</p>
+          </div>
+          <div className="w-full border border-slate-200 rounded-xl p-5 flex flex-col gap-3 text-left">
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="text-slate-500 min-w-0">Reference Number</span>
+              <span className="font-medium text-slate-800 text-right break-all">{reference}</span>
+            </div>
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="text-slate-500">Amount Paid</span>
+              <span className="font-bold text-slate-900 whitespace-nowrap">{fmt(total)}</span>
+            </div>
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="text-slate-500">Date &amp; Time</span>
+              <span className="font-medium text-slate-800 text-right">{paidAt}</span>
+            </div>
+            <div className="flex justify-between gap-3 text-sm items-center">
+              <span className="text-slate-500">Status</span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <Check size={12} weight="bold" /> Paid
+              </span>
+            </div>
+          </div>
+          <div className="w-full flex flex-col gap-3">
+            <button onClick={onPay} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">
+              Return to Billing Portal
+            </button>
+            <button onClick={onPay} className="w-full py-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              Return to Merchant Portal
+            </button>
+          </div>
+          <p className="flex items-center justify-center gap-1.5 text-sm text-slate-400 mt-2">
+            Powered by <span className="font-bold text-slate-600">paymongo</span>
+          </p>
+        </div>
+      ) : (
+        /* ── Two-column: order + active step ── */
+        <div className="max-w-5xl mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* Left: Order */}
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 mb-6">Complete Your Order</h1>
+
+            <div className="flex flex-col gap-5">
+              {selectedBills.map((bill) => {
+                const amt = bill.amount + (bill.overdueCharge ?? 0);
+                return (
+                  <div key={bill.id} className="flex items-start gap-4">
+                    <div className="w-20 h-20 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 text-2xl font-bold shrink-0">
+                      {bill.id.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <p className="font-semibold text-slate-800">#{bill.id}</p>
+                      <p className="text-sm text-slate-400 mt-1">Quantity: 1</p>
+                      <p className="text-sm font-semibold text-slate-800 mt-1">{fmt(amt)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Transaction fees */}
+              <div className="flex items-start gap-4">
+                <div className="w-20 h-20 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 text-2xl font-bold shrink-0">T</div>
+                <div className="flex-1 min-w-0 pt-1">
+                  <p className="font-semibold text-slate-800">Transaction fees</p>
+                  <p className="text-sm text-slate-400 mt-1">Quantity: 1</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-1">{fmt(gatewayFee)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Merchant + totals */}
+            <div className="mt-8 pt-5 border-t border-dashed border-slate-200">
+              <p className="text-sm font-medium text-slate-700">Metroview Homes &amp; Realty</p>
+            </div>
+            <div className="mt-5 pt-5 border-t border-dashed border-slate-200 flex flex-col gap-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Subtotal</span>
+                <span className="text-slate-500">{fmt(total)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Fees</span>
+                <span className="text-slate-500">Free</span>
+              </div>
+            </div>
+            <div className="mt-5 pt-5 border-t border-dashed border-slate-200 flex justify-between">
+              <span className="text-base font-bold text-slate-900">Total Due</span>
+              <span className="text-base font-bold text-slate-900">{fmt(total)}</span>
+            </div>
+          </div>
+
+          {/* Right: active step */}
+          <div>
+            {stage === 'method' && (!expanded ? (
+              /* Collapsed: method row + Continue */
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-slate-900 mb-4">Payment Method</h2>
+                <CheckoutMethodField method={method} onClick={() => setExpanded(true)} />
+                <button
+                  onClick={method === 'card' ? () => setStage('otp') : () => setExpanded(true)}
+                  disabled={method === 'card' && !cardValid}
+                  className="w-full mt-5 py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Continue
+                </button>
+                <p className="text-center text-xs text-slate-400 mt-4">
+                  By completing your purchase, you agree to PayMongo's <span className="text-emerald-600">Privacy Policy</span>.
+                </p>
+              </div>
+            ) : method === 'card' ? (
+              /* Card form */
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
+                <PayMongoCardForm form={cardForm} onChange={setCardField} />
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setStage('otp')}
+                    disabled={!cardValid}
+                    className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Pay {fmt(total)}
+                  </button>
+                  <button onClick={() => setExpanded(false)} className="w-full py-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+                    Use a different payment method
+                  </button>
+                  <p className="text-center text-xs text-slate-400">
+                    By completing your purchase, you agree to PayMongo's <span className="text-emerald-600">Privacy Policy</span>.
+                  </p>
+                </div>
+              </div>
+            ) : method === 'qrph' ? (
+              /* QR Ph */
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+                <div className="text-center text-base flex items-center justify-center gap-1.5 text-slate-800">
+                  Scan
+                  <span className="inline-flex items-center gap-1 font-bold">
+                    <span className="text-amber-500">▦</span><span className="text-slate-800">QR</span><span className="text-red-500">Ph</span>
+                  </span>
+                  code to pay
+                </div>
+                <div className="flex items-center justify-center gap-2.5 text-[10px] font-bold">
+                  <span className="text-blue-600">GCash</span>
+                  <span className="text-slate-900 lowercase">maya</span>
+                  <span className="text-red-700">BPI</span>
+                  <span className="text-slate-700">GoTyme</span>
+                  <span className="text-red-500">HOME CREDIT</span>
+                </div>
+                <button className="mx-auto text-xs text-slate-500 flex items-center gap-1 hover:text-slate-700">
+                  See all supported banks and e-wallets <CaretDown size={12} />
+                </button>
+                <div onClick={startQr} className="mx-auto cursor-pointer relative bg-slate-50 rounded-xl p-4" title="Simulate scan to pay">
+                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-semibold tabular-nums"><QrCountdown /></span>
+                  <FauxQR />
+                </div>
+                <p className="text-center text-xs text-slate-500">Open your banking or e-wallet app, scan the code, and confirm the payment.</p>
+                <button className="w-full py-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
+                  <DownloadSimple size={16} /> Download QR Code
+                </button>
+                <button onClick={() => setExpanded(false)} className="w-full py-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+                  Use a different payment method
+                </button>
+              </div>
+            ) : (
+              /* E-Wallets / Online Banking */
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-slate-900 mb-4">Payment Method</h2>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <button onClick={() => setExpanded(false)} className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <span className="text-sm font-medium text-slate-800">{ewalletLabel}</span>
+                    <div className="flex items-center gap-2">
+                      <MethodBadge method={method} />
+                      <CaretDown size={16} className="text-slate-400 rotate-180" />
+                    </div>
+                  </button>
+                  <div className="border-t border-slate-100 p-3">
+                    <div className="border border-slate-200 rounded-lg px-3 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-5 h-5 rounded-full border-2 border-emerald-500 flex items-center justify-center">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        </span>
+                        <span className="text-sm font-medium text-slate-800">{optionLabel}</span>
+                      </div>
+                      <MethodBadge method={method} />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setStage(method === 'bank' ? 'bankauth' : 'mobile')}
+                  className="w-full mt-5 py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors"
+                >
+                  Continue
+                </button>
+                <p className="text-center text-xs text-slate-400 mt-4">
+                  By completing your purchase, you agree to PayMongo's <span className="text-emerald-600">Privacy Policy</span>.
+                </p>
+              </div>
+            ))}
+
+            {/* GCash / Maya — mobile number */}
+            {stage === 'mobile' && (
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col gap-5">
+                <div className="flex items-center gap-2">
+                  <MethodBadge method={method} />
+                  <h2 className="text-xl font-bold text-slate-900">{optionLabel}</h2>
+                </div>
+                <p className="text-sm text-slate-500">Log in to your {optionLabel} account to authorize this payment.</p>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">Mobile Number</label>
+                  <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" placeholder="+63 917 123 4567" className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button onClick={() => setStage('otp')} disabled={!mobile.trim()} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    Continue
+                  </button>
+                  <button onClick={() => setStage('method')} className="w-full py-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* OTP — card / gcash / maya */}
+            {stage === 'otp' && (
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col gap-5">
+                <h2 className="text-xl font-bold text-slate-900">Enter verification code</h2>
+                <p className="text-sm text-slate-500">
+                  For your security, we sent a 6-digit code to {method === 'card' ? 'your registered mobile number' : (mobile || 'your mobile number')} to authorize this payment.
+                </p>
+                <input
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  inputMode="numeric"
+                  placeholder="••••••"
+                  className={`${inputCls} text-center text-lg tracking-[0.5em]`}
+                />
+                <div className="flex flex-col gap-3">
+                  <button onClick={verifyAndPay} disabled={otp.length < 6 || processing} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
+                    {processing ? <><Spinner size={16} className="animate-spin" /> Verifying…</> : `Verify & Pay ${fmt(total)}`}
+                  </button>
+                  <button className="text-xs text-slate-500 hover:text-slate-700">Didn't get a code? Resend</button>
+                </div>
+              </div>
+            )}
+
+            {/* Direct Bank Transfer — account authorization */}
+            {stage === 'bankauth' && (
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col gap-5">
+                <div className="flex items-center gap-2">
+                  <MethodBadge method="bank" />
+                  <h2 className="text-xl font-bold text-slate-900">BPI Online</h2>
+                </div>
+                <p className="text-sm text-slate-500">Log in to authorize this payment from your BPI account.</p>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">User ID</label>
+                  <input placeholder="Enter your BPI user ID" className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">Password</label>
+                  <input type="password" placeholder="Enter your password" className={inputCls} />
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex justify-between text-sm">
+                  <span className="text-slate-500">Pay from account ••••&nbsp;1234</span>
+                  <span className="font-bold text-slate-900">{fmt(total)}</span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button onClick={verifyAndPay} disabled={processing} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-70 transition-colors flex items-center justify-center gap-2">
+                    {processing ? <><Spinner size={16} className="animate-spin" /> Confirming…</> : 'Confirm Payment'}
+                  </button>
+                  <button onClick={() => setStage('method')} className="w-full py-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* QR confirmation state */}
+            {stage === 'qrconfirm' && (
+              <div className="border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center gap-4 py-12">
+                <Spinner size={40} className="animate-spin text-emerald-500" />
+                <h2 className="text-xl font-bold text-slate-900">Confirming your payment…</h2>
+                <p className="text-sm text-slate-500 max-w-xs">Waiting for confirmation from your banking or e-wallet app. Please don't close this window.</p>
+              </div>
+            )}
+
+            <p className="flex items-center justify-center gap-1.5 text-sm text-slate-400 mt-5">
+              Powered by <span className="font-bold text-slate-600">paymongo</span>
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CustomerPaymentPortalPage() {
@@ -2028,7 +2685,7 @@ export default function CustomerPaymentPortalPage() {
   const [step, setStep] = useState<Step>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [method, setMethod] = useState<PaymentMethod>('card');
-  const [showGateway, setShowGateway] = useState(false);
+  const [gatewayStage, setGatewayStage] = useState<'idle' | 'modal' | 'checkout'>('idle');
   const [showStep1Error, setShowStep1Error] = useState(false);
 
   const selectedBills = BILLS.filter((b) => selected.has(b.id));
@@ -2052,6 +2709,7 @@ export default function CustomerPaymentPortalPage() {
   function handleBackToPortal() {
     setSelected(new Set());
     setMethod('card');
+    setGatewayStage('idle');
     setStep(1);
   }
 
@@ -2074,7 +2732,7 @@ export default function CustomerPaymentPortalPage() {
             selected={selected}
             method={method}
             setMethod={setMethod}
-            onSubmitRedirect={() => setShowGateway(true)}
+            onSubmitRedirect={() => setGatewayStage('modal')}
             onUploadSuccess={() => setStep(3)}
             onPrevious={() => setStep(1)}
           />
@@ -2082,15 +2740,26 @@ export default function CustomerPaymentPortalPage() {
         {step === 3 && <Step3 selected={selected} total={total} method={method} onBackToPortal={handleBackToPortal} />}
       </div>
 
-      {showGateway && (
+      {gatewayStage === 'modal' && (
         <PayMongoRedirectModal
           method={method}
           selectedCount={selected.size}
           subtotal={subtotal}
           gatewayFee={gatewayFee}
           total={total}
-          onContinue={() => { setShowGateway(false); setStep(3); }}
-          onCancel={() => setShowGateway(false)}
+          onContinue={() => setGatewayStage('checkout')}
+          onCancel={() => setGatewayStage('idle')}
+        />
+      )}
+
+      {gatewayStage === 'checkout' && (
+        <PayMongoCheckout
+          method={method}
+          selectedBills={selectedBills}
+          gatewayFee={gatewayFee}
+          total={total}
+          onPay={() => { setGatewayStage('idle'); setStep(3); }}
+          onBack={() => setGatewayStage('idle')}
         />
       )}
     </div>
