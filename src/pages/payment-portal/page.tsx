@@ -29,12 +29,15 @@ import {
   Trash,
   ShieldCheck,
   Spinner,
+  Info,
+  Gear,
 } from '@phosphor-icons/react';
 import mochiLogo from '#/assets/mochi-logo.svg';
+import mochiLogoWhite from '#/assets/mochi-logo-white.svg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AppState = 'access' | 'portal';
+type AppState = 'setupPin' | 'login' | 'portal';
 type Step = 1 | 2 | 3;
 type PaymentMethod = 'card' | 'gcash' | 'maya' | 'bank' | 'qrph' | 'upload';
 type BillStatus = 'paid' | 'unpaid' | 'pending' | 'overdue';
@@ -191,8 +194,6 @@ const CUSTOMER: Customer = {
   ],
 };
 
-const CORRECT_PIN = '1234';
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
@@ -247,7 +248,7 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
     <div
       onClick={() => !isPaid && onToggle()}
       className={[
-        'relative bg-white rounded-lg border flex flex-col transition-all',
+        'relative bg-white rounded-xl border flex items-center gap-4 px-5 py-4 transition-all',
         isPaid ? 'opacity-70 cursor-default' : 'cursor-pointer',
         checked
           ? 'border-violet-400 ring-2 ring-violet-100 shadow-sm'
@@ -256,37 +257,32 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
             : 'border-slate-200 hover:border-slate-300 hover:shadow-sm',
       ].join(' ')}
     >
-      {/* ── Top row: Checkbox + Bill ID + Status Badge ── */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-0">
-        <div className="flex items-center gap-3">
-          <div
-            onClick={(e) => { e.stopPropagation(); !isPaid && onToggle(); }}
-            className={[
-              'w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all',
-              checked
-                ? 'bg-violet-600 border-violet-600'
-                : 'border-slate-300 hover:border-slate-400',
-              isPaid ? 'opacity-50 cursor-default' : '',
-            ].join(' ')}
-          >
-            {checked && <Check size={12} weight="bold" className="text-white" />}
-          </div>
+      {/* ── Checkbox ── */}
+      <div
+        onClick={(e) => { e.stopPropagation(); !isPaid && onToggle(); }}
+        className={[
+          'w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center cursor-pointer transition-all',
+          checked
+            ? 'bg-violet-600 border-violet-600'
+            : 'border-slate-300 hover:border-slate-400',
+          isPaid ? 'opacity-50 cursor-default' : '',
+        ].join(' ')}
+      >
+        {checked && <Check size={12} weight="bold" className="text-white" />}
+      </div>
+
+      {/* ── Main info: Bill ID + Status + Name + Dates ── */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={(e) => { e.stopPropagation(); window.open(`/bills/${bill.id}`, '_blank'); }}
-            className="text-sm font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors"
+            className="text-sm font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors shrink-0"
           >
             #{bill.id}
           </button>
+          <StatusBadge status={bill.status} />
         </div>
-        <StatusBadge status={bill.status} />
-      </div>
-
-      {/* ── Body: Bill Name + Dates + Amount ── */}
-      <div className="px-5 pt-3 pb-0 flex-1 flex flex-col gap-3">
-        {/* Bill name */}
-        <h3 className="text-base font-bold text-slate-800 leading-snug">{bill.name}</h3>
-
-        {/* Dates */}
+        <h3 className="text-sm font-bold text-slate-800 leading-snug truncate">{bill.name}</h3>
         <div className="flex items-center gap-5">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <CalendarBlank size={13} className="shrink-0 text-slate-400" />
@@ -303,40 +299,32 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
             </span>
           </div>
         </div>
+      </div>
 
-        {/* Amount Due row */}
-        <div className="flex items-end justify-between pb-1">
-          {/* Left: Amount Due */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Amount Due</span>
-            <span className="text-2xl font-bold text-slate-900 tracking-tight">{fmt(bill.amount)}</span>
-          </div>
-
-          {/* Right: Overdue Charge (only when applicable) */}
-          {bill.overdueCharge && (
-            <div className="flex flex-col items-end gap-0.5">
-              <span className="text-[10px] font-semibold text-red-500 uppercase tracking-widest flex items-center gap-1">
-                <Warning size={10} weight="fill" /> Overdue Charge
-              </span>
-              <span className="text-base font-bold text-red-600">+ {fmt(bill.overdueCharge)}</span>
-            </div>
-          )}
-        </div>
+      {/* ── Amount (+ overdue) ── */}
+      <div className="flex flex-col items-end gap-0.5 shrink-0 pl-4">
+        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Amount Due</span>
+        <span className="text-xl font-bold text-slate-900 tracking-tight">{fmt(bill.amount)}</span>
+        {bill.overdueCharge && (
+          <span className="text-xs font-bold text-red-600 flex items-center gap-1">
+            <Warning size={11} weight="fill" /> + {fmt(bill.overdueCharge)}
+          </span>
+        )}
       </div>
 
       {/* ── Divider ── */}
-      <div className="mx-5 mt-3 border-t border-slate-100" />
+      <div className="self-stretch border-l border-slate-100" />
 
-      {/* ── Footer: Download PDF ── */}
-      <div className="px-5 py-3 flex justify-end">
-        <button
-          onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
-        >
-          <DownloadSimple size={14} />
-          Download Bill PDF
-        </button>
-      </div>
+      {/* ── Download PDF ── */}
+      <button
+        onClick={(e) => e.stopPropagation()}
+        title="Download Bill PDF"
+        className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+      >
+        <DownloadSimple size={14} />
+        <span className="hidden xl:inline">Download Bill PDF</span>
+        <span className="xl:hidden">PDF</span>
+      </button>
     </div>
   );
 }
@@ -938,16 +926,16 @@ function FilterDrawer({ open, onClose, filters, onChange, onApply, onReset }: {
 
 // ─── Customer Info Panel ──────────────────────────────────────────────────────
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, blurValue }: { label: string; value: string; blurValue?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5">
       <p className="text-sm font-semibold text-slate-800">{label}</p>
-      <p className="text-sm text-slate-500 leading-snug">{value}</p>
+      <p className={['text-sm text-slate-500 leading-snug', blurValue ? 'blur-sm select-none' : ''].join(' ')}>{value}</p>
     </div>
   );
 }
 
-function CustomerInfoPanel() {
+function CustomerInfoPanel({ restricted = false }: { restricted?: boolean }) {
   const c = CUSTOMER;
   const isOrg = c.type === 'organization';
 
@@ -974,12 +962,12 @@ function CustomerInfoPanel() {
         <div className="flex flex-col gap-4">
           <InfoRow label="Customer ID" value={c.id} />
           <InfoRow label="Name" value={c.name} />
-          <InfoRow label="Email address" value={c.email} />
-          <InfoRow label="Phone" value={c.phone} />
-          <InfoRow label="Address" value={c.address} />
+          <InfoRow label="Email address" value={c.email} blurValue={restricted} />
+          <InfoRow label="Phone" value={c.phone} blurValue={restricted} />
+          <InfoRow label="Address" value={c.address} blurValue={restricted} />
           <InfoRow label="VAT Status" value={c.vatStatus} />
           <InfoRow label="Withholding Tax" value={c.withholdingTax} />
-          <InfoRow label="TIN" value={c.tin} />
+          <InfoRow label="TIN" value={c.tin} blurValue={restricted} />
 
           {/* Primary Contact (org only) */}
           {isOrg && c.primaryContact && (
@@ -989,8 +977,8 @@ function CustomerInfoPanel() {
                 <p className="text-sm font-semibold text-slate-800">{c.primaryContact.name}</p>
                 <p className="text-sm text-slate-500">{c.primaryContact.position}</p>
               </div>
-              <InfoRow label="Email" value={c.primaryContact.email} />
-              <InfoRow label="Phone" value={c.primaryContact.phone} />
+              <InfoRow label="Email" value={c.primaryContact.email} blurValue={restricted} />
+              <InfoRow label="Phone" value={c.primaryContact.phone} blurValue={restricted} />
             </div>
           )}
 
@@ -1004,8 +992,8 @@ function CustomerInfoPanel() {
                     <p className="text-sm font-semibold text-slate-800">{oc.name}</p>
                     <p className="text-sm text-slate-500">{oc.position}</p>
                   </div>
-                  <InfoRow label="Email" value={oc.email} />
-                  <InfoRow label="Phone" value={oc.phone} />
+                  <InfoRow label="Email" value={oc.email} blurValue={restricted} />
+                  <InfoRow label="Phone" value={oc.phone} blurValue={restricted} />
                 </div>
               ))}
             </div>
@@ -1018,7 +1006,7 @@ function CustomerInfoPanel() {
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────
 
-function Stepper({ step }: { step: Step }) {
+function Stepper({ step, muted = false, settingsActive = false, onSettings }: { step: Step; muted?: boolean; settingsActive?: boolean; onSettings?: () => void }) {
   const steps = [
     { n: 1, label: 'Select Bill' },
     { n: 2, label: 'Confirm Payment' },
@@ -1027,15 +1015,15 @@ function Stepper({ step }: { step: Step }) {
   return (
     <aside className="w-56 shrink-0 bg-white border-r border-slate-200 p-6 flex flex-col gap-8">
       {/* Logo */}
-      <img src={mochiLogo} alt="Mochi" className="h-7 w-auto" />
+      <img src={mochiLogo} alt="Mochi" className={['h-7 w-auto', muted ? 'opacity-50' : ''].join(' ')} />
 
       {/* Progress heading */}
       <div className="flex flex-col gap-6">
         <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Progress</h2>
         <ol className="flex flex-col gap-5">
           {steps.map(({ n, label }) => {
-            const done = step > n;
-            const active = step === n;
+            const done = !muted && step > n;
+            const active = !muted && step === n;
             return (
               <li key={n} className="flex items-center gap-3">
                 {done ? (
@@ -1054,7 +1042,7 @@ function Stepper({ step }: { step: Step }) {
                 )}
                 <span className={[
                   'text-sm',
-                  done ? 'text-violet-600 font-medium' : active ? 'text-violet-700 font-semibold' : 'text-slate-400',
+                  muted ? 'text-slate-400' : done ? 'text-violet-600 font-medium' : active ? 'text-violet-700 font-semibold' : 'text-slate-400',
                 ].join(' ')}>
                   {label}
                 </span>
@@ -1063,80 +1051,231 @@ function Stepper({ step }: { step: Step }) {
           })}
         </ol>
       </div>
+
+      {/* Settings — disabled until authenticated */}
+      <div className="mt-auto pt-6 border-t border-slate-100">
+        <button
+          onClick={muted ? undefined : onSettings}
+          disabled={muted}
+          className={[
+            'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+            muted
+              ? 'text-slate-400 cursor-not-allowed'
+              : settingsActive
+                ? 'bg-violet-50 text-violet-700 font-semibold'
+                : 'text-slate-600 hover:bg-slate-50',
+          ].join(' ')}
+          title={muted ? 'Unlock your portal to access Settings' : 'Settings'}
+        >
+          <Gear size={18} className={muted ? 'text-slate-300' : settingsActive ? 'text-violet-600' : 'text-slate-400'} />
+          <span>Settings</span>
+          {muted && <Lock size={12} weight="fill" className="ml-auto text-slate-300" />}
+        </button>
+      </div>
     </aside>
   );
 }
 
-// ─── Access Portal ────────────────────────────────────────────────────────────
+// ─── Set Up PIN (mandatory, first-time) ───────────────────────────────────────
 
-function AccessPortal({ onSuccess }: { onSuccess: () => void }) {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
+function SetUpPinModal({ onComplete }: { onComplete: (pin: string) => void }) {
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+
+  const newComplete = newPin.length === 4;
+  const confirmComplete = confirmPin.length === 4;
+  const mismatch = confirmComplete && newComplete && confirmPin !== newPin;
+  const repeating = newComplete && /^(\d)\1{3}$/.test(newPin);
+  const canSubmit = newComplete && confirmComplete && !mismatch;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (pin === CORRECT_PIN) {
-      setError('');
-      onSuccess();
-    } else {
-      setError('Incorrect PIN. Please try again.');
-    }
+    if (canSubmit) onComplete(newPin);
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-10 w-full max-w-sm flex flex-col items-center gap-6">
-        {/* Icon */}
-        <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
-          <Lock size={26} className="text-violet-600" weight="duotone" />
+    <div className="fixed inset-0 z-50 bg-slate-900/25 flex items-center justify-center p-6">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md flex flex-col gap-6">
+        {/* Header — shield icon + centered title/description */}
+        <div className="flex flex-col items-center text-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
+            <ShieldCheck size={26} className="text-violet-600" weight="duotone" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Set Up Your PIN</h2>
+            <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+              Before you can access your portal, you need to create a 4-digit PIN. You'll use this PIN every time you log in going forward.
+            </p>
+          </div>
         </div>
 
-        {/* Heading */}
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-slate-800">Customer Payment Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">Enter your PIN to access your payment portal.</p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Access PIN</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          {/* New PIN */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-slate-700">New PIN</label>
+              <span className="relative group inline-flex">
+                <Info size={15} className="text-slate-400 cursor-help" />
+                <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-60 rounded-lg bg-slate-800 text-white text-xs leading-snug px-3 py-2 text-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+                  Choose something memorable but not easy to guess. Avoid using your birthday or repeating digits.
+                </span>
+              </span>
+            </div>
             <input
               type="password"
+              inputMode="numeric"
               maxLength={4}
-              placeholder="Enter PIN"
-              value={pin}
-              onChange={(e) => { setPin(e.target.value); setError(''); }}
-              className={[
-                'w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors',
-                error
-                  ? 'border-red-300 focus:ring-red-200 bg-red-50'
-                  : 'border-slate-300 focus:ring-violet-200',
-              ].join(' ')}
+              placeholder="Enter 4-digit PIN"
+              value={newPin}
+              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors"
             />
-            {error && (
-              <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                <Warning size={13} weight="fill" /> {error}
+            {repeating && (
+              <p className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+                <Warning size={13} weight="fill" /> Avoid repeating digits for better security.
               </p>
             )}
           </div>
+
+          {/* Confirm New PIN */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-slate-700">Confirm New PIN</label>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="Re-enter 4-digit PIN"
+              value={confirmPin}
+              onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className={[
+                'w-full border rounded-lg px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
+                mismatch ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
+              ].join(' ')}
+            />
+            {mismatch && (
+              <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                <Warning size={13} weight="fill" /> PINs do not match.
+              </p>
+            )}
+          </div>
+
           <button
             type="submit"
-            disabled={pin.length === 0}
+            disabled={!canSubmit}
             className="w-full py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Access Portal
+            Set PIN
           </button>
         </form>
 
-        <p className="text-xs text-slate-400 text-center">
-          Need help? Contact{' '}
-          <a href="mailto:support@metroviewhomes.com" className="text-violet-600 hover:underline">
-            support@metroviewhomes.com
-          </a>
-        </p>
+        <p className="text-xs text-slate-400 text-center">Your PIN is required to continue and cannot be skipped.</p>
       </div>
-      <p className="mt-6 text-xs text-slate-400">Metroview Homes &amp; Realty — Secure Payment Portal</p>
+    </div>
+  );
+}
+
+// ─── PIN Authentication (returning customer) ──────────────────────────────────
+
+function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess: () => void }) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [forgotNote, setForgotNote] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pin === currentPin) { setError(''); onSuccess(); }
+    else { setError('Incorrect PIN'); setPin(''); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/25 flex items-center justify-center p-6">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md flex flex-col gap-6">
+        <div className="flex flex-col items-center text-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
+            <Lock size={26} className="text-violet-600" weight="duotone" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Enter Your PIN</h2>
+            <p className="text-sm text-slate-500 mt-2 leading-relaxed">Enter your 4-digit PIN to access your payment portal.</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-slate-700">PIN</label>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="Enter 4-digit PIN"
+              value={pin}
+              onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setError(''); }}
+              className={[
+                'w-full border rounded-lg px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
+                error ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
+              ].join(' ')}
+            />
+            {mismatch && (
+              <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                <Warning size={13} weight="fill" /> PINs do not match.
+              </p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={pin.length !== 4}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Continue
+          </button>
+        </form>
+
+        <div className="text-center">
+          <p className="text-xs text-slate-500">
+            Forgot your PIN?{' '}
+            <button onClick={() => setForgotNote(true)} className="font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors">
+              Reset PIN
+            </button>
+          </p>
+          {forgotNote && <p className="text-xs text-slate-500 mt-2">We've sent a PIN reset link to {CUSTOMER.email}.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Restricted Pre-PIN Portal (Name/Bill/Due visible; rest blurred & locked) ──
+
+function RestrictedPortalView() {
+  return (
+    <div className="flex-1 flex overflow-hidden">
+      {/* Center: blurred bills + lock overlay */}
+      <div className="relative flex-1 overflow-hidden min-w-0">
+        <div className="absolute inset-0 overflow-hidden blur-[3px] pointer-events-none select-none p-8 flex flex-col gap-5" aria-hidden="true">
+          <div className="flex gap-2">
+            <div className="flex-1 h-11 bg-white border border-slate-200 rounded-lg" />
+            <div className="w-28 h-11 bg-white border border-slate-200 rounded-lg" />
+          </div>
+          <div className="h-20 bg-white border border-slate-200 rounded-lg" />
+          <div className="flex flex-col gap-3">
+            {BILLS.slice(0, 4).map((b) => (
+              <BillCard key={b.id} bill={b} checked={false} onToggle={() => {}} />
+            ))}
+          </div>
+        </div>
+
+        <div className="absolute inset-0 bg-slate-50/50 backdrop-blur-[1px] flex flex-col items-center justify-center text-center gap-4 px-6">
+          <div className="w-20 h-20 rounded-2xl bg-white shadow-md flex items-center justify-center">
+            <Lock size={34} className="text-slate-700" weight="fill" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800">Your portal is currently restricted</h3>
+          <p className="text-sm text-slate-500 max-w-xs">Set up your PIN to view your full billing history, account details, payment methods, and settings.</p>
+        </div>
+      </div>
+
+      {/* Right: customer information (sensitive fields blurred) */}
+      <CustomerInfoPanel restricted />
     </div>
   );
 }
@@ -1209,8 +1348,8 @@ function Step1({ selected, onToggle, showError, onContinue }: {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Center content column (scroll area + sticky footer) */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-auto p-8 flex flex-col gap-5">
+          {/* Static header: title + search/filter (stays put while scrolling) */}
+          <div className="px-8 pt-8 flex flex-col gap-5 shrink-0">
             <div>
               <h1 className="text-xl font-bold text-slate-800">Select Bills to Pay</h1>
               <p className="text-sm text-slate-500 mt-0.5">Choose one or more bills below to proceed with payment.</p>
@@ -1245,29 +1384,34 @@ function Step1({ selected, onToggle, showError, onContinue }: {
                 )}
               </button>
             </div>
+          </div>
 
-            {/* Top Summary */}
-            <div className="bg-white border border-slate-200 rounded-lg px-5 py-4 flex items-center justify-between">
-              <div className="flex gap-8">
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Total amount due before fees</p>
-                  <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-auto px-8 pb-8 flex flex-col gap-5">
+            {/* Sticky Summary — stays visible below search/filter while scrolling */}
+            <div className="sticky top-0 z-20 bg-slate-50 pt-5 pb-1">
+              <div className="bg-white border border-slate-200 rounded-lg px-5 py-3.5 flex items-center justify-between shadow-md">
+                <div className="flex gap-8">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Total amount due before fees</p>
+                    <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Number of selected bills</p>
+                    <p className="text-lg font-bold text-slate-900">{selected.size}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Number of bills in portal</p>
+                    <p className="text-lg font-bold text-slate-900">{payableBills.length}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of selected bills</p>
-                  <p className="text-lg font-bold text-slate-900">{selected.size}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of bills in portal</p>
-                  <p className="text-lg font-bold text-slate-900">{payableBills.length}</p>
-                </div>
+                <button
+                  onClick={handleSelectAll}
+                  className="px-6 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  {allSelected ? 'Deselect all' : 'Select all'}
+                </button>
               </div>
-              <button
-                onClick={handleSelectAll}
-                className="px-6 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                {allSelected ? 'Deselect all' : 'Select all'}
-              </button>
             </div>
 
             {/* Error banner */}
@@ -1279,7 +1423,7 @@ function Step1({ selected, onToggle, showError, onContinue }: {
             )}
 
             {/* Bill cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-3">
               {filtered.map((bill) => (
                 <BillCard
                   key={bill.id}
@@ -2678,15 +2822,177 @@ function PayMongoCheckout({ method, selectedBills, gatewayFee, total, onPay, onB
   );
 }
 
+// ─── Settings Page ────────────────────────────────────────────────────────────
+
+function SettingsPage({ currentPin, onChangePin, onBack }: { currentPin: string; onChangePin: (pin: string) => void; onBack: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [oldPin, setOldPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [done, setDone] = useState(false);
+
+  const oldComplete = oldPin.length === 4;
+  const newComplete = newPin.length === 4;
+  const confirmComplete = confirmPin.length === 4;
+  const currentWrong = oldComplete && oldPin !== currentPin;
+  const mismatch = confirmComplete && newComplete && confirmPin !== newPin;
+  const canSave = oldComplete && !currentWrong && newComplete && confirmComplete && !mismatch;
+
+  function reset() { setOpen(false); setOldPin(''); setNewPin(''); setConfirmPin(''); }
+
+  function handleSave() {
+    if (!canSave) return;
+    onChangePin(newPin);
+    reset();
+    setDone(true);
+  }
+
+  const pinInput = (value: string, onChange: (v: string) => void, placeholder: string, invalid?: boolean) => (
+    <input
+      type="password"
+      inputMode="numeric"
+      maxLength={4}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+      className={[
+        'w-full border rounded-lg px-4 py-2.5 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
+        invalid ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
+      ].join(' ')}
+    />
+  );
+
+  return (
+    <div className="flex-1 overflow-auto p-8">
+      <div className="max-w-2xl flex flex-col gap-6">
+        <div>
+          <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-3">
+            <ArrowLeft size={16} /> Back to portal
+          </button>
+          <h1 className="text-xl font-bold text-slate-800">Settings</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Manage your portal preferences and security.</p>
+        </div>
+
+        {/* PIN Management */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
+                <ShieldCheck size={20} className="text-violet-600" weight="duotone" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-800">PIN Management</h2>
+                <p className="text-sm text-slate-500 mt-0.5">Your 4-digit PIN secures access to your payment portal. You'll use it every time you log in.</p>
+              </div>
+            </div>
+            {!open && (
+              <button
+                onClick={() => { setOpen(true); setDone(false); }}
+                className="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Change PIN
+              </button>
+            )}
+          </div>
+
+          {done && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700">
+              <CheckCircle size={16} weight="fill" /> Your PIN has been updated.
+            </div>
+          )}
+
+          {open && (
+            <div className="border-t border-slate-100 pt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">Current PIN</label>
+                {pinInput(oldPin, setOldPin, 'Enter current PIN', currentWrong)}
+                {currentWrong && (
+                  <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                    <Warning size={13} weight="fill" /> Incorrect current PIN.
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">New PIN</label>
+                {pinInput(newPin, setNewPin, 'Enter 4-digit PIN')}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">Confirm New PIN</label>
+                {pinInput(confirmPin, setConfirmPin, 'Re-enter 4-digit PIN', mismatch)}
+                {mismatch && (
+                  <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                    <Warning size={13} weight="fill" /> PINs do not match.
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Update PIN
+                </button>
+                <button
+                  onClick={reset}
+                  className="px-5 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CustomerPaymentPortalPage() {
-  const [appState, setAppState] = useState<AppState>('access');
+  // Mandatory PIN setup on every load — refresh / revisit returns to the pre-PIN state
+  const [appState, setAppState] = useState<AppState>('setupPin');
   const [step, setStep] = useState<Step>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [method, setMethod] = useState<PaymentMethod>('card');
   const [gatewayStage, setGatewayStage] = useState<'idle' | 'modal' | 'checkout'>('idle');
   const [showStep1Error, setShowStep1Error] = useState(false);
+  const [portalView, setPortalView] = useState<'flow' | 'settings'>('flow');
+  const [showPinSuccessBanner, setShowPinSuccessBanner] = useState(false);
+  const [showSettingsBanner, setShowSettingsBanner] = useState(false);
+  const [currentPin, setCurrentPin] = useState('1234'); // demo PIN for the "returning customer" state
+
+  const isSetup = appState === 'setupPin';
+  const isLogin = appState === 'login';
+  const locked = isSetup || isLogin;
+
+  function handleSetupComplete(pin: string) {
+    // PIN saved + one-time link invalidated (conceptually) → unlock + surface banners
+    setCurrentPin(pin);
+    setShowPinSuccessBanner(true);
+    setShowSettingsBanner(true);
+    setAppState('portal');
+  }
+
+  // Demo state switch (for stakeholder review)
+  function demoFirstTime() {
+    setShowPinSuccessBanner(false);
+    setShowSettingsBanner(false);
+    setPortalView('flow');
+    setStep(1);
+    setSelected(new Set());
+    setAppState('setupPin');
+  }
+  function demoReturning() {
+    setShowPinSuccessBanner(false);
+    setShowSettingsBanner(false);
+    setPortalView('flow');
+    setStep(1);
+    setSelected(new Set());
+    setCurrentPin('1234');
+    setAppState('login');
+  }
 
   const selectedBills = BILLS.filter((b) => selected.has(b.id));
   const subtotal = selectedBills.reduce((s, b) => s + b.amount + (b.overdueCharge ?? 0), 0);
@@ -2713,21 +3019,60 @@ export default function CustomerPaymentPortalPage() {
     setStep(1);
   }
 
-  if (appState === 'access') {
-    return <AccessPortal onSuccess={() => setAppState('portal')} />;
-  }
-
   return (
     <div className="h-screen overflow-hidden bg-slate-50 flex flex-col">
       <header className="h-14 bg-white border-b border-slate-200 flex items-center px-6 shrink-0">
         <h1 className="text-sm font-semibold text-slate-700">Customer Payment Portal</h1>
         <span className="ml-2 text-xs text-slate-400">— {CUSTOMER.name}</span>
+        {!locked && (
+          <button
+            onClick={() => setPortalView(portalView === 'settings' ? 'flow' : 'settings')}
+            className={[
+              'ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+              portalView === 'settings' ? 'bg-violet-50 text-violet-700' : 'text-slate-600 hover:bg-slate-100',
+            ].join(' ')}
+          >
+            <Gear size={16} className={portalView === 'settings' ? 'text-violet-600' : 'text-slate-400'} />
+            Settings
+          </button>
+        )}
       </header>
 
+      {/* Post-setup banners (above all portal content) */}
+      {!locked && showPinSuccessBanner && (
+        <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3 flex items-center justify-between shrink-0">
+          <p className="flex items-center gap-2 text-sm text-emerald-700 font-medium">
+            <CheckCircle size={18} weight="fill" /> Your PIN has been set. You're all set! Use it next time you log in.
+          </p>
+          <button onClick={() => setShowPinSuccessBanner(false)} className="text-emerald-600 hover:text-emerald-800 transition-colors" aria-label="Dismiss">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {!locked && showSettingsBanner && (
+        <div className="bg-blue-50 border-b border-blue-200 px-6 py-2.5 flex items-center justify-between shrink-0">
+          <p className="text-sm text-blue-700">
+            Need to change your PIN? Go to{' '}
+            <button onClick={() => setPortalView('settings')} className="font-semibold underline hover:text-blue-900 transition-colors">Settings</button>
+            {' '}to update it anytime.
+          </p>
+          <button onClick={() => setShowSettingsBanner(false)} className="text-blue-600 hover:text-blue-800 transition-colors" aria-label="Dismiss">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
-        <Stepper step={step} />
-        {step === 1 && <Step1 selected={selected} onToggle={toggle} showError={showStep1Error} onContinue={handleStep1Continue} />}
-        {step === 2 && (
+        <Stepper
+          step={step}
+          muted={locked}
+          settingsActive={!locked && portalView === 'settings'}
+          onSettings={() => setPortalView('settings')}
+        />
+        {locked && <RestrictedPortalView />}
+        {!locked && portalView === 'settings' && <SettingsPage currentPin={currentPin} onChangePin={setCurrentPin} onBack={() => setPortalView('flow')} />}
+        {!locked && portalView === 'flow' && step === 1 && <Step1 selected={selected} onToggle={toggle} showError={showStep1Error} onContinue={handleStep1Continue} />}
+        {!locked && portalView === 'flow' && step === 2 && (
           <Step2
             selected={selected}
             method={method}
@@ -2737,7 +3082,30 @@ export default function CustomerPaymentPortalPage() {
             onPrevious={() => setStep(1)}
           />
         )}
-        {step === 3 && <Step3 selected={selected} total={total} method={method} onBackToPortal={handleBackToPortal} />}
+        {!locked && portalView === 'flow' && step === 3 && <Step3 selected={selected} total={total} method={method} onBackToPortal={handleBackToPortal} />}
+      </div>
+
+      {/* First-time: mandatory Set Up PIN (cannot be dismissed) */}
+      {isSetup && <SetUpPinModal onComplete={handleSetupComplete} />}
+
+      {/* Returning: PIN authentication */}
+      {isLogin && <PinAuthModal currentPin={currentPin} onSuccess={() => setAppState('portal')} />}
+
+      {/* Demo state switch — for stakeholder review only */}
+      <div className="fixed bottom-4 left-4 z-[60] bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1.5 flex items-center gap-1">
+        <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Demo</span>
+        <button
+          onClick={demoFirstTime}
+          className={['px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', isSetup ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-100'].join(' ')}
+        >
+          First-Time
+        </button>
+        <button
+          onClick={demoReturning}
+          className={['px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', isLogin ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-100'].join(' ')}
+        >
+          Returning
+        </button>
       </div>
 
       {gatewayStage === 'modal' && (
