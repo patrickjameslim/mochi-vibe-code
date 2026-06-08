@@ -33,6 +33,7 @@ import {
   Gear,
 } from '@phosphor-icons/react';
 import mochiLogo from '#/assets/mochi-logo.svg';
+import mochiLogoWhite from '#/assets/mochi-logo-white.svg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1214,12 +1215,13 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
                 error ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
               ].join(' ')}
             />
-            {error && (
+            {mismatch && (
               <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                <Warning size={13} weight="fill" /> {error}
+                <Warning size={13} weight="fill" /> PINs do not match.
               </p>
             )}
           </div>
+
           <button
             type="submit"
             disabled={pin.length !== 4}
@@ -1346,8 +1348,8 @@ function Step1({ selected, onToggle, showError, onContinue }: {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Center content column (scroll area + sticky footer) */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-auto p-8 flex flex-col gap-5">
+          {/* Static header: title + search/filter (stays put while scrolling) */}
+          <div className="px-8 pt-8 flex flex-col gap-5 shrink-0">
             <div>
               <h1 className="text-xl font-bold text-slate-800">Select Bills to Pay</h1>
               <p className="text-sm text-slate-500 mt-0.5">Choose one or more bills below to proceed with payment.</p>
@@ -1382,29 +1384,34 @@ function Step1({ selected, onToggle, showError, onContinue }: {
                 )}
               </button>
             </div>
+          </div>
 
-            {/* Top Summary */}
-            <div className="bg-white border border-slate-200 rounded-lg px-5 py-4 flex items-center justify-between">
-              <div className="flex gap-8">
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Total amount due before fees</p>
-                  <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-auto px-8 pb-8 flex flex-col gap-5">
+            {/* Sticky Summary — stays visible below search/filter while scrolling */}
+            <div className="sticky top-0 z-20 bg-slate-50 pt-5 pb-1">
+              <div className="bg-white border border-slate-200 rounded-lg px-5 py-3.5 flex items-center justify-between shadow-md">
+                <div className="flex gap-8">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Total amount due before fees</p>
+                    <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Number of selected bills</p>
+                    <p className="text-lg font-bold text-slate-900">{selected.size}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Number of bills in portal</p>
+                    <p className="text-lg font-bold text-slate-900">{payableBills.length}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of selected bills</p>
-                  <p className="text-lg font-bold text-slate-900">{selected.size}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of bills in portal</p>
-                  <p className="text-lg font-bold text-slate-900">{payableBills.length}</p>
-                </div>
+                <button
+                  onClick={handleSelectAll}
+                  className="px-6 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  {allSelected ? 'Deselect all' : 'Select all'}
+                </button>
               </div>
-              <button
-                onClick={handleSelectAll}
-                className="px-6 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                {allSelected ? 'Deselect all' : 'Select all'}
-              </button>
             </div>
 
             {/* Error banner */}
