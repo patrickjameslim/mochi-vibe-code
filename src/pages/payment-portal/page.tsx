@@ -33,6 +33,7 @@ import {
   Gear,
 } from '@phosphor-icons/react';
 import mochiLogo from '#/assets/mochi-logo.svg';
+import mochiLogoWhite from '#/assets/mochi-logo-white.svg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -281,7 +282,7 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
           </button>
           <StatusBadge status={bill.status} />
         </div>
-        <h3 className="text-sm font-bold text-slate-800 leading-snug truncate">{bill.name}</h3>
+        <h3 className="text-sm font-medium text-slate-800 leading-snug truncate">{bill.name}</h3>
         <div className="flex items-center gap-5">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <CalendarBlank size={13} className="shrink-0 text-slate-400" />
@@ -303,9 +304,9 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
       {/* ── Amount (+ overdue) ── */}
       <div className="flex flex-col items-end gap-0.5 shrink-0 pl-4">
         <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Amount Due</span>
-        <span className="text-xl font-bold text-slate-900 tracking-tight">{fmt(bill.amount)}</span>
+        <span className="text-xl font-medium text-slate-900 tracking-tight">{fmt(bill.amount)}</span>
         {bill.overdueCharge && (
-          <span className="text-xs font-bold text-red-600 flex items-center gap-1">
+          <span className="text-xs font-medium text-red-600 flex items-center gap-1">
             <Warning size={11} weight="fill" /> + {fmt(bill.overdueCharge)}
           </span>
         )}
@@ -314,15 +315,14 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
       {/* ── Divider ── */}
       <div className="self-stretch border-l border-slate-100" />
 
-      {/* ── Download PDF ── */}
+      {/* ── Download PDF (icon-only, tooltip) ── */}
       <button
         onClick={(e) => e.stopPropagation()}
         title="Download Bill PDF"
-        className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+        aria-label="Download Bill PDF"
+        className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700 transition-colors"
       >
-        <DownloadSimple size={14} />
-        <span className="hidden xl:inline">Download Bill PDF</span>
-        <span className="xl:hidden">PDF</span>
+        <DownloadSimple size={16} />
       </button>
     </div>
   );
@@ -1175,10 +1175,46 @@ function SetUpPinModal({ onComplete }: { onComplete: (pin: string) => void }) {
 
 // ─── PIN Authentication (returning customer) ──────────────────────────────────
 
+const GRAD = { backgroundImage: 'linear-gradient(135deg, #504977, #965CB8)' };
+
+const AUTH_SLIDES = [
+  {
+    key: 'methods',
+    title: 'Provide options for digital payments',
+    desc: 'Offer digital payment options to make it easier for customers to pay anytime and anywhere through trusted online channels — giving them the flexibility to choose the method that best suits their needs.',
+  },
+  {
+    key: 'multibills',
+    title: 'Pay multiple bills in one go',
+    desc: 'Select several outstanding bills and settle them together in a single, streamlined checkout — no need to pay one at a time.',
+  },
+  {
+    key: 'tracking',
+    title: 'Track every payment',
+    desc: 'Get instant confirmation and downloadable receipts for every transaction, so your records always stay complete and up to date.',
+  },
+  {
+    key: 'security',
+    title: 'Bank-grade security',
+    desc: 'Your account is protected with PIN access and encrypted connections, keeping your billing and payment details safe at all times.',
+  },
+  {
+    key: 'devices',
+    title: 'Manage your account anywhere',
+    desc: 'Access your portal from any device to review bills, update details, and stay on top of due dates — wherever you are.',
+  },
+];
+
 function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess: () => void }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [forgotNote, setForgotNote] = useState(false);
+  const [slide, setSlide] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setSlide((s) => (s + 1) % AUTH_SLIDES.length), 4500);
+    return () => clearInterval(id);
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1187,57 +1223,465 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/25 flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md flex flex-col gap-6">
-        <div className="flex flex-col items-center text-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
-            <Lock size={26} className="text-violet-600" weight="duotone" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Enter Your PIN</h2>
-            <p className="text-sm text-slate-500 mt-2 leading-relaxed">Enter your 4-digit PIN to access your payment portal.</p>
-          </div>
-        </div>
+    <div className="fixed inset-0 z-50 bg-white flex">
+      {/* ── Left: sign-in form ── */}
+      <div className="flex-1 flex items-center justify-center p-8 lg:p-16">
+        <div className="w-full max-w-sm">
+          <img src={mochiLogo} alt="Mochi" className="h-8 w-auto mb-10" />
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-700">PIN</label>
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              placeholder="Enter 4-digit PIN"
-              value={pin}
-              onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setError(''); }}
-              className={[
-                'w-full border rounded-lg px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
-                error ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
-              ].join(' ')}
-            />
-            {error && (
-              <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                <Warning size={13} weight="fill" /> {error}
-              </p>
-            )}
-          </div>
-          <button
-            type="submit"
-            disabled={pin.length !== 4}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Continue
-          </button>
-        </form>
+          <h1 className="text-3xl font-bold text-slate-900">Sign in</h1>
+          <p className="text-sm text-slate-500 mt-2">Enter your 4-digit PIN to access your payment portal.</p>
 
-        <div className="text-center">
-          <p className="text-xs text-slate-500">
+          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700">PIN</label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="Enter 4-digit PIN"
+                  value={pin}
+                  onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setError(''); }}
+                  className={[
+                    'w-full border rounded-xl pl-11 pr-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
+                    error ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
+                  ].join(' ')}
+                />
+              </div>
+              {error && (
+                <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                  <Warning size={13} weight="fill" /> {error}
+                </p>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={pin.length !== 4}
+              className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Sign in
+            </button>
+          </form>
+
+          <p className="mt-5 text-sm text-slate-500">
             Forgot your PIN?{' '}
             <button onClick={() => setForgotNote(true)} className="font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors">
               Reset PIN
             </button>
           </p>
-          {forgotNote && <p className="text-xs text-slate-500 mt-2">We've sent a PIN reset link to {CUSTOMER.email}.</p>}
+          {forgotNote && <p className="mt-2 text-xs text-slate-500">We've sent a PIN reset link to {CUSTOMER.email}.</p>}
         </div>
+      </div>
+
+      {/* ── Right: digital-payments showcase hero (carousel) ── */}
+      <div className="hidden lg:flex flex-1 relative overflow-hidden text-white flex-col items-center justify-between py-12 px-10" style={{ backgroundColor: '#32215F' }}>
+        {/* dotted texture */}
+        <div
+          className="absolute inset-0 opacity-[0.15] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
+        />
+        {/* bottom glow graphic */}
+        <div
+          className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[120%] h-80 rounded-[100%] blur-3xl pointer-events-none"
+          style={{ backgroundColor: '#C35CFF', opacity: 0.45 }}
+        />
+
+        {/* logo (white, directly on the dark hero) */}
+        <div className="relative z-10">
+          <img src={mochiLogoWhite} alt="Mochi" className="h-9 w-auto" />
+        </div>
+
+        {/* slide illustration */}
+        <div className="relative z-10 my-6 flex items-center justify-center w-full max-w-[660px]" style={{ minHeight: 360 }}>
+          <AuthIllustration slideKey={AUTH_SLIDES[slide].key} />
+        </div>
+
+        {/* carousel */}
+        <div className="relative z-10 flex flex-col items-center gap-6 max-w-md">
+          <div className="flex items-center gap-2">
+            {AUTH_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setSlide(i)}
+                aria-label={`Go to slide ${i + 1}`}
+                className={['h-1.5 rounded-full transition-all', i === slide ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/60'].join(' ')}
+              />
+            ))}
+          </div>
+          <div className="text-center min-h-[140px]">
+            <h2 className="text-2xl font-bold leading-tight">{AUTH_SLIDES[slide].title}</h2>
+            <p className="text-sm text-violet-100 mt-3 leading-relaxed">{AUTH_SLIDES[slide].desc}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProviderPill({ label, className = '' }: { label: string; className?: string }) {
+  return (
+    <div className={['absolute z-20 bg-white rounded-full shadow-lg px-4 py-2 whitespace-nowrap', className].join(' ')}>
+      <span
+        className="text-sm font-bold bg-clip-text text-transparent"
+        style={{ backgroundImage: 'linear-gradient(135deg, #504977, #965CB8)' }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// Gradient-filled text (for brand marks / labels)
+function GradText({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span className={['bg-clip-text text-transparent whitespace-nowrap', className].join(' ')} style={GRAD}>
+      {children}
+    </span>
+  );
+}
+
+// ─── Carousel slide illustrations ──────────────────────────────────────────────
+
+function AuthIllustration({ slideKey }: { slideKey: string }) {
+  switch (slideKey) {
+    case 'multibills': return <IllustrationMultiBills />;
+    case 'tracking': return <IllustrationTracking />;
+    case 'security': return <IllustrationSecurity />;
+    case 'devices': return <IllustrationDevices />;
+    default: return <IllustrationMethods />;
+  }
+}
+
+// Slide 5 — payment methods (unchanged design)
+function IllustrationMethods() {
+  return (
+    <div className="relative">
+      <ProviderPill label="GCash" className="-left-12 top-24" />
+      <ProviderPill label="VISA" className="-right-10 top-16" />
+      <ProviderPill label="GrabPay" className="-left-14 top-1/2" />
+      <ProviderPill label="Maya" className="-right-12 top-[58%]" />
+      <ProviderPill label="UnionBank" className="-right-8 bottom-12" />
+
+      <div className="w-80 rounded-lg p-5 shadow-2xl border border-white/15" style={GRAD}>
+        <h3 className="text-base font-bold text-white">Payment Portal</h3>
+        <p className="text-xs font-semibold text-violet-100 mt-3 mb-2">Select a Payment Method</p>
+        <div className="flex flex-col gap-2">
+          {[
+            { mark: 'VISA', label: 'Credit or Debit Card', cls: 'italic font-extrabold text-[11px]' },
+            { mark: 'GCash', label: 'GCash', cls: 'font-bold text-[9px]' },
+            { mark: 'BPI', label: 'BPI Online', cls: 'font-extrabold text-[11px]' },
+            { mark: 'maya', label: 'Paymaya', cls: 'font-bold lowercase text-[10px]' },
+            { mark: 'GrabPay', label: 'GrabPay', cls: 'font-bold text-[8px]' },
+          ].map((m) => (
+            <div key={m.label} className="flex items-center gap-3 bg-white rounded-md px-3 py-2.5">
+              <span className="w-12 h-7 rounded-sm bg-slate-100 flex items-center justify-center px-1">
+                <GradText className={m.cls}>{m.mark}</GradText>
+              </span>
+              <span className="text-sm font-semibold text-slate-800">{m.label}</span>
+            </div>
+          ))}
+          <div className="bg-white/25 rounded-md py-2.5 text-center text-sm font-bold text-white">Pay now</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Tiny UI primitives for mockups
+function MiniBillRow({ status }: { status: 'paid' | 'due' | 'pending' }) {
+  const pill = { paid: 'bg-emerald-100', due: 'bg-rose-100', pending: 'bg-amber-100' }[status];
+  return (
+    <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-md px-2 py-1.5">
+      <div className="space-y-1">
+        <div className="h-1.5 w-20 bg-slate-300 rounded" />
+        <div className="h-1 w-12 bg-slate-200 rounded" />
+      </div>
+      <div className={['h-3 w-8 rounded-full', pill].join(' ')} />
+    </div>
+  );
+}
+
+// Slide 1 — Manage your account anywhere (product window behind, person in front)
+function IllustrationDevices() {
+  return (
+    <div className="relative w-[540px] h-[460px]">
+      {/* enlarged "Your Bills" product window — background layer */}
+      <div className="absolute left-6 top-8 z-10 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden">
+        {/* window title bar */}
+        <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-100">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-300" />
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-300" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-300" />
+        </div>
+        <div className="px-5 pt-4 pb-2">
+          <div className="text-sm font-bold text-slate-700">Your Bills</div>
+          <div className="text-xs text-slate-400 mt-0.5">Manage anytime, anywhere</div>
+        </div>
+        <div className="px-5 pb-5 space-y-2.5">
+          <MiniBillRow status="due" />
+          <MiniBillRow status="paid" />
+          <MiniBillRow status="pending" />
+        </div>
+      </div>
+
+      {/* cut-out person — foreground layer, overlapping the window */}
+      <img
+        src="/person.png?v=6"
+        alt=""
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+        className="absolute right-0 bottom-0 w-[600px] h-auto object-contain object-bottom z-30 drop-shadow-2xl select-none pointer-events-none"
+      />
+    </div>
+  );
+}
+
+// Small status pill for the security slide (icon + short label only)
+function SecPill({ icon, label, tint = 'violet', className = '' }: { icon: React.ReactNode; label: string; tint?: 'violet' | 'emerald'; className?: string }) {
+  return (
+    <div className={['absolute z-30 bg-white rounded-full shadow-lg px-3 py-1.5 flex items-center gap-1.5', className].join(' ')}>
+      <span className={tint === 'emerald' ? 'text-emerald-500' : 'text-violet-600'}>{icon}</span>
+      <span className="text-xs font-bold text-slate-700">{label}</span>
+    </div>
+  );
+}
+
+// Slide 2 — Bank-grade security (Overview dashboard + Secure Login popup + badges)
+function IllustrationSecurity() {
+  return (
+    <div className="relative w-[660px] h-[440px]">
+      {/* dimmed Overview dashboard — background layer */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-0 z-0 w-[430px] rounded-xl bg-white/90 shadow-2xl overflow-hidden blur-[0.5px]">
+        {/* header */}
+        <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100">
+          <div className="flex items-center gap-1.5">
+            <img src={mochiLogo} alt="" className="h-4 w-auto" />
+            <span className="text-[9px] font-bold text-slate-700">Customer Payment Portal</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-full bg-slate-100" />
+            <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[7px] font-bold text-white">JM</div>
+          </div>
+        </div>
+        <div className="flex">
+          {/* sidebar — progress stepper */}
+          <div className="w-[88px] p-2.5 space-y-2 border-r border-slate-100 shrink-0">
+            <div className="text-[6px] font-bold text-slate-300 uppercase tracking-wider mb-1">Progress</div>
+            {[['1', 'Select Bill', true], ['2', 'Confirm Payment', false], ['3', 'Payment Submitted', false]].map(([n, label, active]) => (
+              <div key={n as string} className="flex items-center gap-1.5">
+                <div className={['w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold shrink-0', active ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'].join(' ')}>{n as string}</div>
+                <span className={['text-[7px] leading-tight', active ? 'font-bold text-violet-700' : 'font-medium text-slate-400'].join(' ')}>{label as string}</span>
+              </div>
+            ))}
+          </div>
+          {/* main */}
+          <div className="flex-1 p-3 min-w-0">
+            <div className="text-[10px] font-bold text-slate-700">Welcome back, Juan! 👋</div>
+            <div className="text-[7px] text-slate-400 mt-0.5">Here's what's happening with your account.</div>
+            {/* stat cards */}
+            <div className="flex gap-2 mt-2.5">
+              <div className="flex-1 rounded-md border border-slate-100 p-2">
+                <div className="text-[6px] text-slate-400">Total Outstanding</div>
+                <div className="text-[11px] font-bold text-violet-700 mt-0.5">₱53,500.00</div>
+                <div className="text-[6px] text-slate-400 mt-0.5">4 bills pending</div>
+              </div>
+              <div className="w-24 rounded-md border border-slate-100 p-2">
+                <div className="text-[6px] text-slate-400">Last Payment</div>
+                <div className="text-[10px] font-bold text-slate-700 mt-0.5">₱15,000.00</div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="text-[6px] text-slate-400">May 1, 2025</span>
+                  <span className="text-[6px] font-bold text-emerald-600 bg-emerald-50 rounded px-1">Paid</span>
+                </div>
+              </div>
+            </div>
+            {/* recent bills + payment history */}
+            <div className="flex gap-2 mt-2.5">
+              <div className="flex-1 min-w-0">
+                <div className="text-[8px] font-bold text-slate-600 mb-1">Recent Bills</div>
+                <div className="space-y-1.5">
+                  {[['Association Dues', 'May 1, 2025'], ['Parking Fee', 'June 1, 2025'], ['Water Utility Bill', 'April 1, 2025'], ['Maintenance Fee', 'Q2 2025']].map(([n, d]) => (
+                    <div key={n}>
+                      <div className="text-[7px] font-semibold text-slate-600 truncate">{n}</div>
+                      <div className="text-[6px] text-slate-400">{d}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="w-24">
+                <div className="text-[8px] font-bold text-slate-600 mb-1">Payment History</div>
+                <div className="space-y-1.5">
+                  {[['₱15,000.00', 'May 1, 2025'], ['₱12,500.00', 'April 1, 2025'], ['₱8,250.00', 'March 1, 2025']].map(([a, d]) => (
+                    <div key={d} className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[7px] font-bold text-slate-600">{a}</div>
+                        <div className="text-[6px] text-slate-400">{d}</div>
+                      </div>
+                      <span className="text-[5px] font-bold text-emerald-600 bg-emerald-50 rounded px-1 py-0.5">Paid</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-[6px] font-bold text-violet-600 mt-1.5">View all payments →</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Secure Login popup — centered over the dashboard */}
+      <div className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 z-20 w-48 bg-white rounded-2xl shadow-2xl p-5 flex flex-col items-center">
+        <img src={mochiLogo} alt="Mochi" className="h-6 w-auto" />
+        <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center my-3.5">
+          <Lock size={20} weight="fill" className="text-violet-600" />
+        </div>
+        <div className="text-base font-bold text-slate-800">Secure Login</div>
+        <div className="text-[10px] text-slate-400 mt-1">Enter your 4-digit PIN</div>
+        <div className="flex gap-2 mt-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="w-8 h-9 rounded-md border border-slate-200 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full" style={GRAD} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 w-full rounded-lg bg-violet-50 px-3 py-2 flex items-center gap-2">
+          <ShieldCheck size={16} weight="fill" className="text-violet-600 shrink-0" />
+          <div>
+            <div className="text-[10px] font-bold text-violet-700 leading-none">Protected</div>
+            <div className="text-[8px] text-slate-400 mt-0.5">Your account is safe with us</div>
+          </div>
+        </div>
+      </div>
+
+      {/* small floating status pills around the login card */}
+      <SecPill className="left-[120px] top-16" icon={<Lock size={13} weight="fill" />} label="Encrypted" />
+      <SecPill className="right-[120px] top-24" tint="emerald" icon={<CheckCircle size={14} weight="fill" />} label="Verified" />
+      <SecPill className="left-[150px] bottom-24" icon={<ShieldCheck size={13} weight="fill" />} label="Secure PIN" />
+      <SecPill className="right-[140px] bottom-16" icon={<Lock size={13} weight="fill" />} label="Protected" />
+    </div>
+  );
+}
+
+// Slide 3 — Track every payment (status timeline console + receipt + success badge)
+function IllustrationTracking() {
+  const steps = [
+    { n: '1', label: 'Payment Received', time: '16:42:33', done: true },
+    { n: '2', label: 'Verification', time: '16:42:33', done: true },
+    { n: '3', label: 'Paid', time: '16:42:34', done: true },
+  ];
+  return (
+    <div className="relative w-[420px] h-[370px] flex items-center justify-center">
+      {/* console card */}
+      <div className="bg-white rounded-xl shadow-2xl w-72 overflow-hidden">
+        {/* header */}
+        <div className="px-4 py-3 flex items-center justify-between" style={GRAD}>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+              <Bank size={13} weight="fill" className="text-white" />
+            </div>
+            <span className="text-sm font-bold text-white">Payment Status</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-white/20 rounded-full px-2 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+            <span className="text-[10px] font-bold text-white tracking-wide">Live</span>
+          </div>
+        </div>
+
+        {/* timeline */}
+        <div className="p-4">
+          {steps.map((s, i) => (
+            <div key={s.n} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shadow shrink-0" style={GRAD}>
+                  <Check size={12} weight="bold" className="text-white" />
+                </div>
+                {i < steps.length - 1 && <div className="w-0.5 flex-1 my-1" style={GRAD} />}
+              </div>
+              <div className={['flex-1 flex items-start justify-between', i < steps.length - 1 ? 'pb-4' : ''].join(' ')}>
+                <div>
+                  <div className="text-xs font-semibold text-slate-700">{s.label}</div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">{s.time}</div>
+                </div>
+                <span className="text-[9px] font-bold text-emerald-500">Done</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* floating Receipt.pdf download card */}
+      <div className="absolute -right-3 top-8 bg-white rounded-lg p-3 shadow-2xl w-40 border border-slate-100">
+        <div className="flex items-center gap-2">
+          <FilePdf size={26} weight="fill" className="text-violet-600" />
+          <div>
+            <div className="text-xs font-bold text-slate-800">Receipt.pdf</div>
+            <div className="text-[9px] text-slate-400">24 KB</div>
+          </div>
+        </div>
+        <div className="mt-2 rounded-md py-1.5 flex items-center justify-center gap-1.5 text-[10px] font-bold text-white" style={GRAD}>
+          <DownloadSimple size={12} weight="bold" /> Download Receipt
+        </div>
+      </div>
+
+      {/* floating Payment Successful badge */}
+      <div className="absolute -left-3 bottom-10 bg-white rounded-full px-3 py-2 shadow-2xl flex items-center gap-2">
+        <CheckCircle size={18} weight="fill" className="text-emerald-500" />
+        <span className="text-xs font-bold text-slate-800">Payment Successful</span>
+      </div>
+    </div>
+  );
+}
+
+// Slide 4 — Pay multiple bills in one go
+function IllustrationMultiBills() {
+  const bills = [
+    { name: 'Association Dues', sub: 'Due May 31, 2025', amt: '₱15,000' },
+    { name: 'Parking Fee', sub: 'Due Jun 15, 2025', amt: '₱20,000' },
+    { name: 'Utility Bill', sub: 'Due Apr 30, 2025', amt: '₱10,000' },
+    { name: 'Maintenance Fee', sub: 'Due Jul 1, 2025', amt: '₱8,500' },
+  ];
+  return (
+    <div className="relative w-[400px] h-[340px] flex items-center justify-center">
+      {/* payment summary card */}
+      <div className="bg-white rounded-xl shadow-2xl w-72 overflow-hidden">
+        {/* amount header */}
+        <div className="p-5 pb-4">
+          <div className="text-[11px] font-semibold text-slate-400">Amount to pay</div>
+          <div className="mt-1 text-3xl font-extrabold tracking-tight">
+            <GradText>₱53,500</GradText>
+          </div>
+        </div>
+
+        {/* itemized bills */}
+        <div className="border-t border-slate-100 px-5 py-4">
+          <div className="text-[11px] font-semibold text-slate-400 mb-3">For 4 bills</div>
+          <div className="space-y-3">
+            {bills.map((b) => (
+              <div key={b.name} className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 shadow-sm" style={GRAD}>
+                  <Buildings size={17} weight="fill" className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-slate-700 truncate">{b.name}</div>
+                  <div className="text-[10px] text-slate-400">{b.sub}</div>
+                </div>
+                <div className="text-xs font-bold text-slate-700 shrink-0">{b.amt}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* single checkout action */}
+        <div className="px-5 pb-5">
+          <div className="rounded-lg py-2.5 text-center text-sm font-bold text-white shadow" style={GRAD}>
+            Pay all bills
+          </div>
+        </div>
+      </div>
+
+      {/* floating success toast */}
+      <div className="absolute -right-4 bottom-4 bg-white rounded-full pl-2 pr-4 py-2 shadow-2xl flex items-center gap-2">
+        <CheckCircle size={22} weight="fill" className="text-emerald-500" />
+        <span className="text-sm font-bold text-slate-800">Payment received!</span>
       </div>
     </div>
   );
@@ -1346,8 +1790,8 @@ function Step1({ selected, onToggle, showError, onContinue }: {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Center content column (scroll area + sticky footer) */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-auto p-8 flex flex-col gap-5">
+          {/* Static header: title + search/filter (stays put while scrolling) */}
+          <div className="px-8 pt-8 flex flex-col gap-5 shrink-0">
             <div>
               <h1 className="text-xl font-bold text-slate-800">Select Bills to Pay</h1>
               <p className="text-sm text-slate-500 mt-0.5">Choose one or more bills below to proceed with payment.</p>
@@ -1382,29 +1826,34 @@ function Step1({ selected, onToggle, showError, onContinue }: {
                 )}
               </button>
             </div>
+          </div>
 
-            {/* Top Summary */}
-            <div className="bg-white border border-slate-200 rounded-lg px-5 py-4 flex items-center justify-between">
-              <div className="flex gap-8">
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Total amount due before fees</p>
-                  <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-auto px-8 pb-8 flex flex-col gap-5">
+            {/* Sticky Summary — stays visible below search/filter while scrolling */}
+            <div className="sticky top-0 z-20 bg-slate-50 pt-5 pb-1">
+              <div className="bg-white border border-slate-200 rounded-lg px-5 py-3.5 flex items-center justify-between shadow-md">
+                <div className="flex gap-8">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Total amount due before fees</p>
+                    <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Number of selected bills</p>
+                    <p className="text-lg font-bold text-slate-900">{selected.size}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Number of bills in portal</p>
+                    <p className="text-lg font-bold text-slate-900">{payableBills.length}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of selected bills</p>
-                  <p className="text-lg font-bold text-slate-900">{selected.size}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of bills in portal</p>
-                  <p className="text-lg font-bold text-slate-900">{payableBills.length}</p>
-                </div>
+                <button
+                  onClick={handleSelectAll}
+                  className="px-6 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  {allSelected ? 'Deselect all' : 'Select all'}
+                </button>
               </div>
-              <button
-                onClick={handleSelectAll}
-                className="px-6 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                {allSelected ? 'Deselect all' : 'Select all'}
-              </button>
             </div>
 
             {/* Error banner */}
