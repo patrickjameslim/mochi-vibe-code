@@ -1,0 +1,396 @@
+/* ════════════════════════════════════════════════════════════
+   Billing Hero Section  — Mochi Landing Page
+   Layout mirrors: "Payment Solutions for Filipino Businesses"
+   Content:        "All your bills. One place." spec
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Section wrapper ──────────────────────────────────────── */
+.billing-hero {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  min-height: 100vh;
+  padding: 80px 64px;
+  background: linear-gradient(135deg, #3b1a6e 0%, #2d1260 35%, #1a0a40 70%, #0f0730 100%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Subtle radial glow on the left */
+.billing-hero::before {
+  content: '';
+  position: absolute;
+  top: -100px;
+  left: -100px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(130, 60, 220, 0.35) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ── Left column ──────────────────────────────────────────── */
+.billing-hero__copy {
+  flex: 0 0 380px;
+  max-width: 380px;
+  z-index: 1;
+}
+
+.billing-hero__headline {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  letter-spacing: -0.5px;
+}
+
+.billing-hero__subheadline {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.6;
+  margin: 0 0 32px;
+}
+
+/* Feature bullets */
+.billing-hero__bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.billing-hero__bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.5;
+}
+
+.billing-hero__bullet-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a855f7;
+  margin-top: 6px;
+}
+
+/* Status badge legend row */
+.billing-hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Right column ─────────────────────────────────────────── */
+.billing-hero__visual {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 1;
+}
+
+/* ── Floating dashboard card ──────────────────────────────── */
+.billing-dashboard {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  width: 100%;
+  max-width: 780px;
+  overflow: hidden;
+  font-size: 0.78rem;
+  color: #1a1a2e;
+}
+
+/* Top action bar */
+.billing-dashboard__topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.billing-dashboard__title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.billing-dashboard__tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #555;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab--active {
+  background: #ede9fe;
+  color: #6d28d9;
+  font-weight: 600;
+}
+
+.billing-dashboard__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.btn-ghost {
+  padding: 7px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #444;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Search bar */
+.billing-dashboard__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 24px 0;
+  padding: 8px 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.search-icon { font-size: 0.8rem; }
+.search-placeholder { flex: 1; }
+.filter-btn {
+  margin-left: auto;
+  color: #555;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Table */
+.billing-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.billing-table thead tr {
+  background: #f7f7fb;
+}
+
+.billing-table th {
+  padding: 9px 14px;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.billing-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.billing-table tbody tr:hover {
+  background: #faf9ff;
+}
+
+.bill-id {
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+/* Pagination */
+.billing-dashboard__pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 24px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.page-arrow {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #555;
+  cursor: pointer;
+}
+
+.page-num {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+}
+
+.page-num--active {
+  background: #7c3aed;
+  color: #fff;
+}
+
+/* ── Status badges ────────────────────────────────────────── */
+.billing-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-paid       { background: #d1fae5; color: #065f46; }
+.badge-overdue    { background: #fee2e2; color: #991b1b; }
+.badge-draft      { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.badge-sent       { background: #dbeafe; color: #1e40af; }
+.badge-scheduled  { background: #fef9c3; color: #854d0e; }
+.badge-verifying  { background: #ede9fe; color: #5b21b6; }
+
+/* ── Floating invoice card (bottom-right overlay) ────────── */
+.floating-invoice {
+  position: absolute;
+  bottom: -24px;
+  right: -20px;
+  width: 260px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+  padding: 16px 18px;
+  font-size: 0.72rem;
+  color: #333;
+  z-index: 10;
+}
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #7c3aed;
+}
+
+.invoice-label {
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #111;
+}
+
+.invoice-amount {
+  font-weight: 700;
+  color: #7c3aed;
+  font-size: 0.78rem;
+}
+
+.invoice-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f0f0;
+  color: #444;
+}
+
+.invoice-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #111;
+}
+
+.invoice-total-amount {
+  color: #7c3aed;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .billing-hero {
+    flex-direction: column;
+    padding: 60px 32px 80px;
+  }
+
+  .billing-hero__copy {
+    flex: none;
+    max-width: 100%;
+  }
+
+  .floating-invoice {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .billing-hero {
+    padding: 48px 20px 60px;
+  }
+
+  .billing-hero__headline {
+    font-size: 2rem;
+  }
+
+  .billing-dashboard__actions {
+    display: none;
+  }
+}
