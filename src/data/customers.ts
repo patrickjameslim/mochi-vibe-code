@@ -44,6 +44,7 @@ export interface Customer {
   supportingDocuments: string[];
   supportingDocumentFiles?: SupportingDocFile[];
   notes?: string;
+  noteItems?: Array<{ id: string; text: string; createdAt: string; author: { name: string; initials: string; color: string } }>;
   lastUpdatedAt: string;
   dateCreated: string;
   customFieldValues?: Record<string, unknown>;
@@ -70,6 +71,11 @@ export const CUSTOMERS: Customer[] = [
     vatStatus: 'vatable',
     supportingDocuments: ['sec_certificate.pdf', 'company_profile.pdf'],
     notes: 'Key account. Requires monthly billing summary sent by the 1st.',
+    noteItems: [
+      { id: 'n1', text: 'Key account. Requires monthly billing summary sent by the 1st.', createdAt: '2025-08-01T09:00:00.000Z', author: { name: 'Juan A. Dela Cruz', initials: 'JD', color: '#6366f1' } },
+      { id: 'n2', text: 'Called accounts dept — confirmed they switched primary contact to Ms. Reyes. Update CRM accordingly.', createdAt: '2025-08-15T14:30:00.000Z', author: { name: 'Maria Santos', initials: 'MS', color: '#10b981' } },
+      { id: 'n3', text: 'Q3 billing summary sent on Aug 31. Client acknowledged receipt.', createdAt: '2025-08-31T10:15:00.000Z', author: { name: 'Juan A. Dela Cruz', initials: 'JD', color: '#6366f1' } },
+    ],
     lastUpdatedAt: 'Aug 31, 2025 02:00 PM',
     dateCreated: 'Aug 31, 2025 01:00 PM',
   },
@@ -89,6 +95,10 @@ export const CUSTOMERS: Customer[] = [
     vatStatus: 'exempt',
     supportingDocuments: ['gov_id.pdf'],
     notes: 'Prefers digital invoices. Contact via email only.',
+    noteItems: [
+      { id: 'n4', text: 'Prefers digital invoices. Contact via email only — does not respond to calls.', createdAt: '2025-08-10T08:00:00.000Z', author: { name: 'Carlo Reyes', initials: 'CR', color: '#f59e0b' } },
+      { id: 'n5', text: 'Followed up on overdue invoice INV-000412. Client confirmed payment this week via GCash.', createdAt: '2025-08-28T16:45:00.000Z', author: { name: 'Juan A. Dela Cruz', initials: 'JD', color: '#6366f1' } },
+    ],
     lastUpdatedAt: 'Aug 30, 2025 04:20 PM',
     dateCreated: 'Aug 30, 2025 11:45 AM',
   },
