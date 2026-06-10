@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, forwardRef, type ReactNode, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useRef, forwardRef, type ReactNode, type CSSProperties } from 'react';
 import { useCustomFields } from '#/context/CustomFieldsContext';
 import { useCustomers } from '#/context/CustomersContext';
 import { useNavigate } from '@tanstack/react-router';
@@ -17,6 +17,7 @@ import {
   UsersThree,
   Archive,
   X,
+  PaperPlaneTilt,
 } from '@phosphor-icons/react';
 import { BulkActionsBar, BulkAction } from '#/components/molecules/BulkActionsBar';
 import { Customer, SupportingDocFile } from '#/data/customers';
@@ -184,7 +185,7 @@ interface DrawerState {
 // ─── Main Table ───────────────────────────────────────────────────────────────
 export function CustomersListPage() {
   const navigate = useNavigate();
-  const { customers, pendingBanner, setPendingBanner, groupOverride, setGroupOverride } = useCustomers();
+  const { customers, setCustomers, pendingBanner, setPendingBanner, groupOverride, setGroupOverride } = useCustomers();
 
   const { sortKey, sortAsc, toggleSort } = useTableSort<CustomerSortKey>();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -218,6 +219,8 @@ export function CustomersListPage() {
 
   // Notes drawer
   const [notesDrawer, setNotesDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
+  const [newNoteText, setNewNoteText] = useState('');
+  const notesEndRef = useRef<HTMLDivElement>(null);
   // Docs viewer drawer
   const [docsDrawer, setDocsDrawer] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
   // Archive state
@@ -557,7 +560,7 @@ export function CustomersListPage() {
       onToggle={() => toggleRow(customer.id)}
       onAssignGroups={() => openAssignGroups(customer)}
       onToggleExpand={() => toggleExpand(customer.id)}
-      onViewNotes={() => setNotesDrawer({ open: true, customer })}
+      onViewNotes={() => { setNewNoteText(''); setNotesDrawer({ open: true, customer }); }}
       onViewDocs={() => setDocsDrawer({ open: true, customer })}
       onEdit={() => navigate({ to: '/customers/$id/edit', params: { id: customer.id } })}
       onView={() =>
@@ -708,24 +711,93 @@ export function CustomersListPage() {
         )}
 
         {/* Notes Drawer */}
-        <Sheet open={notesDrawer.open} onOpenChange={(o) => { if (!o) setNotesDrawer({ open: false, customer: null }); }}>
-          <SheetContent side="right" size="md" className="p-0">
-            <SheetHeader className="border-b border-slate-200 p-4">
+        <Sheet
+          open={notesDrawer.open}
+          onOpenChange={(o) => { if (!o) { setNotesDrawer({ open: false, customer: null }); setNewNoteText(''); } }}
+        >
+          <SheetContent side="right" size="md" className="p-0 flex flex-col">
+            <SheetHeader className="border-b border-slate-200 p-4 shrink-0">
               <SheetTitle className="text-base font-semibold text-slate-900">
                 {notesDrawer.customer ? `${notesDrawer.customer.name} — Notes` : 'Notes'}
               </SheetTitle>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto p-4">
-              {notesDrawer.customer?.notes ? (
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                  {notesDrawer.customer.notes}
-                </p>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-400">
-                  <Notepad size={28} weight="light" />
-                  <p className="text-sm">No notes for this customer.</p>
-                </div>
-              )}
+
+            {/* Timeline */}
+            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-5">
+              {(() => {
+                const c = notesDrawer.customer;
+                if (!c) return null;
+                const items = c.noteItems ?? [];
+                if (items.length === 0) return (
+                  <div className="flex flex-col items-center justify-center flex-1 gap-2 text-slate-400">
+                    <Notepad size={28} weight="light" />
+                    <p className="text-sm">No notes yet. Add the first one below.</p>
+                  </div>
+                );
+                return items.map((note) => (
+                  <div key={note.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <Avatar initials={note.author.initials} color={note.author.color} size={32} />
+                    </div>
+                    <div className="pb-1 min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-sm font-medium text-slate-900">{note.author.name}</span>
+                        <span className="text-xs text-slate-400">
+                          {new Date(note.createdAt).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
+                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{note.text}</p>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+              <div ref={notesEndRef} />
+            </div>
+
+            {/* Input area */}
+            <div className="border-t border-slate-200 p-3 shrink-0 flex gap-2 items-start">
+              <Avatar initials="JD" color="#6366f1" size={32} />
+              <textarea
+                className="flex-1 resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 overflow-hidden leading-5"
+                rows={1}
+                placeholder="Write a note…"
+                value={newNoteText}
+                onChange={(e) => {
+                  setNewNoteText(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!newNoteText.trim() || !notesDrawer.customer) return;
+                    const note = { id: crypto.randomUUID(), text: newNoteText.trim(), createdAt: new Date().toISOString(), author: { name: 'Juan A. Dela Cruz', initials: 'JD', color: '#6366f1' } };
+                    const updated = { ...notesDrawer.customer, noteItems: [...(notesDrawer.customer.noteItems ?? []), note] };
+                    setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                    setNotesDrawer((s) => ({ ...s, customer: updated }));
+                    setNewNoteText('');
+                    e.currentTarget.style.height = 'auto';
+                    setTimeout(() => notesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                disabled={!newNoteText.trim()}
+                onClick={() => {
+                  if (!newNoteText.trim() || !notesDrawer.customer) return;
+                  const note = { id: crypto.randomUUID(), text: newNoteText.trim(), createdAt: new Date().toISOString(), author: { name: 'Juan A. Dela Cruz', initials: 'JD', color: '#6366f1' } };
+                  const updated = { ...notesDrawer.customer, noteItems: [...(notesDrawer.customer.noteItems ?? []), note] };
+                  setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                  setNotesDrawer((s) => ({ ...s, customer: updated }));
+                  setNewNoteText('');
+                  setTimeout(() => notesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                }}
+              >
+                <PaperPlaneTilt size={15} />
+              </Button>
             </div>
           </SheetContent>
         </Sheet>
