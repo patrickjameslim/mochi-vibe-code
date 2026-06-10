@@ -49,6 +49,7 @@ import {
   SelectItem,
 } from '#/components/atoms/Select';
 import { cn } from '#/components/utils';
+import { Tabs, TabsList, TabsTrigger } from '#/components/molecules/Tabs/Tabs';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -901,7 +902,7 @@ function CustomerFormContent({
     <>
       {/* Sticky sub-header — always visible regardless of mode */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
-        {/* Left — title */}
+        {/* Left — reserved for balance */}
         <div className="min-w-0">
           <h1 className="text-base font-semibold text-slate-900">Customer</h1>
           <p className="text-sm text-slate-500">Configure the fields shown in the customer creation form.</p>
@@ -1012,6 +1013,584 @@ function CustomerFormContent({
 }
 
 // ─── Placeholder ──────────────────────────────────────────────────────────────
+
+// ─── Settings Portal Preview ────────────────────────────────────────────────────
+
+const PREVIEW_W = 1440;
+const PREVIEW_H = 860;
+
+function SettingsPortalPreview({ pinEnabled, showSummary, showCustomerInfo, orgFields, indFields, customerInfoTab, manualUpload, onBack }: {
+  pinEnabled: boolean;
+  showSummary: boolean;
+  showCustomerInfo: boolean;
+  orgFields: Record<string, boolean>;
+  indFields: Record<string, boolean>;
+  customerInfoTab: 'organization' | 'individual';
+  manualUpload: boolean;
+  onBack: () => void;
+}) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = React.useState(1);
+
+  useEffect(() => {
+    function measure() {
+      if (containerRef.current) setScale(containerRef.current.offsetWidth / PREVIEW_W);
+    }
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const scaledH = Math.round(PREVIEW_H * scale);
+  const mode = pinEnabled ? 'login' : 'portal';
+  // Build visible fields param from the active customer info tab's checkboxes
+  const activeFields = customerInfoTab === 'organization' ? orgFields : indFields;
+  const visibleFieldKeys = Object.entries(activeFields).filter(([, v]) => v).map(([k]) => k).join(',');
+  const src = '/payment-portal?mode=' + mode
+    + '&summary=' + (showSummary ? '1' : '0')
+    + '&info=' + (showCustomerInfo ? '1' : '0')
+    + '&fields=' + encodeURIComponent(visibleFieldKeys)
+    + '&upload=' + (manualUpload ? '1' : '0');
+  // key changes whenever any setting changes → iframe reloads with new params
+  const iframeKey = [mode, showSummary, showCustomerInfo, visibleFieldKeys, manualUpload].join('-');
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-500">
+          {pinEnabled ? 'PIN sign-in — enter any 4 digits to explore the portal.' : 'Direct portal access — select bills and navigate through all steps.'}
+        </p>
+        <button onClick={onBack} className="text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors shrink-0">← Back to Build</button>
+      </div>
+      <div ref={containerRef} className="w-full rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white" style={{ height: scaledH }}>
+        <div style={{ width: PREVIEW_W, height: PREVIEW_H, transform: 'scale(' + scale + ')', transformOrigin: 'top left' }}>
+          <iframe key={iframeKey} src={src} style={{ width: PREVIEW_W, height: PREVIEW_H, border: 'none', display: 'block' }} title="Customer Payment Portal Preview" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Customer Payment Portal Settings ────────────────────────────────────────
+
+function PaymentPortalSettings() {
+  const [tab, setTab] = useState<'build' | 'preview'>('build');
+  const [pinEnabled, setPinEnabled] = useState(false);
+  const [requirePinOnReturn, setRequirePinOnReturn] = useState(true);
+  const [portalTitle, setPortalTitle] = useState('Customer Payment Portal');
+  const [welcomeMessage, setWelcomeMessage] = useState('View and pay your bills securely.');
+  const [methods, setMethods] = useState({ card: true, gcash: true, maya: true, grabpay: false, bpi: false });
+  const [saved, setSaved] = useState(false);
+  // Portal Customization state
+  const [applyTo, setApplyTo] = useState<'all' | 'group' | 'individual'>('all');
+  const [showSummary, setShowSummary] = useState(true);
+  const [showCustomerInfo, setShowCustomerInfo] = useState(true);
+  const [customerInfoTab, setCustomerInfoTab] = useState<'organization' | 'individual'>('organization');
+  const [orgFields, setOrgFields] = useState({ customerId: true, customerName: true, email: true, phone: true, address: true, withholdingTax: true, primaryContactName: true, primaryContactPosition: false, primaryContactEmail: true, primaryContactPhone: true, otherContacts: false });
+  const [indFields, setIndFields] = useState({ customerId: true, customerName: true, email: true, phone: true, address: true, withholdingTax: true });
+  // Payment Methods state
+  const [manualUpload, setManualUpload] = useState(true);
+  const [paymongoStatus, setPaymongoStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
+  const [paymongoEnabled, setPaymongoEnabled] = useState(false);
+  const [xenditStatus, setXenditStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
+  const [xenditEnabled, setXenditEnabled] = useState(false);
+  type CustomMethod = { id: string; name: string; desc: string; requiresRemarks: boolean; requiresProof: boolean; internalOnly: boolean };
+  const [customMethods, setCustomMethods] = useState<CustomMethod[]>([]);
+  const [showAddMethod, setShowAddMethod] = useState(false);
+  const [newMethod, setNewMethod] = useState({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false });
+  const [methodErrors, setMethodErrors] = useState({ name: false, desc: false });
+
+  function handleSave() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  const methodLabels: Record<string, string> = { card: 'Credit / Debit Card', gcash: 'GCash', maya: 'Maya', grabpay: 'GrabPay', bpi: 'BPI Online Banking' };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+
+      {/* ── Sticky toolbar ── */}
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
+        {/* Left — empty balance column */}
+        <div />
+
+        {/* Center — Build / Preview toggle */}
+        <div className="flex justify-center">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as 'build' | 'preview')} orientation="horizontal">
+            <TabsList className="min-w-60 w-full">
+              <TabsTrigger value="build" className="w-full">Build</TabsTrigger>
+              <TabsTrigger value="preview" className="w-full">Preview</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Right — Discard + Save */}
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="md" onClick={() => {}} className="text-slate-800">
+            Discard changes
+          </Button>
+          <Button colorScheme="primary" size="md" onClick={handleSave}>
+            {saved ? '✓ Saved' : 'Save changes'}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <div className={['flex-1 overflow-y-auto px-8 py-8', tab === 'preview' ? 'flex flex-col gap-4' : 'flex flex-col gap-6'].join(' ')}>
+
+        {/* Page header */}
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Customer Payment Portal</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Configure how your customers access and interact with their payment portal. Each customer is assigned a unique portal where they can view and pay their bills.
+          </p>
+        </div>
+
+        {/* BUILD mode */}
+        {tab === 'build' && (
+          <>
+            {/* Access & Security */}
+            <div className="bg-white border border-slate-200 rounded-xl">
+              <div className="px-6 py-5 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-800">Access & Security</h2>
+                <p className="text-xs text-slate-500 mt-1">Control how customers log in to their payment portal.</p>
+              </div>
+              <div className="px-6 py-6 flex flex-col gap-5">
+
+                {/* Toggle row */}
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">Require PIN for Portal Access</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Customers must enter a PIN before viewing their portal.</p>
+                  </div>
+                  <Switch checked={pinEnabled} onCheckedChange={setPinEnabled} checkedBg="primary" />
+                </div>
+
+                {/* OFF state — informational note */}
+                {!pinEnabled && (
+                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3.5">
+                    <Info size={16} className="text-slate-400 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">No PIN Required (Default)</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Customers can access their payment portal directly using the link provided in their billing email. No PIN is required unless enabled below.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ON state — note */}
+                {pinEnabled && (
+                  <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-lg px-4 py-3.5">
+                    <Info size={16} className="text-violet-500 shrink-0" />
+                    <p className="text-xs text-violet-700">
+                      All customers will be required to enter and set their PIN.
+                    </p>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* Portal Customization */}
+            <div className="bg-white border border-slate-200 rounded-xl">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-800">Portal Customization</h2>
+                <p className="text-sm text-slate-500 mt-1">Control what customers see when they open their portal.</p>
+                <p className="text-xs text-slate-400 mt-0.5">Settings here can be applied globally or overridden per customer group or individual customer.</p>
+              </div>
+
+              <div className="px-6 py-6 flex flex-col gap-6">
+
+                {/* Apply To */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-slate-600">Apply To</label>
+                  <div className="flex items-center gap-2">
+                    {([
+                    ['all', 'All Customers', false],
+                    ['group', 'Customer Group', true],
+                    ['individual', 'Specific Customer', true],
+                    ['exclude', 'Exclude Specific Customer', true],
+                  ] as [string, string, boolean][]).map(([val, label, isV2]) => (
+                    <button
+                      key={val}
+                      onClick={() => !isV2 && setApplyTo(val as typeof applyTo)}
+                      disabled={isV2}
+                      className={['px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-colors', applyTo === val ? 'bg-violet-50 border-violet-300 text-violet-700' : 'bg-white border-slate-200 text-slate-500', isV2 ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
+                    >
+                      {label}
+                      {isV2 && <span className="ml-1.5 text-[10px] text-slate-400">(V2)</span>}
+                    </button>
+                  ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100" />
+
+                {/* Subsection 1 — Summary Section */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Show Summary Section</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Displays totals and bill counts in the customer portal.</p>
+                    </div>
+                    <Switch checked={showSummary} onCheckedChange={setShowSummary} checkedBg="primary" />
+                  </div>
+                  {showSummary && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-4 flex flex-col gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Summary of Line Items</p>
+                        <div className="flex flex-col gap-1.5">
+                          {[['Bill Name', 'Amount'], ['Qty', '']].map(([a], i) => (
+                            <div key={i} className="flex items-center justify-between text-xs text-slate-600">
+                              <span className="flex items-center gap-1.5"><Check size={11} className="text-violet-500" weight="bold" />{a === 'Bill Name' ? 'Bill Name + Amount' : 'Quantity'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="border-t border-slate-200 pt-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Billing Cycle Breakdown</p>
+                        <div className="flex flex-col gap-1.5">
+                          {['Subtotal (VAT exclusive)', 'Tax % (VAT)', 'Discount %', 'Tax amount', 'Discount amount', 'Total', 'Amount due'].map((f) => (
+                            <div key={f} className="flex items-center gap-1.5 text-xs text-slate-600">
+                              <Check size={11} className="text-violet-500 shrink-0" weight="bold" />
+                              {f}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-100" />
+
+                {/* Subsection 2 — Customer Information */}
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Show Customer Information Panel</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Displays customer details inside the portal.</p>
+                    </div>
+                    <Switch checked={showCustomerInfo} onCheckedChange={setShowCustomerInfo} checkedBg="primary" />
+                  </div>
+
+                  {showCustomerInfo && (
+                    <div className="flex flex-col gap-4">
+                      {/* Organization / Individual tabs */}
+                      <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+                        {(['organization', 'individual'] as const).map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => setCustomerInfoTab(t)}
+                            className={['px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-colors', customerInfoTab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'].join(' ')}
+                          >
+                            {t === 'organization' ? 'Organization' : 'Individual'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Organization fields */}
+                      {customerInfoTab === 'organization' && (
+                        <div className="flex flex-col gap-3">
+                          <p className="text-xs font-semibold text-slate-500">Display Fields</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([
+                              ['customerId', 'Customer ID'],
+                              ['customerName', 'Customer Name', true],
+                              ['email', 'Customer Email', true],
+                              ['phone', 'Customer Phone'],
+                              ['address', 'Address'],
+                              ['withholdingTax', 'Withholding Tax %'],
+                            ] as [keyof typeof orgFields, string, boolean?][]).map(([key, label, required]) => (
+                              <label key={key} className={['flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer', required ? 'opacity-70' : ''].join(' ')}>
+                                <input
+                                  type="checkbox"
+                                  checked={orgFields[key]}
+                                  disabled={required}
+                                  onChange={(e) => setOrgFields((f) => ({ ...f, [key]: e.target.checked }))}
+                                  className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 accent-violet-600"
+                                />
+                                {label}
+                                {required && <span className="text-[10px] text-slate-400">(required)</span>}
+                              </label>
+                            ))}
+                          </div>
+
+                          <p className="text-xs font-semibold text-slate-500 mt-1">Contact Persons</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([
+                              ['primaryContactName', 'Primary Contact Name'],
+                              ['primaryContactPosition', 'Primary Contact Position'],
+                              ['primaryContactEmail', 'Primary Contact Email'],
+                              ['primaryContactPhone', 'Primary Contact Phone'],
+                              ['otherContacts', 'Other Contacts'],
+                            ] as [keyof typeof orgFields, string][]).map(([key, label]) => (
+                              <label key={key} className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={orgFields[key]}
+                                  onChange={(e) => setOrgFields((f) => ({ ...f, [key]: e.target.checked }))}
+                                  className="w-3.5 h-3.5 rounded border-slate-300 accent-violet-600"
+                                />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Individual fields */}
+                      {customerInfoTab === 'individual' && (
+                        <div className="flex flex-col gap-3">
+                          <p className="text-xs font-semibold text-slate-500">Display Fields</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([
+                              ['customerId', 'Customer ID'],
+                              ['customerName', 'Customer Name', true],
+                              ['email', 'Customer Email', true],
+                              ['phone', 'Customer Phone'],
+                              ['address', 'Address'],
+                              ['withholdingTax', 'Withholding Tax %'],
+                            ] as [keyof typeof indFields, string, boolean?][]).map(([key, label, required]) => (
+                              <label key={key} className={['flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer', required ? 'opacity-70' : ''].join(' ')}>
+                                <input
+                                  type="checkbox"
+                                  checked={indFields[key]}
+                                  disabled={required}
+                                  onChange={(e) => setIndFields((f) => ({ ...f, [key]: e.target.checked }))}
+                                  className="w-3.5 h-3.5 rounded border-slate-300 accent-violet-600"
+                                />
+                                {label}
+                                {required && <span className="text-[10px] text-slate-400">(required)</span>}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
+            {/* Payment Methods */}
+            <div className="bg-white border border-slate-200 rounded-xl">
+              <div className="px-6 py-5 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-800">Payment Methods</h2>
+                <p className="text-xs text-slate-500 mt-1">Choose how your customers can pay invoices through the customer portal.</p>
+              </div>
+              <div className="px-6 py-6 flex flex-col gap-6">
+
+                {/* Subsection 1 — Manual Payment */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Manual Payment</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Upload Proof of Payment</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Customers can upload a receipt and submit payment manually.</p>
+                    </div>
+                    <Switch checked={manualUpload} onCheckedChange={setManualUpload} checkedBg="primary" />
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100" />
+
+                {/* Subsection 2 — Online Payment Gateways */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Online Payment Gateways</p>
+                  <div className="flex flex-col gap-3">
+                    {/* PayMongo */}
+                    <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                            <span className="text-[10px] font-extrabold text-violet-700">PM</span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-800">PayMongo</p>
+                              <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', paymongoStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : paymongoStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
+                                {paymongoStatus === 'connected' ? 'Connected' : paymongoStatus === 'pending' ? 'Pending' : 'Not Connected'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
+                          </div>
+                        </div>
+                        <Switch checked={paymongoEnabled && paymongoStatus === 'connected'} onCheckedChange={setPaymongoEnabled} disabled={paymongoStatus !== 'connected'} checkedBg="primary" />
+                      </div>
+                      {paymongoStatus !== 'connected' && (
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setPaymongoStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">
+                            Request Registration Link
+                          </button>
+                          <button onClick={() => setPaymongoStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                            Connect Existing Account
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Xendit */}
+                    <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                            <span className="text-[10px] font-extrabold text-blue-700">XD</span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-800">Xendit</p>
+                              <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', xenditStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : xenditStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
+                                {xenditStatus === 'connected' ? 'Connected' : xenditStatus === 'pending' ? 'Pending' : 'Not Connected'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
+                          </div>
+                        </div>
+                        <Switch checked={xenditEnabled && xenditStatus === 'connected'} onCheckedChange={setXenditEnabled} disabled={xenditStatus !== 'connected'} checkedBg="primary" />
+                      </div>
+                      {xenditStatus !== 'connected' && (
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setXenditStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
+                            Create Account
+                          </button>
+                          <button onClick={() => setXenditStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                            Connect Existing Account
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100" />
+
+                {/* Subsection 3 — Custom Payment Methods */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Custom Payment Methods</p>
+                    <button onClick={() => { setNewMethod({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false }); setMethodErrors({ name: false, desc: false }); setShowAddMethod(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+                      <Plus size={12} weight="bold" /> Add Payment Method
+                    </button>
+                  </div>
+                  {customMethods.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-slate-100">No custom payment methods added yet.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {customMethods.map((m) => (
+                        <div key={m.id} className="flex items-start justify-between gap-3 border border-slate-200 rounded-lg px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium text-slate-800">{m.name}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{m.desc}</p>
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              {m.requiresProof && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Proof</span>}
+                              {m.requiresRemarks && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Remarks</span>}
+                              {m.internalOnly && <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Internal Only</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => setCustomMethods((prev) => prev.filter((x) => x.id !== m.id))} className="text-slate-400 hover:text-red-500 transition-colors mt-0.5">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
+            {/* Add Payment Method Modal */}
+            {showAddMethod && (
+              <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col gap-5 p-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-slate-800">Add Payment Method</h3>
+                    <button onClick={() => setShowAddMethod(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-600">Name <span className="text-red-400">*</span></label>
+                      <input
+                        value={newMethod.name}
+                        onChange={(e) => { setNewMethod((m) => ({ ...m, name: e.target.value })); setMethodErrors((e2) => ({ ...e2, name: false })); }}
+                        placeholder="e.g. Bank Transfer, E-wallet, Credit Card"
+                        className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors', methodErrors.name ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-violet-400'].join(' ')}
+                      />
+                      {methodErrors.name && <p className="text-xs text-red-500">Name is required.</p>}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-600">Description <span className="text-red-400">*</span></label>
+                      <textarea
+                        value={newMethod.desc}
+                        onChange={(e) => { setNewMethod((m) => ({ ...m, desc: e.target.value })); setMethodErrors((e2) => ({ ...e2, desc: false })); }}
+                        placeholder="Shown to customers during checkout"
+                        rows={2}
+                        className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none', methodErrors.desc ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-violet-400'].join(' ')}
+                      />
+                      <p className="text-[10px] text-slate-400">Example: Send payment via bank transfer and upload your receipt.</p>
+                      {methodErrors.desc && <p className="text-xs text-red-500">Description is required.</p>}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {([
+                        ['requiresRemarks', 'Require customers to add remarks'],
+                        ['requiresProof', 'Require proof of payment upload'],
+                        ['internalOnly', 'For internal use only'],
+                      ] as [keyof typeof newMethod, string][]).map(([key, label]) => (
+                        <label key={key} className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
+                          <input type="checkbox" checked={newMethod[key] as boolean} onChange={(e) => setNewMethod((m) => ({ ...m, [key]: e.target.checked }))} className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 accent-violet-600" />
+                          <span>
+                            {label}
+                            {key === 'internalOnly' && <span className="block text-[10px] text-slate-400 mt-0.5">Hidden from customers; visible to your team only.</span>}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                    <button onClick={() => setShowAddMethod(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+                    <button
+                      onClick={() => {
+                        const nameErr = !newMethod.name.trim();
+                        const descErr = !newMethod.desc.trim();
+                        if (nameErr || descErr) { setMethodErrors({ name: nameErr, desc: descErr }); return; }
+                        setCustomMethods((prev) => [...prev, { ...newMethod, id: `cm_${Date.now()}` }]);
+                        setShowAddMethod(false);
+                      }}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors"
+                    >
+                      Save Method
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* PREVIEW mode — scaled actual portal, settings-driven */}
+        {tab === 'preview' && (
+          <SettingsPortalPreview
+            pinEnabled={pinEnabled}
+            showSummary={showSummary}
+            showCustomerInfo={showCustomerInfo}
+            orgFields={orgFields}
+            indFields={indFields}
+            customerInfoTab={customerInfoTab}
+            manualUpload={manualUpload}
+            onBack={() => setTab('build')}
+          />
+        )}
+
+      </div>
+    </div>
+  );
+}
 
 function PlaceholderContent({ label }: { label: string }) {
   return (
@@ -1160,7 +1739,7 @@ export function SettingsPage() {
     'template-library':    ['Settings', 'Template Library'],
     'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
     'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
-    'payment-portal':      ['Settings', 'Payment Portal'],
+    'payment-portal':      ['Settings', 'Customer Payment Portal'],
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
     'developer-settings':  ['Settings', 'Developer Settings'],
@@ -1173,7 +1752,7 @@ export function SettingsPage() {
     'template-library':    'Template Library',
     'custom-fields-form':  'Customer',
     'custom-fields-bills': 'Bills',
-    'payment-portal':      'Payment Portal',
+    'payment-portal':      'Customer Payment Portal',
     'disbursements':       'Disbursements',
     'users':               'Users',
     'developer-settings':  'Developer Settings',
@@ -1196,6 +1775,9 @@ export function SettingsPage() {
           newFieldIds={newFieldIds}
         />
       );
+    }
+    if (activeSection === 'payment-portal') {
+      return <PaymentPortalSettings />;
     }
     return <PlaceholderContent label={placeholderLabels[activeSection]} />;
   }
@@ -1259,18 +1841,18 @@ export function SettingsPage() {
               </>
             )}
 
-            <SecNavItem label="Payment Portal"     active={activeSection === 'payment-portal'}     onClick={() => setActiveSection('payment-portal')} />
+            <SecNavItem label="Customer Payment Portal" active={activeSection === 'payment-portal'} onClick={() => setActiveSection('payment-portal')} />
             <SecNavItem label="Disbursements"      active={activeSection === 'disbursements'}      onClick={() => setActiveSection('disbursements')} />
             <SecNavItem label="Users"              active={activeSection === 'users'}              onClick={() => setActiveSection('users')} />
             <SecNavItem label="Developer Settings" active={activeSection === 'developer-settings'} onClick={() => setActiveSection('developer-settings')} />
           </nav>
 
           {/* Main content */}
-          <main className="flex-1 flex flex-col bg-slate-50">
-            <div className="flex-1 overflow-y-auto">
+          <main className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
+            <div className={['flex-1', activeSection === 'payment-portal' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
               {renderContent()}
             </div>
-            {hasPendingChanges && (
+            {hasPendingChanges && activeSection !== 'payment-portal' && (
               <SaveBar onSave={handleSave} onDiscard={handleDiscard} />
             )}
           </main>
