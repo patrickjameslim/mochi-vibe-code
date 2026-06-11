@@ -1154,6 +1154,12 @@ function Stepper({ step, muted = false, settingsActive = false, onSettings }: { 
 function SetUpPinModal({ onComplete }: { onComplete: (pin: string) => void }) {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [slide, setSlide] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setSlide((s) => (s + 1) % AUTH_SLIDES.length), 4500);
+    return () => clearInterval(id);
+  }, []);
 
   const newComplete = newPin.length === 4;
   const confirmComplete = confirmPin.length === 4;
@@ -1167,81 +1173,108 @@ function SetUpPinModal({ onComplete }: { onComplete: (pin: string) => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/25 flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md flex flex-col gap-6">
-        {/* Header — shield icon + centered title/description */}
-        <div className="flex flex-col items-center text-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
-            <ShieldCheck size={26} className="text-violet-600" weight="duotone" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Set Up Your PIN</h2>
+    <div className="fixed inset-0 z-50 bg-white flex">
+      {/* ── Left: set up PIN form ── */}
+      <div className="flex-1 flex items-center justify-center p-8 lg:p-16">
+        <div className="w-full max-w-sm flex flex-col">
+          <img src={mochiLogo} alt="Mochi" className="h-10 w-auto mb-10 self-center" />
+
+          <div className="flex flex-col items-center text-center mb-8">
+            <p className="text-sm font-semibold text-violet-600 uppercase tracking-widest">Set Up Your PIN</p>
+            <h2 className="text-3xl font-bold text-slate-900 mt-1">Welcome, {getActiveCustomer().name.split(' ')[0]}!</h2>
             <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-              Before you can access your portal, you need to create a 4-digit PIN. You'll use this PIN every time you log in going forward.
+              Create a 4-digit PIN to secure your payment portal. You'll use this every time you log in.
             </p>
           </div>
+
+          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
+            {/* Create PIN */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm font-semibold text-slate-700">Create PIN</label>
+                <span className="relative group inline-flex">
+                  <Info size={15} className="text-slate-400 cursor-help" />
+                  <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-60 rounded-lg bg-slate-800 text-white text-xs leading-snug px-3 py-2 text-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+                    Choose something memorable but not easy to guess. Avoid using your birthday or repeating digits.
+                  </span>
+                </span>
+              </div>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="Enter 4-digit PIN"
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors"
+              />
+              {repeating && (
+                <p className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+                  <Warning size={13} weight="fill" /> Avoid repeating digits for better security.
+                </p>
+              )}
+            </div>
+
+            {/* Confirm PIN */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700">Confirm PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="Re-enter 4-digit PIN"
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                className={[
+                  'w-full border rounded-xl px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
+                  mismatch ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
+                ].join(' ')}
+              />
+              {mismatch && (
+                <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                  <Warning size={13} weight="fill" /> PINs do not match.
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Set PIN
+            </button>
+          </form>
+
+          <p className="mt-5 text-xs text-slate-400 text-center">Your PIN is required to continue and cannot be skipped.</p>
+        </div>
+      </div>
+
+      {/* ── Right: same carousel hero as the returning login ── */}
+      <div className="hidden lg:flex flex-1 relative overflow-hidden text-white flex-col items-center justify-between py-12 px-10" style={{ backgroundColor: '#32215F' }}>
+        <div className="absolute inset-0 opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+        <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[120%] h-80 rounded-[100%] blur-3xl pointer-events-none" style={{ backgroundColor: '#C35CFF', opacity: 0.45 }} />
+
+        <div className="relative z-10">
+          <img src={mochiLogoWhite} alt="Mochi" className="h-9 w-auto" />
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          {/* New PIN */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-slate-700">New PIN</label>
-              <span className="relative group inline-flex">
-                <Info size={15} className="text-slate-400 cursor-help" />
-                <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-60 rounded-lg bg-slate-800 text-white text-xs leading-snug px-3 py-2 text-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
-                  Choose something memorable but not easy to guess. Avoid using your birthday or repeating digits.
-                </span>
-              </span>
-            </div>
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              placeholder="Enter 4-digit PIN"
-              value={newPin}
-              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors"
-            />
-            {repeating && (
-              <p className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
-                <Warning size={13} weight="fill" /> Avoid repeating digits for better security.
-              </p>
-            )}
+        <div className="relative z-10 my-6 flex items-center justify-center w-full max-w-[660px]" style={{ minHeight: 360 }}>
+          <AuthIllustration slideKey={AUTH_SLIDES[slide].key} />
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center gap-6 max-w-md">
+          <div className="flex items-center gap-2">
+            {AUTH_SLIDES.map((_, i) => (
+              <button key={i} onClick={() => setSlide(i)} aria-label={`Go to slide ${i + 1}`}
+                className={['h-1.5 rounded-full transition-all', i === slide ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/60'].join(' ')} />
+            ))}
           </div>
-
-          {/* Confirm New PIN */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-700">Confirm New PIN</label>
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              placeholder="Re-enter 4-digit PIN"
-              value={confirmPin}
-              onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className={[
-                'w-full border rounded-lg px-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
-                mismatch ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
-              ].join(' ')}
-            />
-            {mismatch && (
-              <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                <Warning size={13} weight="fill" /> PINs do not match.
-              </p>
-            )}
+          <div className="text-center min-h-[140px]">
+            <h2 className="text-2xl font-bold leading-tight">{AUTH_SLIDES[slide].title}</h2>
+            <p className="text-sm text-violet-100 mt-3 leading-relaxed">{AUTH_SLIDES[slide].desc}</p>
           </div>
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Set PIN
-          </button>
-        </form>
-
-        <p className="text-xs text-slate-400 text-center">Your PIN is required to continue and cannot be skipped.</p>
+        </div>
       </div>
     </div>
   );
@@ -1300,13 +1333,13 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
     <div className="fixed inset-0 z-50 bg-white flex">
       {/* ── Left: sign-in form ── */}
       <div className="flex-1 flex items-center justify-center p-8 lg:p-16">
-        <div className="w-full max-w-sm">
-          <img src={mochiLogo} alt="Mochi" className="h-8 w-auto mb-10" />
+        <div className="w-full max-w-sm flex flex-col">
+          <img src={mochiLogo} alt="Mochi" className="h-10 w-auto mb-10 self-center" />
 
-          <h1 className="text-3xl font-bold text-slate-900">Sign in</h1>
-          <p className="text-sm text-slate-500 mt-2">Enter your 4-digit PIN to access your payment portal.</p>
+          <h1 className="text-3xl font-bold text-slate-900 text-center">Sign in</h1>
+          <p className="text-sm text-slate-500 mt-2 text-center">Enter your 4-digit PIN to access your payment portal.</p>
 
-          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="mt-8 w-full flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-semibold text-slate-700">PIN</label>
               <div className="relative">
@@ -1339,13 +1372,13 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
             </button>
           </form>
 
-          <p className="mt-5 text-sm text-slate-500">
+          <p className="mt-5 text-sm text-slate-500 text-center">
             Forgot your PIN?{' '}
             <button onClick={() => setForgotNote(true)} className="font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors">
               Reset PIN
             </button>
           </p>
-          {forgotNote && <p className="mt-2 text-xs text-slate-500">We've sent a PIN reset link to {getActiveCustomer().email}.</p>}
+          {forgotNote && <p className="mt-2 text-xs text-slate-500 text-center">We've sent a PIN reset link to {getActiveCustomer().email}.</p>}
         </div>
       </div>
 
