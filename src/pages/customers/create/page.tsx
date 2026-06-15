@@ -482,7 +482,7 @@ export function CreateCustomerPage() {
 
         {/* Form action bar */}
         <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-end gap-2">
-          <Button variant="outline" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
+          <Button variant="outline" className="text-violet-700" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
           <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
           <Button colorScheme="primary" onClick={handleSubmit}>Create customer</Button>
         </div>
@@ -879,7 +879,7 @@ export function CreateCustomerPage() {
 
           {/* Bottom CTAs */}
           <div className="flex items-center justify-end gap-2 py-4">
-            <Button variant="outline" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
+            <Button variant="outline" className="text-violet-700" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
             <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
             <Button colorScheme="primary" onClick={handleSubmit}>Create customer</Button>
           </div>

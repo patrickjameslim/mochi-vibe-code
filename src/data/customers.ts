@@ -26,6 +26,15 @@ export interface CustomerDraftFormData {
   selectedGroups: string[];
 }
 
+export interface CustomerContact {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  isPrimary: boolean;
+  avatarUrl?: string;
+}
+
 export interface Customer {
   id: string;
   type: CustomerType;
@@ -45,6 +54,7 @@ export interface Customer {
   supportingDocumentFiles?: SupportingDocFile[];
   notes?: string;
   noteItems?: Array<{ id: string; text: string; createdAt: string; author: { name: string; initials: string; color: string } }>;
+  contacts?: CustomerContact[];
   lastUpdatedAt: string;
   dateCreated: string;
   customFieldValues?: Record<string, unknown>;
@@ -75,6 +85,10 @@ export const CUSTOMERS: Customer[] = [
       { id: 'n1', text: 'Key account. Requires monthly billing summary sent by the 1st.', createdAt: '2025-08-01T09:00:00.000Z', author: { name: 'Juan A. Dela Cruz', initials: 'JD', color: '#6366f1' } },
       { id: 'n2', text: 'Called accounts dept — confirmed they switched primary contact to Ms. Reyes. Update CRM accordingly.', createdAt: '2025-08-15T14:30:00.000Z', author: { name: 'Maria Santos', initials: 'MS', color: '#10b981' } },
       { id: 'n3', text: 'Q3 billing summary sent on Aug 31. Client acknowledged receipt.', createdAt: '2025-08-31T10:15:00.000Z', author: { name: 'Juan A. Dela Cruz', initials: 'JD', color: '#6366f1' } },
+    ],
+    contacts: [
+      { id: 'c1', name: 'Andrea Reyes', email: 'andrea.reyes@squarec.com.ph', phone: '+63 917 100 2001', isPrimary: true },
+      { id: 'c2', name: 'Marco Santos', email: 'marco.santos@squarec.com.ph', phone: '+63 918 200 3002', isPrimary: false },
     ],
     lastUpdatedAt: 'Aug 31, 2025 02:00 PM',
     dateCreated: 'Aug 31, 2025 01:00 PM',
@@ -136,6 +150,10 @@ export const CUSTOMERS: Customer[] = [
     vatStatus: 'vatable',
     supportingDocuments: ['business_permit.pdf', 'sec_certificate.pdf', 'bir_certificate.pdf'],
     notes: 'All checks payable to Meridian Properties, Inc. Allow 3 days clearing.',
+    contacts: [
+      { id: 'c3', name: 'Roberto Cruz', email: 'roberto.cruz@meridianproperties.ph', phone: '+63 917 300 4003', isPrimary: true },
+      { id: 'c4', name: 'Elena Soriano', email: 'elena.soriano@meridianproperties.ph', phone: '+63 919 400 5004', isPrimary: false },
+    ],
     lastUpdatedAt: 'Aug 29, 2025 02:35 PM',
     dateCreated: 'Aug 27, 2025 12:00 PM',
   },
@@ -190,6 +208,9 @@ export const CUSTOMERS: Customer[] = [
     vatStatus: 'vatable',
     supportingDocuments: ['sec_certificate.pdf', 'contract.docx'],
     notes: 'Requires PO number on all invoices before processing.',
+    contacts: [
+      { id: 'c5', name: 'Vincent Lim', email: 'vincent.lim@bluhorizoncorp.ph', phone: '+63 917 500 6005', isPrimary: true },
+    ],
     lastUpdatedAt: 'Aug 25, 2025 11:05 AM',
     dateCreated: 'Aug 20, 2025 01:50 PM',
   },
@@ -243,6 +264,10 @@ export const CUSTOMERS: Customer[] = [
     vatStatus: 'vatable',
     supportingDocuments: ['sec_certificate.pdf', 'business_permit.pdf'],
     notes: 'Escalate unresolved disputes to Ms. Carla Vega, CFO.',
+    contacts: [
+      { id: 'c6', name: 'Carla Vega', email: 'carla.vega@nexagroup.com.ph', phone: '+63 917 600 7006', isPrimary: true },
+      { id: 'c7', name: 'Dennis Aquino', email: 'dennis.aquino@nexagroup.com.ph', phone: '+63 918 700 8007', isPrimary: false },
+    ],
     lastUpdatedAt: 'Aug 12, 2025 09:00 AM',
     dateCreated: 'Aug 12, 2025 09:00 AM',
   },

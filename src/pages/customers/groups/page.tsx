@@ -7,7 +7,9 @@ import {
   PencilSimple,
   UsersThree,
   Archive,
+  Receipt,
 } from '@phosphor-icons/react';
+import { useNavigate } from '@tanstack/react-router';
 import { Customer } from '#/data/customers';
 import { GROUP_STATS, GroupStat } from '#/data/customerGroups';
 import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
@@ -77,6 +79,7 @@ export function CustomerGroupsPage({
   onAssignGroups,
   searchQuery = '',
 }: Props) {
+  const navigate = useNavigate();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const q = searchQuery.trim().toLowerCase();
@@ -239,14 +242,33 @@ export function CustomerGroupsPage({
 
                   {/* Quick actions */}
                   <td className="px-4 py-2.5">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
-                          <DownloadSimple size={15} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Download</TooltipContent>
-                    </Tooltip>
+                    <div className="flex items-center gap-1.5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => {
+                              const ids = groupCustomers.map((c) => c.id).join(',');
+                              navigate({
+                                to: '/billings/create',
+                                search: (prev) => ({ ...prev, groupName: group.name, customerIds: ids }),
+                              });
+                            }}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                          >
+                            <Receipt size={15} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Create bill</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                            <DownloadSimple size={15} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Download</TooltipContent>
+                      </Tooltip>
+                    </div>
                   </td>
                 </tr>
 

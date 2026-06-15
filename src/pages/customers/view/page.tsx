@@ -24,7 +24,6 @@ import {
   User,
   Buildings,
   ArrowSquareOut,
-  Note,
   UsersFour,
 } from '@phosphor-icons/react';
 import { useNavigate, useParams } from '@tanstack/react-router';
@@ -36,7 +35,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '#/componen
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '#/components/molecules/Tabs';
 import { Separator } from '#/components/atoms/Separator';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
-import { SupportingDocFile } from '#/data/customers';
+import { SupportingDocFile, CustomerContact } from '#/data/customers';
+import { ProfileAvatar } from '#/components/molecules/ProfileAvatar';
 import { getBillsByCustomer } from '#/data/bills';
 import { ReceivablesTable } from '#/components/molecules/ReceivablesTable';
 import { CustomerReportsTab } from '#/pages/reports/components/CustomerReportsTab';
@@ -163,16 +163,16 @@ export function CustomerViewPage() {
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-          className="flex-1 flex flex-col overflow-hidden"
+          className="flex-1 flex flex-col overflow-hidden gap-0"
         >
           {/* Tab nav row */}
-          <div className="shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
-            <TabsList className="gap-0 bg-transparent p-0 h-auto rounded-none">
-              <TabsTrigger value="General">General</TabsTrigger>
-              <TabsTrigger value="Receivables">Receivables</TabsTrigger>
-              <TabsTrigger value="Reports">Reports</TabsTrigger>
+          <div className="shrink-0 bg-white border-b border-slate-200 px-6 flex items-stretch justify-between">
+            <TabsList variant="line" className="gap-0 h-auto border-b-0">
+              <TabsTrigger value="General" className="px-4">General</TabsTrigger>
+              <TabsTrigger value="Receivables" className="px-4">Receivables</TabsTrigger>
+              <TabsTrigger value="Reports" className="px-4">Reports</TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2 py-2">
+            <div className="flex items-center gap-2 py-2 self-center">
               <Button variant="outline" onClick={() => navigate({ to: '/customers/$id/edit', params: { id } })}>
                 <PencilSimple size={14} />
                 Edit
@@ -185,7 +185,7 @@ export function CustomerViewPage() {
             <div className="max-w-5xl mx-auto space-y-5">
 
               {/* ── Profile hero card ── */}
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden pt-0">
                 {/* Accent bar */}
                 <div className="h-1.5 bg-gradient-to-r from-violet-500 to-violet-400" />
                 <CardContent className="p-6">
@@ -334,11 +334,11 @@ export function CustomerViewPage() {
               <div className="grid grid-cols-3 gap-5 items-start">
 
                 {/* ── Left: Details (2 cols) ── */}
-                <Card className="col-span-2">
-                  <CardHeader className="py-4">
-                    <CardTitle>Customer details</CardTitle>
+                <Card className="col-span-2 py-0 gap-0">
+                  <CardHeader className="pt-6 pb-4">
+                    <CardTitle className="text-base">Customer details</CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-5 pb-6">
+                  <CardContent className="pb-6">
                     <div className="grid grid-cols-2 gap-x-8 gap-y-5">
                       <InfoRow
                         label="Address"
@@ -371,11 +371,18 @@ export function CustomerViewPage() {
 
                 {/* ── Right: Billing Summary (1 col) ── */}
                 <div className="col-span-1">
-                  <Card>
-                    <CardHeader className="px-5 py-4">
-                      <CardTitle>Billing summary</CardTitle>
+                  <Card className="py-0 gap-0">
+                    <CardHeader className="flex flex-row items-center justify-between pt-6 pb-4">
+                      <CardTitle className="text-base">Billing summary</CardTitle>
+                      <Button
+                        size="xs"
+                        colorScheme="secondary"
+                        onClick={() => navigate({ to: '/billings/create', search: { customerId: id } })}
+                      >
+                        + Create bill
+                      </Button>
                     </CardHeader>
-                    <CardContent className="px-5 py-4 space-y-3">
+                    <CardContent className="pb-4 space-y-3">
                       {[
                         { label: 'Total amount due', value: '₱ 0.00' },
                         { label: 'Total overdue',    value: '₱ 0.00' },
@@ -389,20 +396,13 @@ export function CustomerViewPage() {
                         </div>
                       ))}
                     </CardContent>
-                    <CardFooter className="flex items-center justify-between gap-3 pt-2">
+                    <CardFooter className="pt-4 pb-6">
                       <button
                         onClick={() => setActiveTab('Receivables')}
                         className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
                       >
-                        View all receivables →
+                        View all receivables
                       </button>
-                      <Button
-                        size="sm"
-                        onClick={() => navigate({ to: '/billings/create', search: { customerId: id } })}
-                        className="gap-1.5 text-xs h-7 px-3"
-                      >
-                        + Create bill
-                      </Button>
                     </CardFooter>
                   </Card>
                 </div>
@@ -410,14 +410,11 @@ export function CustomerViewPage() {
 
               {/* ── Notes ── */}
               {customer.notes && (
-                <Card>
-                  <CardHeader className="py-4">
-                    <CardTitle className="flex items-center gap-2">
-                      <Note size={16} className="text-slate-400" />
-                      Notes
-                    </CardTitle>
+                <Card className="py-0 gap-0">
+                  <CardHeader className="pt-6 pb-4">
+                    <CardTitle className="text-base">Notes</CardTitle>
                   </CardHeader>
-                  <CardContent className="pb-5">
+                  <CardContent className="pb-6">
                     <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                       {customer.notes}
                     </p>
@@ -426,17 +423,14 @@ export function CustomerViewPage() {
               )}
 
               {/* ── Supporting Documents ── */}
-              <Card>
-                <CardHeader className="py-4 flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileIcon size={16} className="text-slate-400" />
-                    Supporting documents
-                  </CardTitle>
+              <Card className="py-0 gap-0">
+                <CardHeader className="pt-6 pb-4 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">Supporting documents</CardTitle>
                   <Badge className="bg-slate-100 text-slate-600 border-slate-200 border text-xs px-2 py-0.5 rounded-full">
                     {docs.length} {docs.length === 1 ? 'file' : 'files'}
                   </Badge>
                 </CardHeader>
-                <CardContent className="pb-5">
+                <CardContent className="pb-6">
                   {docs.length === 0 ? (
                     <p className="text-sm text-slate-400 italic">No documents attached.</p>
                   ) : (
@@ -469,6 +463,40 @@ export function CustomerViewPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* ── Contacts (Organizations only) ── */}
+              {customer.type === 'Organization' && (
+                <Card className="py-0 gap-0">
+                  <CardHeader className="pt-6 pb-4">
+                    <CardTitle className="text-base">Contacts</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-6">
+                    {customer.contacts && customer.contacts.length > 0 ? (
+                      <div className="divide-y divide-slate-100">
+                        {customer.contacts.map((contact: CustomerContact) => (
+                          <div key={contact.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                            <ProfileAvatar name={contact.name} size="sm" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-slate-800">{contact.name}</span>
+                                {contact.isPrimary && (
+                                  <Badge className="bg-violet-50 text-violet-700 border-violet-200 border text-xs px-2 py-0 rounded-full font-medium">
+                                    Primary
+                                  </Badge>
+                                )}
+                              </div>
+                              {contact.email && <p className="text-xs text-slate-500 mt-0.5">{contact.email}</p>}
+                              {contact.phone && <p className="text-xs text-slate-500 mt-0.5">{contact.phone}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400 italic">No contacts added.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
             </div>
           </TabsContent>
