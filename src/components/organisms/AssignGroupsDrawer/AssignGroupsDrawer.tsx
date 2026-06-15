@@ -209,7 +209,7 @@ export function AssignGroupsDrawer({
 
         <SheetFooter className="border-t border-slate-200 p-4">
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleCancel} className="flex-1">
+            <Button variant="outline" onClick={handleCancel} className="flex-1 text-violet-700">
               Cancel
             </Button>
             <Button colorScheme="primary" onClick={handleSave} className="flex-1">

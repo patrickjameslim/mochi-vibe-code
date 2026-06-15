@@ -866,7 +866,7 @@ export function CustomersListPage() {
             </p>
           </div>
           <DialogFooter className="flex-row justify-end gap-2 border-t border-slate-200 p-4">
-            <Button variant="outline" size="md" onClick={() => setBulkArchiveModal(false)}>Cancel</Button>
+            <Button variant="outline" size="md" className="text-violet-700" onClick={() => setBulkArchiveModal(false)}>Cancel</Button>
             <Button colorScheme="destructive" size="md" onClick={handleConfirmBulkArchive}>
               Archive {selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''}
             </Button>
@@ -887,7 +887,7 @@ export function CustomersListPage() {
             </p>
           </div>
           <DialogFooter className="flex-row justify-end gap-2 border-t border-slate-200 p-4">
-            <Button variant="outline" size="md" onClick={() => setBulkUnarchiveModal(false)}>Cancel</Button>
+            <Button variant="outline" size="md" className="text-violet-700" onClick={() => setBulkUnarchiveModal(false)}>Cancel</Button>
             <Button colorScheme="primary" size="md" onClick={handleConfirmBulkUnarchive}>
               Unarchive {selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''}
             </Button>
