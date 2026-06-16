@@ -241,8 +241,11 @@ export function CustomerEditPage() {
       contacts,
     };
     setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
-    setPendingBanner(`${updated.name} has been updated successfully.`);
-    navigate({ to: '/customers' });
+    navigate({
+      to: '/customers/$id/view',
+      params: { id },
+      state: (prev: Record<string, unknown>) => ({ ...prev, successBanner: `${updated.name} has been updated successfully.` }),
+    });
   }
 
   function handleImageUpload(file: File) {
