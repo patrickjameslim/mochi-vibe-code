@@ -449,42 +449,76 @@ function CustomerRow({
   onSelect: () => void;
   selected?: boolean;
 }) {
+  const primaryContact =
+    customer.type === 'Organization'
+      ? (customer.contacts?.find((c) => c.isPrimary) ?? customer.contacts?.[0] ?? null)
+      : null;
+
   return (
-    <button
-      onClick={onSelect}
+    <div
       className={[
-        'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors',
+        'rounded-lg overflow-hidden text-sm transition-colors',
         selected ? 'bg-violet-50' : 'hover:bg-slate-50',
       ].join(' ')}
     >
-      <span className={[
-        'shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
-        selected ? 'border-violet-600 bg-violet-600' : 'border-slate-300 bg-white',
-      ].join(' ')}>
-        {selected && <Check size={9} weight="bold" className="text-white" />}
-      </span>
-      <span
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-        style={{ backgroundColor: customer.avatarColor }}
+      {/* Main row */}
+      <button
+        onClick={onSelect}
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left"
       >
-        {customer.avatarInitials}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-slate-800">{customer.name}</p>
-        {customer.email && (
-          <p className="truncate text-xs text-slate-500">{customer.email}</p>
-        )}
-      </div>
-      <span
-        className={[
+        <span className={[
+          'shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
+          selected ? 'border-violet-600 bg-violet-600' : 'border-slate-300 bg-white',
+        ].join(' ')}>
+          {selected && <Check size={9} weight="bold" className="text-white" />}
+        </span>
+        <span
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+          style={{ backgroundColor: customer.avatarColor }}
+        >
+          {customer.avatarInitials}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-slate-800">{customer.name}</p>
+          {customer.email && (
+            <p className="truncate text-xs text-slate-500">{customer.email}</p>
+          )}
+        </div>
+        <span className={[
           'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium',
           customer.type === 'Organization'
             ? 'bg-blue-50 text-blue-600'
             : 'bg-emerald-50 text-emerald-600',
-        ].join(' ')}
-      >
-        {customer.type}
-      </span>
-    </button>
+        ].join(' ')}>
+          {customer.type}
+        </span>
+      </button>
+
+      {/* Primary contact — expands when an Org customer is selected */}
+      {primaryContact && (
+        <div
+          className={[
+            'overflow-hidden transition-all duration-200 ease-in-out',
+            selected ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0',
+          ].join(' ')}
+        >
+          <div className="border-t border-slate-200" />
+          <div className="flex items-center gap-2.5 px-3 py-2.5">
+            <span className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
+              {primaryContact.name.split(' ').filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-slate-700 truncate">{primaryContact.name}</p>
+              <p className="text-[11px] text-slate-400 truncate">
+                {primaryContact.email || primaryContact.phone || ''}
+              </p>
+            </div>
+            <span className="shrink-0 text-[10px] font-medium text-violet-600 bg-violet-50 rounded-full px-2 py-0.5 border border-violet-200">
+              Primary contact
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

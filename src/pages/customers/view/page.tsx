@@ -26,8 +26,9 @@ import {
   ArrowSquareOut,
   UsersFour,
 } from '@phosphor-icons/react';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams, useLocation } from '@tanstack/react-router';
 import { useCustomers } from '#/context/CustomersContext';
+import { SuccessBanner } from '#/components/molecules/SuccessBanner';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
 import { Button } from '#/components/atoms/Button';
 import { Badge } from '#/components/atoms/Badge';
@@ -92,6 +93,10 @@ export function CustomerViewPage() {
   const [activeTab, setActiveTab] = useState<'General' | 'Receivables' | 'Reports'>('General');
   const [copied, setCopied] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const location = useLocation();
+  const [banner, setBanner] = useState<string | null>(
+    (location.state as { successBanner?: string } | null)?.successBanner ?? null
+  );
 
   if (!customer) {
     return (
@@ -178,6 +183,13 @@ export function CustomerViewPage() {
                 Edit
               </Button>
             </div>
+          </div>
+
+          {/* ── Success banner ── */}
+          <div className="overflow-hidden shrink-0">
+            {banner && (
+              <SuccessBanner message={banner} onDismiss={() => setBanner(null)} />
+            )}
           </div>
 
           {/* ── General tab ── */}
