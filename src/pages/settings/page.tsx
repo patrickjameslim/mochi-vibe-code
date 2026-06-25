@@ -68,6 +68,7 @@ type SettingsSection =
   | 'custom-fields-form'
   | 'custom-fields-bills'
   | 'payment-portal'
+  | 'payment-methods'
   | 'disbursements'
   | 'users'
   | 'developer-settings';
@@ -1155,7 +1156,7 @@ function PaymentPortalSettings() {
             <div className="bg-white border border-slate-200 rounded-xl">
               <div className="px-6 py-5 border-b border-slate-100">
                 <h2 className="text-sm font-semibold text-slate-800">Access & Security</h2>
-                <p className="text-xs text-slate-500 mt-1">Control how customers log in to their payment portal.</p>
+                <p className="text-xs text-slate-500 mt-1">Control how customers access to their payment portal.</p>
               </div>
               <div className="px-6 py-6 flex flex-col gap-5">
 
@@ -1163,31 +1164,20 @@ function PaymentPortalSettings() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-slate-800">Require PIN for Portal Access</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Customers must enter a PIN before viewing their portal.</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Enabling this will require customers to always enter their PIN before accessing their payment portal.</p>
                   </div>
                   <Switch checked={pinEnabled} onCheckedChange={setPinEnabled} checkedBg="primary" />
                 </div>
 
                 {/* OFF state — informational note */}
-                {!pinEnabled && (
-                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3.5">
-                    <Info size={16} className="text-slate-400 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-700">No PIN Required (Default)</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Customers can access their payment portal directly using the link provided in their billing email. No PIN is required unless enabled below.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* ON state — note */}
+                {/* ON state — violet info box */}
                 {pinEnabled && (
-                  <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-lg px-4 py-3.5">
-                    <Info size={16} className="text-violet-500 shrink-0" />
-                    <p className="text-xs text-violet-700">
-                      All customers will be required to enter and set their PIN.
-                    </p>
+                  <div className="flex items-start gap-3 bg-violet-50 border border-violet-200 rounded-lg px-4 py-3.5">
+                    <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs text-violet-700 font-medium">All customers will be required to enter and set their PIN.</p>
+                      <p className="text-xs text-violet-600">Upon accessing their payment link from their bill, your customers will be prompted to create their PIN first before they can view their payment portal. They can also reset their pin if they forgot it.</p>
+                    </div>
                   </div>
                 )}
 
@@ -1378,198 +1368,6 @@ function PaymentPortalSettings() {
               </div>
             </div>
 
-            {/* Payment Methods */}
-            <div className="bg-white border border-slate-200 rounded-xl">
-              <div className="px-6 py-5 border-b border-slate-100">
-                <h2 className="text-sm font-semibold text-slate-800">Payment Methods</h2>
-                <p className="text-xs text-slate-500 mt-1">Choose how your customers can pay invoices through the customer portal.</p>
-              </div>
-              <div className="px-6 py-6 flex flex-col gap-6">
-
-                {/* Subsection 1 — Manual Payment */}
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Manual Payment</p>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Upload Proof of Payment</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Customers can upload a receipt and submit payment manually.</p>
-                    </div>
-                    <Switch checked={manualUpload} onCheckedChange={setManualUpload} checkedBg="primary" />
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-100" />
-
-                {/* Subsection 2 — Online Payment Gateways */}
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Online Payment Gateways</p>
-                  <div className="flex flex-col gap-3">
-                    {/* PayMongo */}
-                    <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-                            <span className="text-[10px] font-extrabold text-violet-700">PM</span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-slate-800">PayMongo</p>
-                              <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', paymongoStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : paymongoStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
-                                {paymongoStatus === 'connected' ? 'Connected' : paymongoStatus === 'pending' ? 'Pending' : 'Not Connected'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
-                          </div>
-                        </div>
-                        <Switch checked={paymongoEnabled && paymongoStatus === 'connected'} onCheckedChange={setPaymongoEnabled} disabled={paymongoStatus !== 'connected'} checkedBg="primary" />
-                      </div>
-                      {paymongoStatus !== 'connected' && (
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => setPaymongoStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">
-                            Request Registration Link
-                          </button>
-                          <button onClick={() => setPaymongoStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                            Connect Existing Account
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Xendit */}
-                    <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                            <span className="text-[10px] font-extrabold text-blue-700">XD</span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-slate-800">Xendit</p>
-                              <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', xenditStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : xenditStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
-                                {xenditStatus === 'connected' ? 'Connected' : xenditStatus === 'pending' ? 'Pending' : 'Not Connected'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
-                          </div>
-                        </div>
-                        <Switch checked={xenditEnabled && xenditStatus === 'connected'} onCheckedChange={setXenditEnabled} disabled={xenditStatus !== 'connected'} checkedBg="primary" />
-                      </div>
-                      {xenditStatus !== 'connected' && (
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => setXenditStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
-                            Create Account
-                          </button>
-                          <button onClick={() => setXenditStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                            Connect Existing Account
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-100" />
-
-                {/* Subsection 3 — Custom Payment Methods */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Custom Payment Methods</p>
-                    <button onClick={() => { setNewMethod({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false }); setMethodErrors({ name: false, desc: false }); setShowAddMethod(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-                      <Plus size={12} weight="bold" /> Add Payment Method
-                    </button>
-                  </div>
-                  {customMethods.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-slate-100">No custom payment methods added yet.</p>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {customMethods.map((m) => (
-                        <div key={m.id} className="flex items-start justify-between gap-3 border border-slate-200 rounded-lg px-4 py-3">
-                          <div>
-                            <p className="text-sm font-medium text-slate-800">{m.name}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{m.desc}</p>
-                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                              {m.requiresProof && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Proof</span>}
-                              {m.requiresRemarks && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Remarks</span>}
-                              {m.internalOnly && <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Internal Only</span>}
-                            </div>
-                          </div>
-                          <button onClick={() => setCustomMethods((prev) => prev.filter((x) => x.id !== m.id))} className="text-slate-400 hover:text-red-500 transition-colors mt-0.5">
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </div>
-
-            {/* Add Payment Method Modal */}
-            {showAddMethod && (
-              <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col gap-5 p-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-slate-800">Add Payment Method</h3>
-                    <button onClick={() => setShowAddMethod(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600">Name <span className="text-red-400">*</span></label>
-                      <input
-                        value={newMethod.name}
-                        onChange={(e) => { setNewMethod((m) => ({ ...m, name: e.target.value })); setMethodErrors((e2) => ({ ...e2, name: false })); }}
-                        placeholder="e.g. Bank Transfer, E-wallet, Credit Card"
-                        className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors', methodErrors.name ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-violet-400'].join(' ')}
-                      />
-                      {methodErrors.name && <p className="text-xs text-red-500">Name is required.</p>}
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600">Description <span className="text-red-400">*</span></label>
-                      <textarea
-                        value={newMethod.desc}
-                        onChange={(e) => { setNewMethod((m) => ({ ...m, desc: e.target.value })); setMethodErrors((e2) => ({ ...e2, desc: false })); }}
-                        placeholder="Shown to customers during checkout"
-                        rows={2}
-                        className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none', methodErrors.desc ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-violet-400'].join(' ')}
-                      />
-                      <p className="text-[10px] text-slate-400">Example: Send payment via bank transfer and upload your receipt.</p>
-                      {methodErrors.desc && <p className="text-xs text-red-500">Description is required.</p>}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {([
-                        ['requiresRemarks', 'Require customers to add remarks'],
-                        ['requiresProof', 'Require proof of payment upload'],
-                        ['internalOnly', 'For internal use only'],
-                      ] as [keyof typeof newMethod, string][]).map(([key, label]) => (
-                        <label key={key} className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
-                          <input type="checkbox" checked={newMethod[key] as boolean} onChange={(e) => setNewMethod((m) => ({ ...m, [key]: e.target.checked }))} className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 accent-violet-600" />
-                          <span>
-                            {label}
-                            {key === 'internalOnly' && <span className="block text-[10px] text-slate-400 mt-0.5">Hidden from customers; visible to your team only.</span>}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
-                    <button onClick={() => setShowAddMethod(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
-                    <button
-                      onClick={() => {
-                        const nameErr = !newMethod.name.trim();
-                        const descErr = !newMethod.desc.trim();
-                        if (nameErr || descErr) { setMethodErrors({ name: nameErr, desc: descErr }); return; }
-                        setCustomMethods((prev) => [...prev, { ...newMethod, id: `cm_${Date.now()}` }]);
-                        setShowAddMethod(false);
-                      }}
-                      className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors"
-                    >
-                      Save Method
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
 
@@ -1588,6 +1386,176 @@ function PaymentPortalSettings() {
         )}
 
       </div>
+    </div>
+  );
+}
+
+// ─── Payment Methods Settings ─────────────────────────────────────────────────
+
+function PaymentMethodsSettings() {
+  const [manualUpload, setManualUpload] = useState(true);
+  const [paymongoStatus, setPaymongoStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
+  const [paymongoEnabled, setPaymongoEnabled] = useState(false);
+  const [xenditStatus, setXenditStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
+  const [xenditEnabled, setXenditEnabled] = useState(false);
+  type CustomMethod = { id: string; name: string; desc: string; requiresRemarks: boolean; requiresProof: boolean; internalOnly: boolean };
+  const [customMethods, setCustomMethods] = useState<CustomMethod[]>([]);
+  const [showAddMethod, setShowAddMethod] = useState(false);
+  const [newMethod, setNewMethod] = useState({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false });
+  const [methodErrors, setMethodErrors] = useState({ name: false, desc: false });
+
+  return (
+    <div className="flex-1 overflow-y-auto px-8 py-8 flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-bold text-slate-800">Payment Methods</h1>
+        <p className="text-sm text-slate-500 mt-1">Choose how your customers can pay invoices through the customer portal.</p>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl">
+        <div className="px-6 py-6 flex flex-col gap-6">
+
+          {/* Manual Payment */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Manual Payment</p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Upload Proof of Payment</p>
+                <p className="text-xs text-slate-400 mt-0.5">Customers can upload a receipt and submit payment manually.</p>
+              </div>
+              <Switch checked={manualUpload} onCheckedChange={setManualUpload} checkedBg="primary" />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100" />
+
+          {/* Online Payment Gateways */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Online Payment Gateways</p>
+            <div className="flex flex-col gap-3">
+              {/* PayMongo */}
+              <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-extrabold text-violet-700">PM</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-800">PayMongo</p>
+                        <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', paymongoStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : paymongoStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
+                          {paymongoStatus === 'connected' ? 'Connected' : paymongoStatus === 'pending' ? 'Pending' : 'Not Connected'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
+                    </div>
+                  </div>
+                  <Switch checked={paymongoEnabled && paymongoStatus === 'connected'} onCheckedChange={setPaymongoEnabled} disabled={paymongoStatus !== 'connected'} checkedBg="primary" />
+                </div>
+                {paymongoStatus !== 'connected' && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setPaymongoStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">Request Registration Link</button>
+                    <button onClick={() => setPaymongoStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Connect Existing Account</button>
+                  </div>
+                )}
+              </div>
+              {/* Xendit */}
+              <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-extrabold text-blue-700">XD</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-800">Xendit</p>
+                        <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', xenditStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : xenditStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
+                          {xenditStatus === 'connected' ? 'Connected' : xenditStatus === 'pending' ? 'Pending' : 'Not Connected'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
+                    </div>
+                  </div>
+                  <Switch checked={xenditEnabled && xenditStatus === 'connected'} onCheckedChange={setXenditEnabled} disabled={xenditStatus !== 'connected'} checkedBg="primary" />
+                </div>
+                {xenditStatus !== 'connected' && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setXenditStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">Create Account</button>
+                    <button onClick={() => setXenditStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Connect Existing Account</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100" />
+
+          {/* Custom Payment Methods */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Custom Payment Methods</p>
+              <button onClick={() => { setNewMethod({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false }); setMethodErrors({ name: false, desc: false }); setShowAddMethod(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+                <Plus size={12} weight="bold" /> Add Payment Method
+              </button>
+            </div>
+            {customMethods.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-slate-100">No custom payment methods added yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {customMethods.map((m) => (
+                  <div key={m.id} className="flex items-start justify-between gap-3 border border-slate-200 rounded-lg px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{m.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{m.desc}</p>
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        {m.requiresProof && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Proof</span>}
+                        {m.requiresRemarks && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Remarks</span>}
+                        {m.internalOnly && <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Internal Only</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => setCustomMethods((prev) => prev.filter((x) => x.id !== m.id))} className="text-slate-400 hover:text-red-500 transition-colors mt-0.5"><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Add Payment Method Modal */}
+      {showAddMethod && (
+        <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col gap-5 p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-800">Add Payment Method</h3>
+              <button onClick={() => setShowAddMethod(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+            </div>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600">Name <span className="text-red-400">*</span></label>
+                <input value={newMethod.name} onChange={(e) => { setNewMethod((m) => ({ ...m, name: e.target.value })); setMethodErrors((e2) => ({ ...e2, name: false })); }} placeholder="e.g. Bank Transfer, E-wallet, Credit Card" className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors', methodErrors.name ? 'border-red-300' : 'border-slate-200 focus:border-violet-400'].join(' ')} />
+                {methodErrors.name && <p className="text-xs text-red-500">Name is required.</p>}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600">Description <span className="text-red-400">*</span></label>
+                <textarea value={newMethod.desc} onChange={(e) => { setNewMethod((m) => ({ ...m, desc: e.target.value })); setMethodErrors((e2) => ({ ...e2, desc: false })); }} placeholder="Shown to customers during checkout" rows={2} className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none', methodErrors.desc ? 'border-red-300' : 'border-slate-200 focus:border-violet-400'].join(' ')} />
+                {methodErrors.desc && <p className="text-xs text-red-500">Description is required.</p>}
+              </div>
+              <div className="flex flex-col gap-2">
+                {([['requiresRemarks', 'Require customers to add remarks'], ['requiresProof', 'Require proof of payment upload'], ['internalOnly', 'For internal use only']] as [keyof typeof newMethod, string][]).map(([key, label]) => (
+                  <label key={key} className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={newMethod[key] as boolean} onChange={(e) => setNewMethod((m) => ({ ...m, [key]: e.target.checked }))} className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 accent-violet-600" />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+              <button onClick={() => setShowAddMethod(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+              <button onClick={() => { const nameErr = !newMethod.name.trim(); const descErr = !newMethod.desc.trim(); if (nameErr || descErr) { setMethodErrors({ name: nameErr, desc: descErr }); return; } setCustomMethods((prev) => [...prev, { ...newMethod, id: `cm_${Date.now()}` }]); setShowAddMethod(false); }} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors">Save Method</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1740,6 +1708,7 @@ export function SettingsPage() {
     'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
     'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
     'payment-portal':      ['Settings', 'Customer Payment Portal'],
+    'payment-methods':     ['Settings', 'Payment Methods'],
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
     'developer-settings':  ['Settings', 'Developer Settings'],
@@ -1753,6 +1722,7 @@ export function SettingsPage() {
     'custom-fields-form':  'Customer',
     'custom-fields-bills': 'Bills',
     'payment-portal':      'Customer Payment Portal',
+    'payment-methods':     'Payment Methods',
     'disbursements':       'Disbursements',
     'users':               'Users',
     'developer-settings':  'Developer Settings',
@@ -1778,6 +1748,9 @@ export function SettingsPage() {
     }
     if (activeSection === 'payment-portal') {
       return <PaymentPortalSettings />;
+    }
+    if (activeSection === 'payment-methods') {
+      return <PaymentMethodsSettings />;
     }
     return <PlaceholderContent label={placeholderLabels[activeSection]} />;
   }
@@ -1842,6 +1815,7 @@ export function SettingsPage() {
             )}
 
             <SecNavItem label="Customer Payment Portal" active={activeSection === 'payment-portal'} onClick={() => setActiveSection('payment-portal')} />
+            <SecNavItem label="Payment Methods"    active={activeSection === 'payment-methods'}   onClick={() => setActiveSection('payment-methods')} />
             <SecNavItem label="Disbursements"      active={activeSection === 'disbursements'}      onClick={() => setActiveSection('disbursements')} />
             <SecNavItem label="Users"              active={activeSection === 'users'}              onClick={() => setActiveSection('users')} />
             <SecNavItem label="Developer Settings" active={activeSection === 'developer-settings'} onClick={() => setActiveSection('developer-settings')} />
@@ -1849,7 +1823,7 @@ export function SettingsPage() {
 
           {/* Main content */}
           <main className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
-            <div className={['flex-1', activeSection === 'payment-portal' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
+            <div className={['flex-1', activeSection === 'payment-portal' || activeSection === 'payment-methods' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
               {renderContent()}
             </div>
             {hasPendingChanges && activeSection !== 'payment-portal' && (

@@ -31,6 +31,12 @@ import {
   Spinner,
   Info,
   Gear,
+  Phone,
+  MapPin,
+  IdentificationCard,
+  Percent,
+  Headset,
+  CheckCircle as CheckCircleSolid,
 } from '@phosphor-icons/react';
 import mochiLogo from '#/assets/mochi-logo.svg';
 import mochiLogoWhite from '#/assets/mochi-logo-white.svg';
@@ -354,11 +360,13 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
           </button>
           <StatusBadge status={bill.status} />
         </div>
-        <h3 className="text-sm font-medium text-slate-800 leading-snug truncate">{bill.name}</h3>
+        {bill.billType === 'recurring' && bill.name && (
+          <h3 className="text-sm font-medium text-slate-800 leading-snug truncate">{bill.name}</h3>
+        )}
         <div className="flex items-center gap-5">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <CalendarBlank size={13} className="shrink-0 text-slate-400" />
-            <span><span className="text-slate-400">Billed: </span>{bill.billDate}</span>
+            <span><span className="text-slate-400">Issue Date: </span>{bill.billDate}</span>
           </div>
           <div className={[
             'flex items-center gap-1.5 text-xs',
@@ -366,7 +374,7 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
           ].join(' ')}>
             <CalendarBlank size={13} className={['shrink-0', isOverdue ? 'text-red-500' : 'text-slate-400'].join(' ')} />
             <span>
-              <span className={isOverdue ? 'text-red-400 font-normal' : 'text-slate-400'}>Due: </span>
+              <span className={isOverdue ? 'text-red-400 font-normal' : 'text-slate-400'}>Due Date: </span>
               {bill.dueDate}
             </span>
           </div>
@@ -1013,63 +1021,62 @@ function CustomerInfoPanel({ restricted = false, visibleFields = null }: { restr
   const show = (key: string) => !visibleFields || visibleFields.has(key);
 
   return (
-    <aside className="w-72 shrink-0 bg-white border-l border-slate-200 sticky top-0 self-stretch overflow-y-auto">
+    <aside className="w-80 shrink-0 bg-white border-l border-slate-200 sticky top-0 self-stretch overflow-y-auto">
       <div className="px-6 py-8 flex flex-col gap-5">
         <h2 className="text-xl font-bold text-slate-900">Customer information</h2>
 
         {/* Avatar */}
-        <div className={[
-          'w-20 h-20 rounded-full flex flex-col items-center justify-center shrink-0',
-          isOrg ? 'bg-slate-700' : 'bg-slate-500',
-        ].join(' ')}>
+        <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 bg-black flex items-center justify-center">
           {isOrg
-            ? <>
-                <Buildings size={22} className="text-white mb-0.5" />
-                <span className="text-white text-[8px] font-bold tracking-widest uppercase">Company</span>
-              </>
+            ? <img src="/metroview-logo.jpeg" alt="Company logo" className="w-full h-full object-cover" />
             : <User size={30} className="text-white" />
           }
         </div>
 
-        {/* Fields */}
+        {/* Fields — default shows Name + Email only; settings preview applies visibleFields filter */}
         <div className="flex flex-col gap-4">
-          {show('customerId') && <InfoRow label="Customer ID" value={c.id} />}
-          {show('customerName') && <InfoRow label="Name" value={c.name} />}
-          {show('email') && <InfoRow label="Email address" value={c.email} blurValue={restricted} />}
-          {show('phone') && <InfoRow label="Phone" value={c.phone} blurValue={restricted} />}
-          {show('address') && <InfoRow label="Address" value={c.address} blurValue={restricted} />}
-          {show('withholdingTax') && <InfoRow label="Withholding Tax" value={c.withholdingTax} />}
-
-          {/* Primary Contact (org only) */}
-          {isOrg && c.primaryContact && (show('primaryContactName') || show('primaryContactPosition') || show('primaryContactEmail') || show('primaryContactPhone')) && (
-            <div className="border-t border-slate-100 pt-4 flex flex-col gap-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Primary Contact</p>
-              {(show('primaryContactName') || show('primaryContactPosition')) && (
-                <div className="flex flex-col gap-0.5">
-                  {show('primaryContactName') && <p className="text-sm font-semibold text-slate-800">{c.primaryContact.name}</p>}
-                  {show('primaryContactPosition') && <p className="text-sm text-slate-500">{c.primaryContact.position}</p>}
+          {visibleFields ? (
+            <>
+              {show('customerId') && <InfoRow label="Customer ID" value={c.id} />}
+              {show('customerName') && <InfoRow label="Name" value={c.name} />}
+              {show('email') && <InfoRow label="Email address" value={c.email} blurValue={restricted} />}
+              {show('phone') && <InfoRow label="Phone" value={c.phone} blurValue={restricted} />}
+              {show('address') && <InfoRow label="Address" value={c.address} blurValue={restricted} />}
+              {show('withholdingTax') && <InfoRow label="Withholding Tax" value={c.withholdingTax} />}
+              {isOrg && c.primaryContact && (show('primaryContactName') || show('primaryContactPosition') || show('primaryContactEmail') || show('primaryContactPhone')) && (
+                <div className="border-t border-slate-100 pt-4 flex flex-col gap-3">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Primary Contact</p>
+                  {(show('primaryContactName') || show('primaryContactPosition')) && (
+                    <div className="flex flex-col gap-0.5">
+                      {show('primaryContactName') && <p className="text-sm font-semibold text-slate-800">{c.primaryContact.name}</p>}
+                      {show('primaryContactPosition') && <p className="text-sm text-slate-500">{c.primaryContact.position}</p>}
+                    </div>
+                  )}
+                  {show('primaryContactEmail') && <InfoRow label="Email" value={c.primaryContact.email} blurValue={restricted} />}
+                  {show('primaryContactPhone') && <InfoRow label="Phone" value={c.primaryContact.phone} blurValue={restricted} />}
                 </div>
               )}
-              {show('primaryContactEmail') && <InfoRow label="Email" value={c.primaryContact.email} blurValue={restricted} />}
-              {show('primaryContactPhone') && <InfoRow label="Phone" value={c.primaryContact.phone} blurValue={restricted} />}
-            </div>
-          )}
-
-          {/* Other Contacts (org only) */}
-          {show('otherContacts') && isOrg && c.otherContacts && c.otherContacts.length > 0 && (
-            <div className="border-t border-slate-100 pt-4 flex flex-col gap-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Other Contacts</p>
-              {c.otherContacts.map((oc, i) => (
-                <div key={i} className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-sm font-semibold text-slate-800">{oc.name}</p>
-                    <p className="text-sm text-slate-500">{oc.position}</p>
-                  </div>
-                  <InfoRow label="Email" value={oc.email} blurValue={restricted} />
-                  <InfoRow label="Phone" value={oc.phone} blurValue={restricted} />
+              {show('otherContacts') && isOrg && c.otherContacts && c.otherContacts.length > 0 && (
+                <div className="border-t border-slate-100 pt-4 flex flex-col gap-4">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Other Contacts</p>
+                  {c.otherContacts.map((oc, i) => (
+                    <div key={i} className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-sm font-semibold text-slate-800">{oc.name}</p>
+                        <p className="text-sm text-slate-500">{oc.position}</p>
+                      </div>
+                      <InfoRow label="Email" value={oc.email} blurValue={restricted} />
+                      <InfoRow label="Phone" value={oc.phone} blurValue={restricted} />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
+          ) : (
+            <>
+              <InfoRow label="Name" value={c.name} />
+              <InfoRow label="Email address" value={c.email} blurValue={restricted} />
+            </>
           )}
         </div>
       </div>
@@ -1106,9 +1113,7 @@ function Stepper({ step, muted = false, settingsActive = false, onSettings }: { 
                 ) : (
                   <div className={[
                     'flex items-center justify-center w-6 h-6 rounded-full shrink-0 text-xs font-semibold',
-                    active
-                      ? 'bg-violet-600 text-white'
-                      : 'bg-slate-100 text-slate-400 border border-slate-200',
+                    active ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400 border border-slate-200',
                   ].join(' ')}>
                     {n}
                   </div>
@@ -1123,27 +1128,6 @@ function Stepper({ step, muted = false, settingsActive = false, onSettings }: { 
             );
           })}
         </ol>
-      </div>
-
-      {/* Settings — disabled until authenticated */}
-      <div className="mt-auto pt-6 border-t border-slate-100">
-        <button
-          onClick={muted ? undefined : onSettings}
-          disabled={muted}
-          className={[
-            'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-            muted
-              ? 'text-slate-400 cursor-not-allowed'
-              : settingsActive
-                ? 'bg-violet-50 text-violet-700 font-semibold'
-                : 'text-slate-600 hover:bg-slate-50',
-          ].join(' ')}
-          title={muted ? 'Unlock your portal to access Settings' : 'Settings'}
-        >
-          <Gear size={18} className={muted ? 'text-slate-300' : settingsActive ? 'text-violet-600' : 'text-slate-400'} />
-          <span>Settings</span>
-          {muted && <Lock size={12} weight="fill" className="ml-auto text-slate-300" />}
-        </button>
       </div>
     </aside>
   );
@@ -1831,7 +1815,7 @@ function RestrictedPortalView() {
 
 // ─── Step 1 ───────────────────────────────────────────────────────────────────
 
-function Step1({ selected, onToggle, showError, onContinue, showSummary = true, showCustomerInfo = true, visibleFields = null }: {
+function Step1({ selected, onToggle, showError, onContinue, showSummary = true, showCustomerInfo = true, visibleFields = null, step = 1 }: {
   selected: Set<string>;
   onToggle: (id: string) => void;
   showError: boolean;
@@ -1839,6 +1823,7 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
   showSummary?: boolean;
   showCustomerInfo?: boolean;
   visibleFields?: Set<string> | null;
+  step?: Step;
 }) {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
@@ -1905,6 +1890,7 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
           <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-slate-200 px-8 py-5 flex flex-col gap-4 shadow-sm">
             {/* Title */}
             <div>
+              <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Step 1</p>
               <h1 className="text-xl font-bold text-slate-800">Select Bills to Pay</h1>
               <p className="text-sm text-slate-500 mt-0.5">Choose one or more bills below to proceed with payment.</p>
             </div>
@@ -1989,7 +1975,11 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
           </div>
 
           {/* Sticky footer */}
-          <div className="border-t border-slate-200 bg-white px-8 py-4 flex items-center justify-end shrink-0">
+          <div className="border-t border-slate-200 bg-white px-8 py-4 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400">Powered by</span>
+              <img src={mochiLogo} alt="Mochi" className="h-4 w-auto opacity-60" />
+            </div>
             <button
               onClick={onContinue}
               className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors"
@@ -1998,10 +1988,10 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
             </button>
           </div>
         </div>
+      </div>
 
         {/* Right panel */}
         {showCustomerInfo && <CustomerInfoPanel visibleFields={visibleFields} />}
-      </div>
     </>
   );
 }
@@ -2054,8 +2044,10 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
         </button>
       </div>
 
-      {/* Bill name */}
-      <h3 className="text-base font-bold text-slate-800 leading-snug px-5 pt-2">{bill.name}</h3>
+      {/* Bill name — only for recurring bills */}
+      {bill.billType === 'recurring' && bill.name && (
+        <h3 className="text-base font-bold text-slate-800 leading-snug px-5 pt-2">{bill.name}</h3>
+      )}
 
       {/* Meta grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 py-4">
@@ -2090,33 +2082,45 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
         </button>
         {open && (
           <div className="px-5 pb-4">
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-400 uppercase tracking-wider">
-                    <th className="text-left font-semibold px-3 py-2">Item</th>
-                    <th className="text-right font-semibold px-3 py-2">Qty</th>
-                    <th className="text-right font-semibold px-3 py-2">Discount</th>
-                    <th className="text-right font-semibold px-3 py-2">Tax</th>
-                    <th className="text-right font-semibold px-3 py-2">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bill.lineItems.map((li, i) => (
-                    <tr key={i} className="border-t border-slate-100 text-slate-700 align-top">
-                      <td className="px-3 py-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left font-medium text-slate-500 py-2 pr-4">Item</th>
+                  <th className="text-right font-medium text-slate-500 py-2 px-4 w-16">Qty</th>
+                  <th className="text-right font-medium text-slate-500 py-2 px-4 w-36">Price</th>
+                  <th className="text-right font-medium text-slate-500 py-2 pl-4 w-36">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bill.lineItems.map((li, i) => {
+                  const originalPrice = li.subtotal + li.discount;
+                  const discountPct = originalPrice > 0 && li.discount > 0
+                    ? Math.round((li.discount / originalPrice) * 100)
+                    : 0;
+                  return (
+                    <tr key={i} className="border-b border-slate-100 last:border-0 align-top">
+                      <td className="py-3 pr-4">
                         <p className="font-semibold text-slate-800">{li.name}</p>
-                        <p className="text-slate-400">{li.description}</p>
+                        <p className="text-sm text-slate-400 mt-0.5">{li.description}</p>
                       </td>
-                      <td className="px-3 py-2 text-right">{li.quantity}</td>
-                      <td className="px-3 py-2 text-right">{li.discount ? `- ${fmt(li.discount)}` : '—'}</td>
-                      <td className="px-3 py-2 text-right">{fmt(li.tax)}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-slate-900">{fmt(li.subtotal)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-800">{li.quantity}</td>
+                      <td className="py-3 px-4 text-right">
+                        <p className="font-semibold text-slate-800">{fmt(originalPrice)}</p>
+                        {discountPct > 0 && (
+                          <p className="text-xs text-violet-600 mt-0.5">{discountPct}% discount</p>
+                        )}
+                      </td>
+                      <td className="py-3 pl-4 text-right">
+                        <p className="font-semibold text-slate-800">{fmt(li.subtotal)}</p>
+                        {discountPct > 0 && (
+                          <p className="text-xs text-slate-400 line-through mt-0.5">{fmt(originalPrice)}</p>
+                        )}
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -2302,7 +2306,7 @@ function UploadProofCard({ files, onAddFile, onChangeFile, onRemove, error }: {
 
 // ─── Step 2: Confirm Payment ──────────────────────────────────────────────────
 
-function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess, onPrevious, showUpload = true, showSummary = true }: {
+function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess, onPrevious, showUpload = true, showSummary = true, step = 2 }: {
   selected: Set<string>;
   method: PaymentMethod;
   setMethod: (m: PaymentMethod) => void;
@@ -2311,6 +2315,7 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
   onPrevious: () => void;
   showUpload?: boolean;
   showSummary?: boolean;
+  step?: Step;
 }) {
   const selectedBills = getActiveBills().filter((b) => selected.has(b.id));
 
@@ -2326,6 +2331,9 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
   const amountDue = breakdownTotal + overdueTotal;
 
   const isUpload = method === 'upload';
+
+  // Breakdown accordion state
+  const [showFees, setShowFees] = useState(false);
 
   // Upload state (supports multiple proofs)
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -2398,45 +2406,76 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
     }
   }
 
+  const gatewayFee = gatewayFeeFor(method, amountDue);
+  const totalDue = isUpload ? amountDue : amountDue + gatewayFee;
+
   return (
     <div className="flex-1 flex overflow-hidden">
-      {/* Main content column */}
+      {/* Left: Sticky header + Order review */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 overflow-auto p-8 flex flex-col gap-6">
+
+        {/* Sticky header — title + breakdown */}
+        <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-slate-200 px-8 py-5 flex flex-col gap-4 shadow-sm">
           <div>
+            <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Step 2</p>
             <h1 className="text-xl font-bold text-slate-800">Confirm Payment</h1>
             <p className="text-sm text-slate-500 mt-0.5">Review your bills and choose how you'd like to pay.</p>
           </div>
 
+          {/* Breakdown — full width, label/value rows */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+              <p className="text-sm font-bold text-slate-800">Breakdown</p>
+              {!isUpload && (
+                <button
+                  onClick={() => setShowFees(f => !f)}
+                  className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+                >
+                  {showFees ? 'Hide fees' : 'View fees'}
+                  <CaretDown size={11} className={['transition-transform', showFees ? 'rotate-180' : ''].join(' ')} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+                <span className="text-slate-600">Number of bills selected</span>
+                <span className="font-medium text-slate-800">{selectedBills.length}</span>
+              </div>
+              <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+                <span className="text-slate-600">Subtotal</span>
+                <span className="font-medium text-slate-800">{fmt(amountDue)}</span>
+              </div>
+
+              {/* Collapsible gateway fee rows */}
+              {!isUpload && showFees && (
+                <>
+                  <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+                    <span className="text-slate-600">Payment Gateway Fee</span>
+                    <span className="font-medium text-slate-800">3.50%</span>
+                  </div>
+                  <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+                    <span className="text-slate-600">Total Gateway Fee</span>
+                    <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center justify-between px-5 py-3 bg-violet-50">
+                <span className="text-sm font-bold text-slate-700">Total Amount Due</span>
+                <span className="text-base font-bold text-violet-700">{fmt(totalDue)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto px-8 py-6 flex flex-col gap-6">
           {/* Order Summary */}
           <div className="flex flex-col gap-3">
             <p className="text-sm font-semibold text-slate-800">Order summary</p>
             {selectedBills.map((bill) => (
               <OrderSummaryCard key={bill.id} bill={bill} />
             ))}
-          </div>
-
-          {/* Payment Method */}
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-semibold text-slate-800">Payment method</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {PAYMENT_METHODS.filter(opt => showUpload || opt.id !== 'upload').map((opt) => (
-                <PaymentMethodCard
-                  key={opt.id}
-                  option={opt}
-                  selected={method === opt.id}
-                  onSelect={() => { setMethod(opt.id); setSubmitError(false); setUploadError(''); }}
-                />
-              ))}
-            </div>
-
-            {/* Redirect notice for external providers */}
-            {!isUpload && (
-              <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 text-xs text-blue-700">
-                <ShieldCheck size={16} weight="fill" className="shrink-0 mt-0.5" />
-                You'll be securely redirected to PayMongo, our external payment provider, to complete your {methodLabel(method)} payment.
-              </div>
-            )}
           </div>
 
           {/* Upload proof (only for upload method) */}
@@ -2450,31 +2489,22 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
               )}
               <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col gap-5">
                 <UploadProofCard files={files} onAddFile={handleAddFile} onChangeFile={handleChangeFile} onRemove={handleRemove} error={uploadError} />
-
-                {/* Remarks */}
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-800">Remarks <span className="font-normal text-slate-400">(optional)</span></label>
-                  <textarea
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    rows={3}
+                  <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3}
                     placeholder="Add a note for this payment (e.g. reference number, sender name)…"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 resize-y"
-                  />
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 resize-y" />
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Sticky footer */}
+
+        {/* Sticky footer — Previous + Proceed to Payment */}
         <div className="border-t border-slate-200 bg-white px-8 py-4 flex items-center justify-between shrink-0">
-          <button
-            onClick={onPrevious}
-            className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Previous
+          <button onClick={onPrevious} className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+            <ArrowLeft size={16} /> Previous
           </button>
           <button
             onClick={handlePrimary}
@@ -2482,99 +2512,48 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
             className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {submitting && <Spinner size={16} className="animate-spin" />}
-            {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Continue'}
+            {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Proceed to Payment'}
           </button>
         </div>
       </div>
 
-      {/* Right: Payment Breakdown — hidden when summary section is disabled */}
-      {showSummary && <aside className="w-72 shrink-0 bg-white border-l border-slate-200 overflow-y-auto">
-        <div className="p-6 flex flex-col gap-6">
-          {/* Summary of Line Items */}
-          <div>
-            <h2 className="text-base font-bold text-slate-900 mb-3">Summary of Line Items</h2>
-            <div className="flex flex-col gap-3">
-              {allItems.map((li, i) => {
-                const original = li.subtotal + li.discount;
-                const pct = li.discount > 0 ? (li.discount / original) * 100 : 0;
-                return (
-                  <div key={i} className="flex justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{li.name}</p>
-                      <p className="text-xs text-slate-400">Qty: {li.quantity}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm text-slate-700 whitespace-nowrap">{fmt(li.subtotal)}</p>
-                      {li.discount > 0 && (
-                        <p className="text-xs whitespace-nowrap">
-                          <span className="text-violet-600">({pct.toFixed(0)}% discount)</span>{' '}
-                          <span className="text-slate-400 line-through">{fmt(original)}</span>
-                        </p>
-                      )}
-                    </div>
+      {/* Right: Payment method */}
+      <aside className="w-80 shrink-0 bg-white border-l border-slate-200 overflow-y-auto sticky top-0 self-stretch">
+        <div className="px-6 py-6 flex flex-col gap-4">
+          <p className="text-base font-semibold text-slate-800">Payment method</p>
+
+          {/* Radio list */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            {PAYMENT_METHODS.filter(opt => showUpload || opt.id !== 'upload').map((opt, i, arr) => {
+              const Icon = opt.icon;
+              const isSelected = method === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => { setMethod(opt.id); setSubmitError(false); setUploadError(''); }}
+                  className={['w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors', i < arr.length - 1 ? 'border-b border-slate-100' : '', isSelected ? 'bg-violet-50' : 'hover:bg-slate-50'].join(' ')}
+                >
+                  {/* Radio */}
+                  <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors', isSelected ? 'border-violet-600' : 'border-slate-300'].join(' ')}>
+                    {isSelected && <div className="w-2 h-2 rounded-full bg-violet-600" />}
                   </div>
-                );
-              })}
-            </div>
+                  {/* Icon */}
+                  <div className={['w-8 h-8 rounded-lg flex items-center justify-center shrink-0', isSelected ? 'bg-violet-100' : 'bg-slate-100'].join(' ')}>
+                    <Icon size={16} className={isSelected ? 'text-violet-600' : 'text-slate-500'} />
+                  </div>
+                  {/* Label */}
+                  <div className="flex-1 min-w-0">
+                    <p className={['text-sm font-medium leading-snug', isSelected ? 'text-violet-700' : 'text-slate-800'].join(' ')}>{opt.label}</p>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-snug">{opt.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Billing Cycle Breakdown */}
-          <div>
-            <h2 className="text-base font-bold text-slate-900 mb-1">Billing Cycle Breakdown</h2>
-            <div className="flex flex-col">
-              {/* Subtotal (VAT exclusive) */}
-              <div className="flex justify-between items-center gap-3 py-2.5 text-sm border-b border-slate-100">
-                <span className="text-slate-600 min-w-0">Subtotal <span className="text-slate-400">(VAT exclusive)</span></span>
-                <span className="font-medium text-slate-800 whitespace-nowrap shrink-0">{fmt(vatSubtotal)}</span>
-              </div>
-
-              {/* Tax % (VAT) */}
-              <div className="flex justify-between items-center gap-3 py-2.5 text-sm border-b border-slate-100">
-                <span className="text-slate-600 min-w-0">Tax % <span className="text-slate-400">(VAT)</span></span>
-                <span className="font-medium text-slate-800 whitespace-nowrap shrink-0">{VAT_RATE.toFixed(2)} %</span>
-              </div>
-
-              {/* Discount % */}
-              <div className="flex justify-between items-center gap-3 py-2.5 text-sm border-b border-slate-100">
-                <span className="text-slate-600 min-w-0">Discount %</span>
-                <span className="font-medium text-slate-800 whitespace-nowrap shrink-0">{discountPct.toFixed(2)} %</span>
-              </div>
-
-              {/* Tax amount */}
-              <div className="flex justify-between items-center gap-3 py-2.5 text-sm border-b border-slate-100">
-                <span className="text-slate-600 min-w-0">Tax amount</span>
-                <span className="font-medium text-slate-800 whitespace-nowrap shrink-0">{fmt(taxAmount)}</span>
-              </div>
-
-              {/* Discount amount */}
-              <div className="flex justify-between items-center gap-3 py-2.5 text-sm border-b border-slate-100">
-                <span className="text-slate-600 min-w-0">Discount amount</span>
-                <span className="font-medium text-slate-800 whitespace-nowrap shrink-0">{fmt(discountAmount)}</span>
-              </div>
-
-              {/* Overdue charges (only when applicable) */}
-              {overdueTotal > 0 && (
-                <div className="flex justify-between items-center gap-3 py-2.5 text-sm border-b border-slate-100">
-                  <span className="text-slate-600 min-w-0">Overdue charges</span>
-                  <span className="font-medium text-red-600 whitespace-nowrap shrink-0">+ {fmt(overdueTotal)}</span>
-                </div>
-              )}
-
-              {/* Total */}
-              <div className="flex justify-between items-center gap-3 py-2.5 text-sm border-b border-slate-100">
-                <span className="text-slate-600 min-w-0">Total</span>
-                <span className="font-medium text-slate-800 whitespace-nowrap shrink-0">{fmt(breakdownTotal)}</span>
-              </div>
-
-              {/* Amount due — highlighted */}
-              <div className="flex justify-between items-center gap-3 mt-2 px-3 py-3 rounded-lg bg-violet-50">
-                <span className="text-sm font-bold text-slate-700 min-w-0">Amount due</span>
-                <span className="text-base font-bold text-violet-700 whitespace-nowrap shrink-0">{fmt(amountDue)}</span>
-              </div>
-            </div>
-          </div>
+          <p className="text-xs text-slate-400 text-center mt-auto pt-2">Secured by <span className="font-semibold text-slate-500">PayMongo</span></p>
         </div>
-      </aside>}
+      </aside>
     </div>
   );
 }
@@ -2661,11 +2640,12 @@ function PayMongoRedirectModal({ method, selectedCount, subtotal, gatewayFee, to
 
 // ─── Step 3: Success Page ─────────────────────────────────────────────────────
 
-function Step3({ selected, total, method, onBackToPortal }: {
+function Step3({ selected, total, method, onBackToPortal, step = 3 }: {
   selected: Set<string>;
   total: number;
   method: PaymentMethod;
   onBackToPortal: () => void;
+  step?: Step;
 }) {
   return (
     <div className="flex-1 overflow-auto p-8">
@@ -2676,6 +2656,7 @@ function Step3({ selected, total, method, onBackToPortal }: {
             <CheckCircle size={48} className="text-emerald-500" weight="fill" />
           </div>
           <div>
+            <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Step 3</p>
             <h1 className="text-2xl font-bold text-slate-800">
               {method === 'upload' ? 'Payment submitted' : 'Payment successful'}
             </h1>
@@ -2687,7 +2668,7 @@ function Step3({ selected, total, method, onBackToPortal }: {
           </div>
           {method === 'upload' ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-              <Spinner size={12} className="animate-spin" /> Verifying
+              <Spinner size={12} className="animate-spin" /> Under Review
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -2716,7 +2697,7 @@ function Step3({ selected, total, method, onBackToPortal }: {
         {/* Email confirmation note */}
         <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
           <ShieldCheck size={16} weight="fill" className="shrink-0 mt-0.5" />
-          A confirmation email with your bill details has been sent to {getActiveCustomer().email}.
+          A confirmation email with your bill details has been sent to {getActiveCustomer().email}. We will get in touch via email once the payment has been received.
         </div>
 
         {/* Primary CTA */}
@@ -3377,6 +3358,7 @@ function PayMongoCheckout({ method, selectedBills, gatewayFee, total, onPay, onB
 // ─── Settings Page ────────────────────────────────────────────────────────────
 
 function SettingsPage({ currentPin, onChangePin, onBack }: { currentPin: string; onChangePin: (pin: string) => void; onBack: () => void }) {
+  const [settingsTab, setSettingsTab] = useState<'pin' | 'info'>('pin');
   const [open, setOpen] = useState(false);
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -3414,87 +3396,155 @@ function SettingsPage({ currentPin, onChangePin, onBack }: { currentPin: string;
     />
   );
 
+  const c = getActiveCustomer();
+
   return (
-    <div className="flex-1 overflow-auto p-8">
-      <div className="max-w-2xl flex flex-col gap-6">
+    <div className="flex-1 overflow-auto px-8 py-8">
+      <div className="flex flex-col gap-5">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors self-start">
+          <ArrowLeft size={16} /> Back to portal
+        </button>
         <div>
-          <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-3">
-            <ArrowLeft size={16} /> Back to portal
-          </button>
-          <h1 className="text-xl font-bold text-slate-800">Settings</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Manage your portal preferences and security.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Account &amp; Security</h1>
+          <p className="text-sm text-slate-500 mt-1">View your account information and manage your security settings.</p>
         </div>
 
-        {/* PIN Management */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
-                <ShieldCheck size={20} className="text-violet-600" weight="duotone" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-800">PIN Management</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Your 4-digit PIN secures access to your payment portal. You'll use it every time you log in.</p>
-              </div>
-            </div>
-            {!open && (
-              <button
-                onClick={() => { setOpen(true); setDone(false); }}
-                className="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                Change PIN
-              </button>
-            )}
+        {/* ── Account Information ── */}
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          {/* Section label */}
+          <div className="px-6 pt-5 pb-3">
+            <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">Account Information</p>
           </div>
 
-          {done && (
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700">
-              <CheckCircle size={16} weight="fill" /> Your PIN has been updated.
+          {/* Company identity */}
+          <div className="flex items-center gap-4 px-6 pb-5 border-b border-slate-100">
+            <img src="/metroview-logo.jpeg" alt="logo" className="w-14 h-14 rounded-full object-cover shrink-0" />
+            <div>
+              <p className="text-base font-bold text-slate-900">{c.name}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2.5 py-0.5">Customer ID</span>
+                <span className="text-sm text-slate-500">{c.id}</span>
+              </div>
             </div>
-          )}
+          </div>
 
-          {open && (
-            <div className="border-t border-slate-100 pt-4 flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">Current PIN</label>
-                {pinInput(oldPin, setOldPin, 'Enter current PIN', currentWrong)}
-                {currentWrong && (
-                  <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                    <Warning size={13} weight="fill" /> Incorrect current PIN.
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">New PIN</label>
-                {pinInput(newPin, setNewPin, 'Enter 4-digit PIN')}
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">Confirm New PIN</label>
-                {pinInput(confirmPin, setConfirmPin, 'Re-enter 4-digit PIN', mismatch)}
-                {mismatch && (
-                  <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                    <Warning size={13} weight="fill" /> PINs do not match.
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSave}
-                  disabled={!canSave}
-                  className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  Update PIN
-                </button>
-                <button
-                  onClick={reset}
-                  className="px-5 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+          {/* Contact Information subsection */}
+          <div className="px-6 py-5 border-b border-slate-100">
+            <div className="flex items-center gap-2 mb-4">
+              <User size={15} className="text-slate-400" />
+              <p className="text-sm font-semibold text-slate-700">Contact Information</p>
             </div>
-          )}
+            <div className="grid grid-cols-3 divide-x divide-slate-100">
+              {[
+                { icon: <EnvelopeSimple size={16} className="text-violet-600" weight="duotone" />, label: 'Email Address', value: c.email },
+                { icon: <Phone size={16} className="text-violet-600" weight="duotone" />, label: 'Phone Number', value: c.phone },
+                { icon: <MapPin size={16} className="text-violet-600" weight="duotone" />, label: 'Address', value: c.address },
+              ].map(({ icon, label, value }) => (
+                <div key={label} className="flex items-start gap-3 px-4 first:pl-0 last:pr-0">
+                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0 mt-0.5">{icon}</div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400">{label}</p>
+                    <p className="text-sm text-slate-800 mt-0.5 leading-snug">{value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tax Information subsection */}
+          <div className="px-6 py-5">
+            <div className="flex items-center gap-2 mb-4">
+              <IdentificationCard size={15} className="text-slate-400" />
+              <p className="text-sm font-semibold text-slate-700">Tax Information</p>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-slate-100">
+              {[
+                { icon: <IdentificationCard size={16} className="text-violet-600" weight="duotone" />, label: 'VAT Status', value: c.vatStatus, badge: true },
+                { icon: <IdentificationCard size={16} className="text-violet-600" weight="duotone" />, label: 'TIN', value: c.tin },
+                { icon: <Percent size={16} className="text-violet-600" weight="duotone" />, label: 'Withholding Tax', value: c.withholdingTax },
+              ].map(({ icon, label, value, badge }) => (
+                <div key={label} className="flex items-start gap-3 px-4 first:pl-0 last:pr-0">
+                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0 mt-0.5">{icon}</div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400">{label}</p>
+                    {badge
+                      ? <span className="inline-block text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5 mt-1">{value}</span>
+                      : <p className="text-sm text-slate-800 mt-0.5">{value}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
+
+        {/* ── Security ── */}
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          <div className="px-6 pt-5 pb-3">
+            <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">Security</p>
+          </div>
+
+          <div className="px-6 pb-5">
+            {done && (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700 mb-4">
+                <CheckCircle size={16} weight="fill" /> Your PIN has been updated successfully.
+              </div>
+            )}
+
+            {!open ? (
+              <div className="flex items-center gap-6">
+                {/* PIN Status */}
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+                    <ShieldCheck size={22} className="text-violet-600" weight="duotone" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">PIN Status</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-sm font-semibold text-emerald-600">Active</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">Your payment portal is protected by a 4-digit PIN.</p>
+                  </div>
+                </div>
+                {/* Last Updated */}
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-700">Last Updated</p>
+                  <p className="text-sm text-slate-600 mt-1">Jan 15, 2026 &bull; 10:42 AM</p>
+                  <p className="text-xs text-slate-400 mt-0.5">For your security, change your PIN regularly.</p>
+                </div>
+                {/* CTA */}
+                <button
+                  onClick={() => { setOpen(true); setDone(false); }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors shrink-0"
+                >
+                  <ShieldCheck size={16} weight="duotone" /> Change PIN
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 max-w-sm">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-slate-700">Current PIN</label>
+                  {pinInput(oldPin, setOldPin, 'Enter current PIN', currentWrong)}
+                  {currentWrong && <p className="flex items-center gap-1.5 text-xs text-red-600"><Warning size={12} weight="fill" /> Incorrect current PIN.</p>}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-slate-700">New PIN</label>
+                  {pinInput(newPin, setNewPin, 'Enter 4-digit PIN')}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-slate-700">Confirm New PIN</label>
+                  {pinInput(confirmPin, setConfirmPin, 'Re-enter 4-digit PIN', mismatch)}
+                  {mismatch && <p className="flex items-center gap-1.5 text-xs text-red-600"><Warning size={12} weight="fill" /> PINs do not match.</p>}
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={handleSave} disabled={!canSave} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Update PIN</button>
+                  <button onClick={reset} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -3589,9 +3639,14 @@ export default function CustomerPaymentPortalPage() {
 
   return (
     <div className="h-screen overflow-hidden bg-slate-50 flex flex-col">
-      <header className="h-14 bg-white border-b border-slate-200 flex items-center px-6 shrink-0">
-        <h1 className="text-sm font-semibold text-slate-700">Customer Payment Portal</h1>
-        <span className="ml-2 text-xs text-slate-400">— {getActiveCustomer().name}</span>
+      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <img src="/metroview-logo.jpeg" alt="Company logo" className="w-10 h-10 rounded-full object-cover shrink-0" />
+          <div className="flex flex-col">
+            <h1 className="text-sm font-bold text-slate-800 leading-tight">{getActiveCustomer().name}</h1>
+            <span className="text-xs text-slate-400 leading-tight">Customer Payment Portal</span>
+          </div>
+        </div>
         {!locked && (
           <button
             onClick={() => setPortalView(portalView === 'settings' ? 'flow' : 'settings')}
@@ -3630,16 +3685,22 @@ export default function CustomerPaymentPortalPage() {
         </div>
       )}
 
+      {/* Horizontal progress bar — segmented with gaps */}
+      {!locked && portalView === 'flow' && (
+        <div className="flex shrink-0 gap-1 px-0">
+          {[1, 2, 3].map((n) => (
+            <div
+              key={n}
+              className={['flex-1 h-1.5 transition-colors rounded-full', step >= n ? 'bg-violet-600' : 'bg-slate-200'].join(' ')}
+            />
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
-        <Stepper
-          step={step}
-          muted={locked}
-          settingsActive={!locked && portalView === 'settings'}
-          onSettings={() => setPortalView('settings')}
-        />
         {locked && <RestrictedPortalView />}
         {!locked && portalView === 'settings' && <SettingsPage currentPin={currentPin} onChangePin={setCurrentPin} onBack={() => setPortalView('flow')} />}
-        {!locked && portalView === 'flow' && step === 1 && <Step1 selected={selected} onToggle={toggle} showError={showStep1Error} onContinue={handleStep1Continue} showSummary={previewShowSummary} showCustomerInfo={previewShowCustomerInfo} visibleFields={previewVisibleFields} />}
+        {!locked && portalView === 'flow' && step === 1 && <Step1 selected={selected} onToggle={toggle} showError={showStep1Error} onContinue={handleStep1Continue} showSummary={previewShowSummary} showCustomerInfo={previewShowCustomerInfo} visibleFields={previewVisibleFields} step={step} />}
         {!locked && portalView === 'flow' && step === 2 && (
           <Step2
             selected={selected}
@@ -3650,9 +3711,10 @@ export default function CustomerPaymentPortalPage() {
             onPrevious={() => setStep(1)}
             showUpload={previewShowUpload}
             showSummary={previewShowSummary}
+            step={step}
           />
         )}
-        {!locked && portalView === 'flow' && step === 3 && <Step3 selected={selected} total={total} method={method} onBackToPortal={handleBackToPortal} />}
+        {!locked && portalView === 'flow' && step === 3 && <Step3 selected={selected} total={total} method={method} onBackToPortal={handleBackToPortal} step={step} />}
       </div>
 
       {/* First-time: mandatory Set Up PIN (cannot be dismissed) */}
@@ -3662,7 +3724,7 @@ export default function CustomerPaymentPortalPage() {
       {isLogin && <PinAuthModal currentPin={currentPin} onSuccess={() => setAppState('portal')} />}
 
       {/* Demo state switch — hidden in preview mode */}
-      {!isPreview && <div className="fixed bottom-4 left-4 z-[60] bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1.5 flex items-center gap-1">
+      {!isPreview && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1.5 flex items-center gap-1">
         <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Demo</span>
         <button
           onClick={demoFirstTime}
