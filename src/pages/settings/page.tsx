@@ -49,7 +49,6 @@ import {
   SelectItem,
 } from '#/components/atoms/Select';
 import { cn } from '#/components/utils';
-import { Tabs, TabsList, TabsTrigger } from '#/components/molecules/Tabs/Tabs';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -67,8 +66,8 @@ type SettingsSection =
   | 'template-library'
   | 'custom-fields-form'
   | 'custom-fields-bills'
-  | 'payment-portal'
-  | 'payment-methods'
+  | 'portal-customization'
+  | 'portal-payment-methods'
   | 'disbursements'
   | 'users'
   | 'developer-settings';
@@ -1114,18 +1113,9 @@ function PaymentPortalSettings() {
 
       {/* ── Sticky toolbar ── */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
-        {/* Left — empty balance column */}
         <div />
 
-        {/* Center — Build / Preview toggle */}
-        <div className="flex justify-center">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as 'build' | 'preview')} orientation="horizontal">
-            <TabsList className="min-w-60 w-full">
-              <TabsTrigger value="build" className="w-full">Build</TabsTrigger>
-              <TabsTrigger value="preview" className="w-full">Preview</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        <div />
 
         {/* Right — Discard + Save */}
         <div className="flex items-center justify-end gap-2">
@@ -1156,217 +1146,21 @@ function PaymentPortalSettings() {
             <div className="bg-white border border-slate-200 rounded-xl">
               <div className="px-6 py-5 border-b border-slate-100">
                 <h2 className="text-sm font-semibold text-slate-800">Access & Security</h2>
-                <p className="text-xs text-slate-500 mt-1">Control how customers access to their payment portal.</p>
+                <p className="text-xs text-slate-500 mt-1">How customers access their payment portal.</p>
               </div>
-              <div className="px-6 py-6 flex flex-col gap-5">
-
-                {/* Toggle row */}
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">Require PIN for Portal Access</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Enabling this will require customers to always enter their PIN before accessing their payment portal.</p>
+              <div className="px-6 py-6 flex flex-col gap-4">
+                <p className="text-sm font-semibold text-slate-800">PIN Authentication</p>
+                <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-4">
+                  <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm font-semibold text-slate-800">Customer PIN</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">Every customer is automatically assigned a temporary PIN using their initials and the last four digits of their Customer ID.</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">Customers can change their PIN after their first login, and merchants can reset it if necessary.</p>
                   </div>
-                  <Switch checked={pinEnabled} onCheckedChange={setPinEnabled} checkedBg="primary" />
                 </div>
-
-                {/* OFF state — informational note */}
-                {/* ON state — violet info box */}
-                {pinEnabled && (
-                  <div className="flex items-start gap-3 bg-violet-50 border border-violet-200 rounded-lg px-4 py-3.5">
-                    <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
-                    <div className="flex flex-col gap-1">
-                      <p className="text-xs text-violet-700 font-medium">All customers will be required to enter and set their PIN.</p>
-                      <p className="text-xs text-violet-600">Upon accessing their payment link from their bill, your customers will be prompted to create their PIN first before they can view their payment portal. They can also reset their pin if they forgot it.</p>
-                    </div>
-                  </div>
-                )}
-
               </div>
             </div>
 
-            {/* Portal Customization */}
-            <div className="bg-white border border-slate-200 rounded-xl">
-              {/* Header */}
-              <div className="px-6 py-5 border-b border-slate-100">
-                <h2 className="text-sm font-semibold text-slate-800">Portal Customization</h2>
-                <p className="text-sm text-slate-500 mt-1">Control what customers see when they open their portal.</p>
-                <p className="text-xs text-slate-400 mt-0.5">Settings here can be applied globally or overridden per customer group or individual customer.</p>
-              </div>
-
-              <div className="px-6 py-6 flex flex-col gap-6">
-
-                {/* Apply To */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold text-slate-600">Apply To</label>
-                  <div className="flex items-center gap-2">
-                    {([
-                    ['all', 'All Customers', false],
-                    ['group', 'Customer Group', true],
-                    ['individual', 'Specific Customer', true],
-                    ['exclude', 'Exclude Specific Customer', true],
-                  ] as [string, string, boolean][]).map(([val, label, isV2]) => (
-                    <button
-                      key={val}
-                      onClick={() => !isV2 && setApplyTo(val as typeof applyTo)}
-                      disabled={isV2}
-                      className={['px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-colors', applyTo === val ? 'bg-violet-50 border-violet-300 text-violet-700' : 'bg-white border-slate-200 text-slate-500', isV2 ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
-                    >
-                      {label}
-                      {isV2 && <span className="ml-1.5 text-[10px] text-slate-400">(V2)</span>}
-                    </button>
-                  ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-100" />
-
-                {/* Subsection 1 — Summary Section */}
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Show Summary Section</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Displays totals and bill counts in the customer portal.</p>
-                    </div>
-                    <Switch checked={showSummary} onCheckedChange={setShowSummary} checkedBg="primary" />
-                  </div>
-                  {showSummary && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-4 flex flex-col gap-4">
-                      <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Summary of Line Items</p>
-                        <div className="flex flex-col gap-1.5">
-                          {[['Bill Name', 'Amount'], ['Qty', '']].map(([a], i) => (
-                            <div key={i} className="flex items-center justify-between text-xs text-slate-600">
-                              <span className="flex items-center gap-1.5"><Check size={11} className="text-violet-500" weight="bold" />{a === 'Bill Name' ? 'Bill Name + Amount' : 'Quantity'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="border-t border-slate-200 pt-3">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Billing Cycle Breakdown</p>
-                        <div className="flex flex-col gap-1.5">
-                          {['Subtotal (VAT exclusive)', 'Tax % (VAT)', 'Discount %', 'Tax amount', 'Discount amount', 'Total', 'Amount due'].map((f) => (
-                            <div key={f} className="flex items-center gap-1.5 text-xs text-slate-600">
-                              <Check size={11} className="text-violet-500 shrink-0" weight="bold" />
-                              {f}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t border-slate-100" />
-
-                {/* Subsection 2 — Customer Information */}
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Show Customer Information Panel</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Displays customer details inside the portal.</p>
-                    </div>
-                    <Switch checked={showCustomerInfo} onCheckedChange={setShowCustomerInfo} checkedBg="primary" />
-                  </div>
-
-                  {showCustomerInfo && (
-                    <div className="flex flex-col gap-4">
-                      {/* Organization / Individual tabs */}
-                      <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
-                        {(['organization', 'individual'] as const).map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => setCustomerInfoTab(t)}
-                            className={['px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-colors', customerInfoTab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'].join(' ')}
-                          >
-                            {t === 'organization' ? 'Organization' : 'Individual'}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Organization fields */}
-                      {customerInfoTab === 'organization' && (
-                        <div className="flex flex-col gap-3">
-                          <p className="text-xs font-semibold text-slate-500">Display Fields</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {([
-                              ['customerId', 'Customer ID'],
-                              ['customerName', 'Customer Name', true],
-                              ['email', 'Customer Email', true],
-                              ['phone', 'Customer Phone'],
-                              ['address', 'Address'],
-                              ['withholdingTax', 'Withholding Tax %'],
-                            ] as [keyof typeof orgFields, string, boolean?][]).map(([key, label, required]) => (
-                              <label key={key} className={['flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer', required ? 'opacity-70' : ''].join(' ')}>
-                                <input
-                                  type="checkbox"
-                                  checked={orgFields[key]}
-                                  disabled={required}
-                                  onChange={(e) => setOrgFields((f) => ({ ...f, [key]: e.target.checked }))}
-                                  className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 accent-violet-600"
-                                />
-                                {label}
-                                {required && <span className="text-[10px] text-slate-400">(required)</span>}
-                              </label>
-                            ))}
-                          </div>
-
-                          <p className="text-xs font-semibold text-slate-500 mt-1">Contact Persons</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {([
-                              ['primaryContactName', 'Primary Contact Name'],
-                              ['primaryContactPosition', 'Primary Contact Position'],
-                              ['primaryContactEmail', 'Primary Contact Email'],
-                              ['primaryContactPhone', 'Primary Contact Phone'],
-                              ['otherContacts', 'Other Contacts'],
-                            ] as [keyof typeof orgFields, string][]).map(([key, label]) => (
-                              <label key={key} className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={orgFields[key]}
-                                  onChange={(e) => setOrgFields((f) => ({ ...f, [key]: e.target.checked }))}
-                                  className="w-3.5 h-3.5 rounded border-slate-300 accent-violet-600"
-                                />
-                                {label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Individual fields */}
-                      {customerInfoTab === 'individual' && (
-                        <div className="flex flex-col gap-3">
-                          <p className="text-xs font-semibold text-slate-500">Display Fields</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {([
-                              ['customerId', 'Customer ID'],
-                              ['customerName', 'Customer Name', true],
-                              ['email', 'Customer Email', true],
-                              ['phone', 'Customer Phone'],
-                              ['address', 'Address'],
-                              ['withholdingTax', 'Withholding Tax %'],
-                            ] as [keyof typeof indFields, string, boolean?][]).map(([key, label, required]) => (
-                              <label key={key} className={['flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer', required ? 'opacity-70' : ''].join(' ')}>
-                                <input
-                                  type="checkbox"
-                                  checked={indFields[key]}
-                                  disabled={required}
-                                  onChange={(e) => setIndFields((f) => ({ ...f, [key]: e.target.checked }))}
-                                  className="w-3.5 h-3.5 rounded border-slate-300 accent-violet-600"
-                                />
-                                {label}
-                                {required && <span className="text-[10px] text-slate-400">(required)</span>}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </div>
 
           </>
         )}
@@ -1403,8 +1197,28 @@ function PaymentMethodsSettings() {
   const [showAddMethod, setShowAddMethod] = useState(false);
   const [newMethod, setNewMethod] = useState({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false });
   const [methodErrors, setMethodErrors] = useState({ name: false, desc: false });
+  const [saved, setSaved] = useState(false);
+
+  function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2500); }
 
   return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+
+      {/* Sticky toolbar — same style as Customization, no tabs */}
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
+        <div />
+        <div />
+        {/* Right — Discard + Save */}
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="md" onClick={() => {}} className="text-slate-800">
+            Discard changes
+          </Button>
+          <Button colorScheme="primary" size="md" onClick={handleSave}>
+            {saved ? '✓ Saved' : 'Save changes'}
+          </Button>
+        </div>
+      </div>
+
     <div className="flex-1 overflow-y-auto px-8 py-8 flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-bold text-slate-800">Payment Methods</h1>
@@ -1449,12 +1263,24 @@ function PaymentMethodsSettings() {
                       <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
                     </div>
                   </div>
-                  <Switch checked={paymongoEnabled && paymongoStatus === 'connected'} onCheckedChange={setPaymongoEnabled} disabled={paymongoStatus !== 'connected'} checkedBg="primary" />
+                  {/* Toggle always clickable; OFF = hidden from portal regardless of connection */}
+                  <Switch checked={paymongoEnabled} onCheckedChange={setPaymongoEnabled} disabled={!paymongoEnabled && xenditEnabled} checkedBg="primary" />
                 </div>
-                {paymongoStatus !== 'connected' && (
+                {/* CTAs only when toggle ON + not yet connected */}
+                {paymongoEnabled && paymongoStatus !== 'connected' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => setPaymongoStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">Request Registration Link</button>
                     <button onClick={() => setPaymongoStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Connect Existing Account</button>
+                  </div>
+                )}
+                {/* Connected + enabled → live indicator */}
+                {paymongoEnabled && paymongoStatus === 'connected' && (
+                  <p className="text-xs text-emerald-600 font-medium">✓ Live — PayMongo is available to customers in the portal.</p>
+                )}
+                {!paymongoEnabled && xenditEnabled && (
+                  <div className="flex items-start gap-2 border border-slate-200 rounded-lg px-3 py-2.5">
+                    <Info size={14} className="text-slate-800 shrink-0 mt-0.5" />
+                    <p className="text-xs text-slate-800">Only one payment gateway can be active at a time. Disable the currently active gateway before enabling another.</p>
                   </div>
                 )}
               </div>
@@ -1475,12 +1301,24 @@ function PaymentMethodsSettings() {
                       <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
                     </div>
                   </div>
-                  <Switch checked={xenditEnabled && xenditStatus === 'connected'} onCheckedChange={setXenditEnabled} disabled={xenditStatus !== 'connected'} checkedBg="primary" />
+                  {/* Toggle always clickable; OFF = hidden from portal */}
+                  <Switch checked={xenditEnabled} onCheckedChange={setXenditEnabled} disabled={!xenditEnabled && paymongoEnabled} checkedBg="primary" />
                 </div>
-                {xenditStatus !== 'connected' && (
+                {/* CTAs only when toggle ON + not yet connected */}
+                {xenditEnabled && xenditStatus !== 'connected' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => setXenditStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">Create Account</button>
                     <button onClick={() => setXenditStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Connect Existing Account</button>
+                  </div>
+                )}
+                {/* Connected + enabled → live indicator */}
+                {xenditEnabled && xenditStatus === 'connected' && (
+                  <p className="text-xs text-emerald-600 font-medium">✓ Live — Xendit is available to customers in the portal.</p>
+                )}
+                {!xenditEnabled && paymongoEnabled && (
+                  <div className="flex items-start gap-2 border border-slate-200 rounded-lg px-3 py-2.5">
+                    <Info size={14} className="text-slate-800 shrink-0 mt-0.5" />
+                    <p className="text-xs text-slate-800">Only one payment gateway can be active at a time. Disable the currently active gateway before enabling another.</p>
                   </div>
                 )}
               </div>
@@ -1557,6 +1395,7 @@ function PaymentMethodsSettings() {
         </div>
       )}
     </div>
+    </div>
   );
 }
 
@@ -1600,6 +1439,7 @@ export function SettingsPage() {
   const { saveCustomFields } = useCustomFields();
   const [activeSection, setActiveSection] = useState<SettingsSection>('custom-fields-form');
   const [customFieldsOpen, setCustomFieldsOpen] = useState(true);
+  const [customerPortalOpen, setCustomerPortalOpen] = useState(true);
 
   // Committed (saved) state
   const [savedSections, setSavedSections] = useState<FieldSection[]>(SYSTEM_SECTIONS);
@@ -1707,8 +1547,9 @@ export function SettingsPage() {
     'template-library':    ['Settings', 'Template Library'],
     'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
     'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
-    'payment-portal':      ['Settings', 'Customer Payment Portal'],
-    'payment-methods':     ['Settings', 'Payment Methods'],
+    'portal-customization': ['Settings', 'Customer Payment Portal', 'Customization'],
+    'portal-payment-methods': ['Settings', 'Customer Payment Portal', 'Payment Methods'],
+    
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
     'developer-settings':  ['Settings', 'Developer Settings'],
@@ -1721,8 +1562,8 @@ export function SettingsPage() {
     'template-library':    'Template Library',
     'custom-fields-form':  'Customer',
     'custom-fields-bills': 'Bills',
-    'payment-portal':      'Customer Payment Portal',
-    'payment-methods':     'Payment Methods',
+    'portal-customization': 'Customization',
+    'portal-payment-methods': 'Payment Methods',
     'disbursements':       'Disbursements',
     'users':               'Users',
     'developer-settings':  'Developer Settings',
@@ -1746,10 +1587,10 @@ export function SettingsPage() {
         />
       );
     }
-    if (activeSection === 'payment-portal') {
+    if (activeSection === 'portal-customization') {
       return <PaymentPortalSettings />;
     }
-    if (activeSection === 'payment-methods') {
+    if (activeSection === 'portal-payment-methods') {
       return <PaymentMethodsSettings />;
     }
     return <PlaceholderContent label={placeholderLabels[activeSection]} />;
@@ -1814,8 +1655,32 @@ export function SettingsPage() {
               </>
             )}
 
-            <SecNavItem label="Customer Payment Portal" active={activeSection === 'payment-portal'} onClick={() => setActiveSection('payment-portal')} />
-            <SecNavItem label="Payment Methods"    active={activeSection === 'payment-methods'}   onClick={() => setActiveSection('payment-methods')} />
+            {/* Customer Payment Portal — expandable */}
+            <button
+              onClick={() => setCustomerPortalOpen(o => !o)}
+              className={cn(
+                'w-full text-left px-4 py-2 text-sm border-l-[3px] flex items-center justify-between transition-colors',
+                (activeSection === 'portal-customization' || activeSection === 'portal-payment-methods')
+                  ? 'border-violet-600 bg-violet-50 text-violet-700 font-medium'
+                  : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+              )}
+            >
+              Customer Payment Portal
+              <CaretDown
+                size={11}
+                className={cn(
+                  'shrink-0 transition-transform duration-150',
+                  (activeSection === 'portal-customization' || activeSection === 'portal-payment-methods') ? 'text-violet-500' : 'text-slate-400',
+                  customerPortalOpen ? 'rotate-0' : '-rotate-90',
+                )}
+              />
+            </button>
+            {customerPortalOpen && (
+              <>
+                <SecSubNavItem label="Customization"   active={activeSection === 'portal-customization'}    onClick={() => setActiveSection('portal-customization')} />
+                <SecSubNavItem label="Payment Methods" active={activeSection === 'portal-payment-methods'}  onClick={() => setActiveSection('portal-payment-methods')} />
+              </>
+            )}
             <SecNavItem label="Disbursements"      active={activeSection === 'disbursements'}      onClick={() => setActiveSection('disbursements')} />
             <SecNavItem label="Users"              active={activeSection === 'users'}              onClick={() => setActiveSection('users')} />
             <SecNavItem label="Developer Settings" active={activeSection === 'developer-settings'} onClick={() => setActiveSection('developer-settings')} />
@@ -1823,10 +1688,10 @@ export function SettingsPage() {
 
           {/* Main content */}
           <main className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
-            <div className={['flex-1', activeSection === 'payment-portal' || activeSection === 'payment-methods' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
+            <div className={['flex-1', activeSection === 'portal-customization' || activeSection === 'portal-payment-methods' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
               {renderContent()}
             </div>
-            {hasPendingChanges && activeSection !== 'payment-portal' && (
+            {hasPendingChanges && activeSection !== 'portal-customization' && (
               <SaveBar onSave={handleSave} onDiscard={handleDiscard} />
             )}
           </main>

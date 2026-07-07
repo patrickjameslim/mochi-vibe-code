@@ -1882,12 +1882,12 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
         onReset={() => { setFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); }}
       />
 
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Center content column */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Full-width scroll with centered constrained content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
 
-          {/* ── Sticky workspace header (white card, matches side panels) ── */}
-          <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-slate-200 px-8 py-5 flex flex-col gap-4 shadow-sm">
+        {/* ── Sticky workspace header ── */}
+        <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+          <div className="max-w-5xl mx-auto px-6 py-5 flex flex-col gap-4">
             {/* Title */}
             <div>
               <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Step 1</p>
@@ -1895,21 +1895,46 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
               <p className="text-sm text-slate-500 mt-0.5">Choose one or more bills below to proceed with payment.</p>
             </div>
 
-            {/* Search + Filter */}
-            <div className="flex items-center justify-between">
-              <div className="relative w-72">
-                <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 focus:bg-white transition-colors"
-                  placeholder="Search by Bill ID or name…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
+            {/* Active filter chips */}
+            {activeFilterCount > 0 && (() => {
+              const chips: { label: string; clear: () => void }[] = [];
+              if (appliedFilters.status !== 'all') chips.push({ label: `Status: ${appliedFilters.status}`, clear: () => { setFilters(f => ({ ...f, status: 'all' })); setAppliedFilters(f => ({ ...f, status: 'all' })); } });
+              if (appliedFilters.billType !== 'all') chips.push({ label: `Type: ${appliedFilters.billType}`, clear: () => { setFilters(f => ({ ...f, billType: 'all' })); setAppliedFilters(f => ({ ...f, billType: 'all' })); } });
+              if (appliedFilters.amountMin || appliedFilters.amountMax) chips.push({ label: `Amount: ${appliedFilters.amountMin || '0'} – ${appliedFilters.amountMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, amountMin: '', amountMax: '' })); setAppliedFilters(f => ({ ...f, amountMin: '', amountMax: '' })); } });
+              if (appliedFilters.overdueMin || appliedFilters.overdueMax) chips.push({ label: `Overdue: ${appliedFilters.overdueMin || '0'} – ${appliedFilters.overdueMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); setAppliedFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); } });
+              if (appliedFilters.billDateFrom || appliedFilters.billDateTo) chips.push({ label: `Bill date: ${appliedFilters.billDateFrom || '—'} to ${appliedFilters.billDateTo || '—'}`, clear: () => { setFilters(f => ({ ...f, billDateFrom: '', billDateTo: '' })); setAppliedFilters(f => ({ ...f, billDateFrom: '', billDateTo: '' })); } });
+              if (appliedFilters.dueDateFrom || appliedFilters.dueDateTo) chips.push({ label: `Due date: ${appliedFilters.dueDateFrom || '—'} to ${appliedFilters.dueDateTo || '—'}`, clear: () => { setFilters(f => ({ ...f, dueDateFrom: '', dueDateTo: '' })); setAppliedFilters(f => ({ ...f, dueDateFrom: '', dueDateTo: '' })); } });
+              return (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {chips.map((chip) => {
+                    const [filterName, filterValue] = chip.label.split(': ');
+                    return (
+                      <span key={chip.label} className="inline-flex items-center border border-slate-200 rounded-md overflow-hidden text-xs bg-white shadow-sm">
+                        <span className="px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200 flex items-center gap-1.5">
+                          <FunnelSimple size={11} className="text-slate-400" />
+                          {filterName}
+                        </span>
+                        <span className="px-2.5 py-1.5 text-slate-500 border-r border-slate-200">is</span>
+                        <span className="px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200">{filterValue}</span>
+                        <button onClick={chip.clear} className="px-2 py-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                          <X size={11} weight="bold" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                  <button onClick={() => { setFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); }} className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors ml-1">
+                    Clear
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* Filter + Select All — right-aligned */}
+            <div className="flex items-center gap-2 justify-end">
               <button
                 onClick={() => setDrawerOpen(true)}
                 className={[
-                  'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold border transition-colors',
+                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors',
                   activeFilterCount > 0
                     ? 'bg-violet-600 text-white border-violet-600'
                     : 'bg-violet-50 border-violet-200 text-slate-800 hover:bg-violet-100',
@@ -1924,43 +1949,18 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                 )}
               </button>
             </div>
-
-            {/* Summary metrics */}
-            {showSummary && <div className="bg-slate-50 border border-slate-200 rounded-lg px-5 py-3.5 flex items-center justify-between">
-              <div className="flex gap-8">
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Total amount due before fees</p>
-                  <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of selected bills</p>
-                  <p className="text-lg font-bold text-slate-900">{selected.size}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Number of bills in portal</p>
-                  <p className="text-lg font-bold text-slate-900">{payableBills.length}</p>
-                </div>
-              </div>
-              <button
-                onClick={handleSelectAll}
-                className="px-6 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                {allSelected ? 'Deselect all' : 'Select all'}
-              </button>
-            </div>}
           </div>
+        </div>
 
-          {/* ── Scrollable bill list ── */}
-          <div className="flex-1 overflow-auto px-8 py-6 flex flex-col gap-3">
-            {/* Error banner */}
+        {/* ── Scrollable bill list — centered ── */}
+        <div className="flex-1 overflow-auto py-6">
+          <div className="max-w-5xl mx-auto px-6 flex flex-col gap-3">
             {showError && (
               <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
                 <Warning size={16} weight="fill" className="shrink-0" />
                 Please select at least one bill to continue.
               </div>
             )}
-
-            {/* Bill cards */}
             {filtered.map((bill) => (
               <BillCard
                 key={bill.id}
@@ -1973,25 +1973,52 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
               <div className="py-16 text-center text-sm text-slate-400">No bills match your search.</div>
             )}
           </div>
+        </div>
 
-          {/* Sticky footer */}
-          <div className="border-t border-slate-200 bg-white px-8 py-4 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-400">Powered by</span>
-              <img src={mochiLogo} alt="Mochi" className="h-4 w-auto opacity-60" />
+        {/* Floating selection toolbar — fixed above footer */}
+        {selected.size > 0 && (
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+            <div className="pointer-events-auto bg-white border border-slate-200 rounded-lg shadow-lg py-4 px-4 flex items-center gap-8 w-fit">
+              {/* Left: count + total */}
+              <div className="flex flex-col shrink-0">
+                <p className="text-sm font-semibold text-slate-900 leading-6">{selected.size} selected</p>
+                <p className="text-sm font-medium text-slate-500 leading-6">{fmt(selectedTotal)} in total</p>
+              </div>
+              {/* Right: actions */}
+              <div className="flex items-center gap-2">
+                {!allSelected && (
+                  <button
+                    onClick={handleSelectAll}
+                    className="inline-flex items-center px-4 py-2 rounded-md border border-dashed border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors whitespace-nowrap"
+                  >
+                    Select all {payableBills.length} bills
+                  </button>
+                )}
+                <button
+                  onClick={() => allVisiblePayable.forEach((b) => { if (selected.has(b.id)) onToggle(b.id); })}
+                  className="w-7 h-7 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                  aria-label="Clear selection"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
+          </div>
+        )}
+
+        {/* Sticky footer — amount + continue */}
+        <div className="border-t border-slate-200 bg-white shrink-0">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-end gap-4">
+            <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
             <button
               onClick={onContinue}
-              className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors"
+              className={['px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors', selected.size > 0 ? 'bg-violet-600 hover:bg-violet-700' : 'bg-violet-300 cursor-not-allowed'].join(' ')}
             >
               Continue
             </button>
           </div>
         </div>
       </div>
-
-        {/* Right panel */}
-        {showCustomerInfo && <CustomerInfoPanel visibleFields={visibleFields} />}
     </>
   );
 }
@@ -2410,150 +2437,150 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
   const totalDue = isUpload ? amountDue : amountDue + gatewayFee;
 
   return (
-    <div className="flex-1 flex overflow-hidden">
-      {/* Left: Sticky header + Order review */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        {/* Sticky header — title + breakdown */}
-        <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-slate-200 px-8 py-5 flex flex-col gap-4 shadow-sm">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Sticky header — title + full-width breakdown */}
+      <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-5xl mx-auto px-6 py-5 flex flex-col gap-4">
           <div>
             <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Step 2</p>
             <h1 className="text-xl font-bold text-slate-800">Confirm Payment</h1>
             <p className="text-sm text-slate-500 mt-0.5">Review your bills and choose how you'd like to pay.</p>
           </div>
 
-          {/* Breakdown — full width, label/value rows */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+          {/* Breakdown card — full width */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
               <p className="text-sm font-bold text-slate-800">Breakdown</p>
               {!isUpload && (
-                <button
-                  onClick={() => setShowFees(f => !f)}
-                  className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors"
-                >
+                <button onClick={() => setShowFees(f => !f)} className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors">
                   {showFees ? 'Hide fees' : 'View fees'}
                   <CaretDown size={11} className={['transition-transform', showFees ? 'rotate-180' : ''].join(' ')} />
                 </button>
               )}
             </div>
-
             <div className="flex flex-col">
-              <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+              <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
                 <span className="text-slate-600">Number of bills selected</span>
                 <span className="font-medium text-slate-800">{selectedBills.length}</span>
               </div>
-              <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+              <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
                 <span className="text-slate-600">Subtotal</span>
                 <span className="font-medium text-slate-800">{fmt(amountDue)}</span>
               </div>
-
-              {/* Collapsible gateway fee rows */}
               {!isUpload && showFees && (
                 <>
-                  <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+                  <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
                     <span className="text-slate-600">Payment Gateway Fee</span>
                     <span className="font-medium text-slate-800">3.50%</span>
                   </div>
-                  <div className="flex items-center justify-between px-5 py-2.5 text-sm border-b border-slate-100">
+                  <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
                     <span className="text-slate-600">Total Gateway Fee</span>
                     <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
                   </div>
                 </>
               )}
-
-              <div className="flex items-center justify-between px-5 py-3 bg-violet-50">
-                <span className="text-sm font-bold text-slate-700">Total Amount Due</span>
+              <div className="flex justify-between items-center px-5 py-3.5 bg-slate-50">
+                <span className="text-sm font-bold text-slate-800">Total Amount Due</span>
                 <span className="text-base font-bold text-violet-700">{fmt(totalDue)}</span>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex-1 overflow-auto px-8 py-6 flex flex-col gap-6">
-          {/* Order Summary */}
-          <div className="flex flex-col gap-3">
+      {/* Scrollable body — two-column centered */}
+      <div className="flex-1 overflow-auto py-8">
+        <div className="max-w-5xl mx-auto px-6 flex gap-8 items-start">
+
+          {/* LEFT: Order summary */}
+          <div className="flex-1 flex flex-col gap-4">
             <p className="text-sm font-semibold text-slate-800">Order summary</p>
-            {selectedBills.map((bill) => (
-              <OrderSummaryCard key={bill.id} bill={bill} />
-            ))}
+            <div className="flex flex-col gap-3">
+              {selectedBills.map((bill) => (
+                <OrderSummaryCard key={bill.id} bill={bill} />
+              ))}
+            </div>
           </div>
 
-          {/* Upload proof (only for upload method) */}
-          {isUpload && (
-            <div className="flex flex-col gap-3">
-              {submitError && (
-                <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-                  <Warning size={16} weight="fill" className="shrink-0" />
-                  Proof of payment could not be submitted. Please try again.
-                </div>
-              )}
-              <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col gap-5">
+          {/* RIGHT: Payment method card — Stripe style */}
+          <div className="w-96 shrink-0 flex flex-col gap-3">
+            {/* Payment method selector */}
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-5 pt-5 pb-3">
+                <p className="text-sm font-semibold text-slate-800">Payment method</p>
+              </div>
+              <div className="border-t border-slate-100">
+                {PAYMENT_METHODS.filter(opt => showUpload || opt.id !== 'upload').map((opt, i, arr) => {
+                  const Icon = opt.icon;
+                  const isSelected = method === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => { setMethod(opt.id); setSubmitError(false); setUploadError(''); }}
+                      className={['w-full flex items-center gap-3 px-5 py-3.5 text-left transition-colors', i < arr.length - 1 ? 'border-b border-slate-100' : '', isSelected ? 'bg-violet-50' : 'hover:bg-slate-50'].join(' ')}
+                    >
+                      <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0', isSelected ? 'border-violet-600' : 'border-slate-300'].join(' ')}>
+                        {isSelected && <div className="w-2 h-2 rounded-full bg-violet-600" />}
+                      </div>
+                      <div className={['w-8 h-8 rounded-lg flex items-center justify-center shrink-0', isSelected ? 'bg-violet-100' : 'bg-slate-100'].join(' ')}>
+                        <Icon size={16} className={isSelected ? 'text-violet-600' : 'text-slate-500'} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={['text-sm font-medium', isSelected ? 'text-violet-700' : 'text-slate-800'].join(' ')}>{opt.label}</p>
+                        <p className="text-xs text-slate-400 leading-snug">{opt.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Upload proof (only for upload method) */}
+            {isUpload && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+                {submitError && (
+                  <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+                    <Warning size={16} weight="fill" className="shrink-0" />
+                    Proof of payment could not be submitted. Please try again.
+                  </div>
+                )}
                 <UploadProofCard files={files} onAddFile={handleAddFile} onChangeFile={handleChangeFile} onRemove={handleRemove} error={uploadError} />
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-800">Remarks <span className="font-normal text-slate-400">(optional)</span></label>
                   <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3}
-                    placeholder="Add a note for this payment (e.g. reference number, sender name)…"
+                    placeholder="Add a note for this payment…"
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 resize-y" />
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
 
-
-        {/* Sticky footer — Previous + Proceed to Payment */}
-        <div className="border-t border-slate-200 bg-white px-8 py-4 flex items-center justify-between shrink-0">
-          <button onClick={onPrevious} className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-            <ArrowLeft size={16} /> Previous
-          </button>
-          <button
-            onClick={handlePrimary}
-            disabled={submitting || (isUpload && anyUploading)}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting && <Spinner size={16} className="animate-spin" />}
-            {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Proceed to Payment'}
-          </button>
+            <p className="text-xs text-slate-400 text-center">Secured by <span className="font-semibold text-slate-500">PayMongo</span></p>
+          </div>
         </div>
       </div>
 
-      {/* Right: Payment method */}
-      <aside className="w-80 shrink-0 bg-white border-l border-slate-200 overflow-y-auto sticky top-0 self-stretch">
-        <div className="px-6 py-6 flex flex-col gap-4">
-          <p className="text-base font-semibold text-slate-800">Payment method</p>
-
-          {/* Radio list */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
-            {PAYMENT_METHODS.filter(opt => showUpload || opt.id !== 'upload').map((opt, i, arr) => {
-              const Icon = opt.icon;
-              const isSelected = method === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  onClick={() => { setMethod(opt.id); setSubmitError(false); setUploadError(''); }}
-                  className={['w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors', i < arr.length - 1 ? 'border-b border-slate-100' : '', isSelected ? 'bg-violet-50' : 'hover:bg-slate-50'].join(' ')}
-                >
-                  {/* Radio */}
-                  <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors', isSelected ? 'border-violet-600' : 'border-slate-300'].join(' ')}>
-                    {isSelected && <div className="w-2 h-2 rounded-full bg-violet-600" />}
-                  </div>
-                  {/* Icon */}
-                  <div className={['w-8 h-8 rounded-lg flex items-center justify-center shrink-0', isSelected ? 'bg-violet-100' : 'bg-slate-100'].join(' ')}>
-                    <Icon size={16} className={isSelected ? 'text-violet-600' : 'text-slate-500'} />
-                  </div>
-                  {/* Label */}
-                  <div className="flex-1 min-w-0">
-                    <p className={['text-sm font-medium leading-snug', isSelected ? 'text-violet-700' : 'text-slate-800'].join(' ')}>{opt.label}</p>
-                    <p className="text-xs text-slate-400 mt-0.5 leading-snug">{opt.desc}</p>
-                  </div>
-                </button>
-              );
-            })}
+      {/* Footer — aligned to max-w-5xl */}
+      <div className="border-t border-slate-200 bg-white shrink-0">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400">Powered by</span>
+            <img src={mochiLogo} alt="Mochi" className="h-4 w-auto opacity-60" />
           </div>
-
-          <p className="text-xs text-slate-400 text-center mt-auto pt-2">Secured by <span className="font-semibold text-slate-500">PayMongo</span></p>
+          <div className="flex items-center gap-3">
+            <button onClick={onPrevious} className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <ArrowLeft size={16} /> Previous
+            </button>
+            <button
+              onClick={handlePrimary}
+              disabled={submitting || (isUpload && anyUploading)}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting && <Spinner size={16} className="animate-spin" />}
+              {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Proceed to Payment'}
+            </button>
+          </div>
         </div>
-      </aside>
+      </div>
     </div>
   );
 }
@@ -3665,21 +3692,11 @@ export default function CustomerPaymentPortalPage() {
       {!locked && showPinSuccessBanner && (
         <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3 flex items-center justify-between shrink-0">
           <p className="flex items-center gap-2 text-sm text-emerald-700 font-medium">
-            <CheckCircle size={18} weight="fill" /> Your PIN has been set. You're all set! Use it next time you log in.
+            <CheckCircle size={18} weight="fill" />
+            Your PIN has been set. You're all set! Use it the next time you log in. Need to change it? Go to{' '}
+            <button onClick={() => setPortalView('settings')} className="font-semibold underline hover:text-emerald-900 transition-colors">Settings</button>.
           </p>
-          <button onClick={() => setShowPinSuccessBanner(false)} className="text-emerald-600 hover:text-emerald-800 transition-colors" aria-label="Dismiss">
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      {!locked && showSettingsBanner && (
-        <div className="bg-blue-50 border-b border-blue-200 px-6 py-2.5 flex items-center justify-between shrink-0">
-          <p className="text-sm text-blue-700">
-            Need to change your PIN? Go to{' '}
-            <button onClick={() => setPortalView('settings')} className="font-semibold underline hover:text-blue-900 transition-colors">Settings</button>
-            {' '}to update it anytime.
-          </p>
-          <button onClick={() => setShowSettingsBanner(false)} className="text-blue-600 hover:text-blue-800 transition-colors" aria-label="Dismiss">
+          <button onClick={() => { setShowPinSuccessBanner(false); setShowSettingsBanner(false); }} className="text-emerald-600 hover:text-emerald-800 transition-colors" aria-label="Dismiss">
             <X size={16} />
           </button>
         </div>
