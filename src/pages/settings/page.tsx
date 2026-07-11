@@ -1146,16 +1146,16 @@ function PaymentPortalSettings() {
             <div className="bg-white border border-slate-200 rounded-xl">
               <div className="px-6 py-5 border-b border-slate-100">
                 <h2 className="text-sm font-semibold text-slate-800">Access & Security</h2>
-                <p className="text-xs text-slate-500 mt-1">How customers access their payment portal.</p>
+                <p className="text-xs text-slate-500 mt-1">How customers securely access their payment portal.</p>
               </div>
               <div className="px-6 py-6 flex flex-col gap-4">
-                <p className="text-sm font-semibold text-slate-800">PIN Authentication</p>
+                <p className="text-sm font-semibold text-slate-800">Email Authentication</p>
                 <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-4">
                   <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-1.5">
-                    <p className="text-sm font-semibold text-slate-800">Customer PIN</p>
-                    <p className="text-xs text-slate-500 leading-relaxed">Every customer is automatically assigned a temporary PIN using their initials and the last four digits of their Customer ID.</p>
-                    <p className="text-xs text-slate-500 leading-relaxed">Customers can change their PIN after their first login, and merchants can reset it if necessary.</p>
+                    <p className="text-sm text-slate-500 leading-relaxed">
+                      Customers authenticate using their registered email address. A one-time password (OTP) is sent to their email each time they sign in. The OTP expires after <span className="font-semibold text-slate-700">5 minutes</span> and customers can request a new code if it expires.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1192,6 +1192,22 @@ function PaymentMethodsSettings() {
   const [paymongoEnabled, setPaymongoEnabled] = useState(false);
   const [xenditStatus, setXenditStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
   const [xenditEnabled, setXenditEnabled] = useState(false);
+  const [switchGatewayTarget, setSwitchGatewayTarget] = useState<'paymongo' | 'xendit' | null>(null);
+
+  function handlePaymongoToggle(next: boolean) {
+    if (next && xenditEnabled) { setSwitchGatewayTarget('paymongo'); return; }
+    setPaymongoEnabled(next);
+  }
+  function handleXenditToggle(next: boolean) {
+    if (next && paymongoEnabled) { setSwitchGatewayTarget('xendit'); return; }
+    setXenditEnabled(next);
+  }
+  function confirmSwitchGateway() {
+    if (switchGatewayTarget === 'paymongo') { setXenditEnabled(false); setPaymongoEnabled(true); }
+    else if (switchGatewayTarget === 'xendit') { setPaymongoEnabled(false); setXenditEnabled(true); }
+    setSwitchGatewayTarget(null);
+  }
+
   type CustomMethod = { id: string; name: string; desc: string; requiresRemarks: boolean; requiresProof: boolean; internalOnly: boolean };
   const [customMethods, setCustomMethods] = useState<CustomMethod[]>([]);
   const [showAddMethod, setShowAddMethod] = useState(false);
@@ -1263,8 +1279,8 @@ function PaymentMethodsSettings() {
                       <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
                     </div>
                   </div>
-                  {/* Toggle always clickable; OFF = hidden from portal regardless of connection */}
-                  <Switch checked={paymongoEnabled} onCheckedChange={setPaymongoEnabled} disabled={!paymongoEnabled && xenditEnabled} checkedBg="primary" />
+                  {/* Toggle always clickable; switching to another active gateway triggers a confirmation modal */}
+                  <Switch checked={paymongoEnabled} onCheckedChange={handlePaymongoToggle} checkedBg="primary" />
                 </div>
                 {/* CTAs only when toggle ON + not yet connected */}
                 {paymongoEnabled && paymongoStatus !== 'connected' && (
@@ -1276,12 +1292,6 @@ function PaymentMethodsSettings() {
                 {/* Connected + enabled → live indicator */}
                 {paymongoEnabled && paymongoStatus === 'connected' && (
                   <p className="text-xs text-emerald-600 font-medium">✓ Live — PayMongo is available to customers in the portal.</p>
-                )}
-                {!paymongoEnabled && xenditEnabled && (
-                  <div className="flex items-start gap-2 border border-slate-200 rounded-lg px-3 py-2.5">
-                    <Info size={14} className="text-slate-800 shrink-0 mt-0.5" />
-                    <p className="text-xs text-slate-800">Only one payment gateway can be active at a time. Disable the currently active gateway before enabling another.</p>
-                  </div>
                 )}
               </div>
               {/* Xendit */}
@@ -1301,8 +1311,8 @@ function PaymentMethodsSettings() {
                       <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
                     </div>
                   </div>
-                  {/* Toggle always clickable; OFF = hidden from portal */}
-                  <Switch checked={xenditEnabled} onCheckedChange={setXenditEnabled} disabled={!xenditEnabled && paymongoEnabled} checkedBg="primary" />
+                  {/* Toggle always clickable; switching to another active gateway triggers a confirmation modal */}
+                  <Switch checked={xenditEnabled} onCheckedChange={handleXenditToggle} checkedBg="primary" />
                 </div>
                 {/* CTAs only when toggle ON + not yet connected */}
                 {xenditEnabled && xenditStatus !== 'connected' && (
@@ -1314,12 +1324,6 @@ function PaymentMethodsSettings() {
                 {/* Connected + enabled → live indicator */}
                 {xenditEnabled && xenditStatus === 'connected' && (
                   <p className="text-xs text-emerald-600 font-medium">✓ Live — Xendit is available to customers in the portal.</p>
-                )}
-                {!xenditEnabled && paymongoEnabled && (
-                  <div className="flex items-start gap-2 border border-slate-200 rounded-lg px-3 py-2.5">
-                    <Info size={14} className="text-slate-800 shrink-0 mt-0.5" />
-                    <p className="text-xs text-slate-800">Only one payment gateway can be active at a time. Disable the currently active gateway before enabling another.</p>
-                  </div>
                 )}
               </div>
             </div>
@@ -1394,6 +1398,30 @@ function PaymentMethodsSettings() {
           </div>
         </div>
       )}
+
+      {switchGatewayTarget && (() => {
+        const targetName = switchGatewayTarget === 'paymongo' ? 'PayMongo' : 'Xendit';
+        const activeName = switchGatewayTarget === 'paymongo' ? 'Xendit' : 'PayMongo';
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col gap-4 p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-slate-800">Switch Active Payment Gateway?</h3>
+                <button onClick={() => setSwitchGatewayTarget(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+              </div>
+              <div className="flex flex-col gap-2 text-sm text-slate-600 leading-relaxed">
+                <p>Only one payment gateway can be active at a time.</p>
+                <p>To activate <span className="font-semibold text-slate-800">{targetName}</span>, the currently active gateway (<span className="font-semibold text-slate-800">{activeName}</span>) will be automatically disabled.</p>
+                <p>Do you want to continue?</p>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                <button onClick={() => setSwitchGatewayTarget(null)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onClick={confirmSwitchGateway} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors">Switch Gateway</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
     </div>
   );
