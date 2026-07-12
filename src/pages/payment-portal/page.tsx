@@ -40,6 +40,7 @@ import {
 } from '@phosphor-icons/react';
 import mochiLogo from '#/assets/mochi-logo.svg';
 import mochiLogoWhite from '#/assets/mochi-logo-white.svg';
+import envelopeOtpIcon from '#/assets/envelope-otp-icon.png';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ type AppState = 'setupPin' | 'login' | 'portal';
 type Step = 1 | 2 | 3;
 type PaymentMethod = 'card' | 'gcash' | 'maya' | 'bank' | 'qrph' | 'upload';
 type BillStatus = 'paid' | 'unpaid' | 'pending' | 'overdue';
-type BillType = 'one-time' | 'recurring' | 'installment';
+type BillType = 'one-time' | 'recurring';
 type CustomerType = 'organization' | 'individual';
 
 interface LineItem {
@@ -155,7 +156,7 @@ const BILLS: Bill[] = [
     id: 'BNG-2025-004',
     name: 'Maintenance Fee — Q2 2025',
     status: 'pending',
-    billType: 'installment',
+    billType: 'one-time',
     billDate: 'Apr 15, 2025',
     dueDate: 'Jul 1, 2025',
     amount: 8500,
@@ -245,7 +246,7 @@ const DEMO_BILLS: Bill[] = [
     id: 'DEMO-004',
     name: 'Sample Bill D',
     status: 'pending',
-    billType: 'installment',
+    billType: 'one-time',
     billDate: 'Jun 15, 2025',
     dueDate: 'Jul 15, 2025',
     amount: 1500,
@@ -275,7 +276,7 @@ const DEMO_CUSTOMER: Customer = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
-  return `₱ ${n.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+  return `₱ ${n.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 }
 
 function isPayable(b: Bill) {
@@ -872,9 +873,9 @@ function FilterDrawer({ open, onClose, filters, onChange, onApply, onReset }: {
   onReset: () => void;
 }) {
   const statuses: (BillStatus | 'all')[] = ['all', 'paid', 'unpaid', 'pending', 'overdue'];
-  const billTypes: (BillType | 'all')[] = ['all', 'one-time', 'recurring', 'installment'];
+  const billTypes: (BillType | 'all')[] = ['all', 'one-time', 'recurring'];
   const billTypeLabels: Record<BillType | 'all', string> = {
-    'all': 'All', 'one-time': 'One-Time', 'recurring': 'Recurring', 'installment': 'Installment',
+    'all': 'All', 'one-time': 'One-Time', 'recurring': 'Recurring',
   };
 
   if (!open) return null;
@@ -896,27 +897,6 @@ function FilterDrawer({ open, onClose, filters, onChange, onApply, onReset }: {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-7">
-
-          {/* Status */}
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-slate-800">Status</p>
-            <div className="flex flex-wrap gap-2">
-              {statuses.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onChange({ status: s })}
-                  className={[
-                    'px-4 py-2 rounded-lg text-sm font-semibold border capitalize transition-colors',
-                    filters.status === s
-                      ? 'bg-violet-600 text-white border-violet-600'
-                      : 'border-slate-200 text-slate-700 hover:bg-slate-50',
-                  ].join(' ')}
-                >
-                  {s === 'all' ? 'All' : STATUS_LABELS[s as BillStatus]}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Amount Due */}
           <div className="flex flex-col gap-2">
@@ -1287,7 +1267,7 @@ const AUTH_SLIDES = [
   {
     key: 'security',
     title: 'Your account is secure',
-    desc: 'Your portal is protected by a personal PIN and encrypted connection — your billing and payment details stay private.',
+    desc: 'Your portal is protected with secure email verification (OTP) and an encrypted connection, keeping your billing and payment information safe.',
   },
   {
     key: 'devices',
@@ -1297,72 +1277,193 @@ const AUTH_SLIDES = [
 ];
 
 function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess: () => void }) {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
-  const [forgotNote, setForgotNote] = useState(false);
+  const [stage, setStage] = useState<'email' | 'otp'>('email');
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [slide, setSlide] = useState(0);
+
+  // OTP state
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState('');
+  const [resendTimer, setResendTimer] = useState(60);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     const id = setInterval(() => setSlide((s) => (s + 1) % AUTH_SLIDES.length), 4500);
     return () => clearInterval(id);
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (pin === currentPin) { setError(''); onSuccess(); }
-    else { setError('Incorrect PIN'); setPin(''); }
+  useEffect(() => {
+    if (stage !== 'otp' || resendTimer <= 0) return;
+    const id = setInterval(() => setResendTimer((t) => Math.max(0, t - 1)), 1000);
+    return () => clearInterval(id);
+  }, [stage, resendTimer]);
+
+  function isValidEmail(v: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
+  function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isValidEmail(email)) return;
+    // Demo: only the active customer's email (or the demo account) is "registered"
+    const registeredEmails = [getActiveCustomer().email.toLowerCase(), 'demo@mochi.ph'];
+    if (!registeredEmails.includes(email.trim().toLowerCase())) {
+      setEmailError("We couldn't find an account associated with this email address.");
+      return;
+    }
+    setEmailError('');
+    setOtp(['', '', '', '', '', '']);
+    setOtpError('');
+    setResendTimer(60);
+    setStage('otp');
+  }
+
+  function handleOtpChange(i: number, value: string) {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const next = [...otp];
+    next[i] = digit;
+    setOtp(next);
+    setOtpError('');
+    if (digit && i < 5) otpRefs.current[i + 1]?.focus();
+  }
+
+  function handleOtpKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace' && !otp[i] && i > 0) otpRefs.current[i - 1]?.focus();
+  }
+
+  function handleVerify() {
+    const code = otp.join('');
+    if (code.length !== 6) { setOtpError('Please enter the complete 6-digit code.'); return; }
+    // Demo: any complete 6-digit code is accepted — no invalid/expired check in this demo build.
+    setOtpError('');
+    onSuccess();
+  }
+
+  // ── OTP verification screen — full-page purple, centered white card ──
+  if (stage === 'otp') {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6 overflow-hidden" style={{ backgroundColor: '#32215F' }}>
+        <div
+          className="absolute inset-0 opacity-[0.15] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
+        />
+        <div
+          className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[120%] h-80 rounded-[100%] blur-3xl pointer-events-none"
+          style={{ backgroundColor: '#C35CFF', opacity: 0.45 }}
+        />
+
+        <div className="relative z-10 flex items-center gap-2 mb-6">
+          <img src={mochiLogoWhite} alt="Mochi" className="h-14 w-auto" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl p-7 flex flex-col items-center">
+          <h1 className="text-lg font-bold text-slate-900 text-center">Verify your identity</h1>
+
+          <div className="w-16 h-16 flex items-center justify-center my-4">
+            <img src={envelopeOtpIcon} alt="Verify identity" className="w-full h-full object-contain" />
+          </div>
+
+          <p className="w-full max-w-[400px] text-sm text-slate-600 text-center whitespace-nowrap">
+            Enter the 6-digit OTP sent to your registered email address.
+          </p>
+
+          <div className="w-full max-w-[400px] flex items-center justify-between mt-5">
+            {otp.map((digit, i) => (
+              <input
+                key={i}
+                ref={(el) => { otpRefs.current[i] = el; }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleOtpChange(i, e.target.value)}
+                onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                className={[
+                  'w-14 h-14 text-center text-lg font-semibold rounded-lg border bg-slate-50 focus:outline-none focus:ring-2 focus:bg-white transition-colors',
+                  otpError ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-violet-200 focus:border-violet-300',
+                ].join(' ')}
+              />
+            ))}
+          </div>
+
+          {otpError && (
+            <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium mt-3">
+              <Warning size={13} weight="fill" /> {otpError}
+            </p>
+          )}
+
+          <p className="text-sm text-slate-500 mt-4 text-center">
+            Didn't get the code?{' '}
+            {resendTimer > 0 ? (
+              <span className="text-slate-400">Resend (in {resendTimer} sec)</span>
+            ) : (
+              <button onClick={() => setResendTimer(60)} className="font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors">
+                Resend
+              </button>
+            )}
+          </p>
+
+          <button
+            onClick={handleVerify}
+            disabled={otp.some((d) => !d)}
+            className="w-full max-w-[400px] mt-5 py-3 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Verify
+          </button>
+
+          <div className="w-full border-t border-slate-100 mt-5 pt-3.5 flex flex-col items-center gap-0.5">
+            <p className="text-xs text-slate-400">Need assistance</p>
+            <p className="text-xs text-slate-400">
+              Contact us at <a href="mailto:supports@mochi.com" className="text-violet-600 hover:underline">supports@mochi.com</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Email screen ──
   return (
     <div className="fixed inset-0 z-50 bg-white flex">
-      {/* ── Left: sign-in form ── */}
+      {/* ── Left: email form ── */}
       <div className="flex-1 flex items-center justify-center p-8 lg:p-16">
         <div className="w-full max-w-sm flex flex-col">
           <img src={mochiLogo} alt="Mochi" className="h-10 w-auto mb-10 self-center" />
 
-          <h1 className="text-3xl font-bold text-slate-900 text-center">Sign in</h1>
-          <p className="text-sm text-slate-500 mt-2 text-center">Enter your 4-digit PIN to access your payment portal.</p>
+          <h1 className="text-3xl font-bold text-slate-900 text-center">Welcome</h1>
+          <p className="text-sm text-slate-500 mt-2 text-center">Enter your registered email address to securely access your payment portal.</p>
 
-          <form onSubmit={handleSubmit} className="mt-8 w-full flex flex-col gap-4">
+          <form onSubmit={handleEmailSubmit} className="mt-8 w-full flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-slate-700">PIN</label>
+              <label className="text-sm font-semibold text-slate-700">Email Address</label>
               <div className="relative">
-                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <EnvelopeSimple size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  placeholder="Enter 4-digit PIN"
-                  value={pin}
-                  onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setError(''); }}
+                  type="email"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
                   className={[
-                    'w-full border rounded-xl pl-11 pr-4 py-3 text-sm placeholder:tracking-normal tracking-[0.3em] focus:outline-none focus:ring-2 transition-colors',
-                    error ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
+                    'w-full border rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 transition-colors',
+                    emailError ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
                   ].join(' ')}
                 />
               </div>
-              {error && (
+              {emailError && (
                 <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                  <Warning size={13} weight="fill" /> {error}
+                  <Warning size={13} weight="fill" /> {emailError}
                 </p>
               )}
             </div>
             <button
               type="submit"
-              disabled={pin.length !== 4}
+              disabled={!isValidEmail(email)}
               className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Sign in
+              Continue
             </button>
           </form>
-
-          <p className="mt-5 text-sm text-slate-500 text-center">
-            Forgot your PIN?{' '}
-            <button onClick={() => setForgotNote(true)} className="font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors">
-              Reset PIN
-            </button>
-          </p>
-          {forgotNote && <p className="mt-2 text-xs text-slate-500 text-center">We've sent a PIN reset link to {getActiveCustomer().email}.</p>}
         </div>
       </div>
 
@@ -1540,114 +1641,83 @@ function SecPill({ icon, label, tint = 'violet', className = '' }: { icon: React
 
 // Slide 2 — Bank-grade security (Overview dashboard + Secure Login popup + badges)
 function IllustrationSecurity() {
+  const rows = [1, 2, 3];
+
   return (
     <div className="relative w-[660px] h-[440px]">
-      {/* dimmed Overview dashboard — background layer */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-0 z-0 w-[430px] rounded-xl bg-white/90 shadow-2xl overflow-hidden blur-[0.5px]">
+      {/* "Select Bills to Pay" step, rendered as placeholder/skeleton content — background layer */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-0 z-0 w-[460px] rounded-xl bg-white/90 shadow-2xl overflow-hidden">
         {/* header */}
         <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100">
           <div className="flex items-center gap-1.5">
             <img src={mochiLogo} alt="" className="h-4 w-auto" />
-            <span className="text-[9px] font-bold text-slate-700">Customer Payment Portal</span>
+            <div className="w-20 h-1.5 rounded-full bg-slate-200" />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded-full bg-slate-100" />
-            <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[7px] font-bold text-white">JM</div>
-          </div>
+          <div className="w-5 h-5 rounded-full bg-slate-200" />
         </div>
-        <div className="flex">
-          {/* sidebar — progress stepper */}
-          <div className="w-[88px] p-2.5 space-y-2 border-r border-slate-100 shrink-0">
-            <div className="text-[6px] font-bold text-slate-300 uppercase tracking-wider mb-1">Progress</div>
-            {[['1', 'Select Bill', true], ['2', 'Confirm Payment', false], ['3', 'Payment Submitted', false]].map(([n, label, active]) => (
-              <div key={n as string} className="flex items-center gap-1.5">
-                <div className={['w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold shrink-0', active ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'].join(' ')}>{n as string}</div>
-                <span className={['text-[7px] leading-tight', active ? 'font-bold text-violet-700' : 'font-medium text-slate-400'].join(' ')}>{label as string}</span>
+        {/* progress bar */}
+        <div className="flex gap-0.5 px-0">
+          <div className="flex-1 h-1 bg-violet-600" />
+          <div className="flex-1 h-1 bg-slate-100" />
+          <div className="flex-1 h-1 bg-slate-100" />
+        </div>
+        <div className="p-3.5">
+          <div className="w-10 h-1.5 rounded-full bg-violet-200" />
+          <div className="w-32 h-2.5 rounded-full bg-slate-200 mt-1.5" />
+          {/* status filter chip placeholders */}
+          <div className="flex items-center gap-1.5 mt-3">
+            <div className="w-10 h-4 rounded-md bg-violet-100" />
+            <div className="w-12 h-4 rounded-md bg-slate-100" />
+            <div className="w-12 h-4 rounded-md bg-slate-100" />
+            <div className="w-10 h-4 rounded-md bg-slate-100" />
+          </div>
+          {/* bill row placeholders */}
+          <div className="flex flex-col gap-2 mt-3">
+            {rows.map((r) => (
+              <div key={r} className="flex items-center gap-2.5 rounded-md border border-slate-100 px-2.5 py-2.5">
+                <div className="w-3 h-3 rounded-[3px] border-2 border-slate-200 shrink-0" />
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <div className="w-16 h-1.5 rounded-full bg-slate-200" />
+                  <div className="w-24 h-1.5 rounded-full bg-slate-100" />
+                </div>
+                <div className="w-14 h-2.5 rounded-full bg-slate-200 shrink-0" />
               </div>
             ))}
           </div>
-          {/* main */}
-          <div className="flex-1 p-3 min-w-0">
-            <div className="text-[10px] font-bold text-slate-700">Welcome back, Juan! 👋</div>
-            <div className="text-[7px] text-slate-400 mt-0.5">Here's what's happening with your account.</div>
-            {/* stat cards */}
-            <div className="flex gap-2 mt-2.5">
-              <div className="flex-1 rounded-md border border-slate-100 p-2">
-                <div className="text-[6px] text-slate-400">Total Outstanding</div>
-                <div className="text-[11px] font-bold text-violet-700 mt-0.5">₱53,500.00</div>
-                <div className="text-[6px] text-slate-400 mt-0.5">4 bills pending</div>
-              </div>
-              <div className="w-24 rounded-md border border-slate-100 p-2">
-                <div className="text-[6px] text-slate-400">Last Payment</div>
-                <div className="text-[10px] font-bold text-slate-700 mt-0.5">₱15,000.00</div>
-                <div className="flex items-center justify-between mt-0.5">
-                  <span className="text-[6px] text-slate-400">May 1, 2025</span>
-                  <span className="text-[6px] font-bold text-emerald-600 bg-emerald-50 rounded px-1">Paid</span>
-                </div>
-              </div>
-            </div>
-            {/* recent bills + payment history */}
-            <div className="flex gap-2 mt-2.5">
-              <div className="flex-1 min-w-0">
-                <div className="text-[8px] font-bold text-slate-600 mb-1">Recent Bills</div>
-                <div className="space-y-1.5">
-                  {[['Association Dues', 'May 1, 2025'], ['Parking Fee', 'June 1, 2025'], ['Water Utility Bill', 'April 1, 2025'], ['Maintenance Fee', 'Q2 2025']].map(([n, d]) => (
-                    <div key={n}>
-                      <div className="text-[7px] font-semibold text-slate-600 truncate">{n}</div>
-                      <div className="text-[6px] text-slate-400">{d}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="w-24">
-                <div className="text-[8px] font-bold text-slate-600 mb-1">Payment History</div>
-                <div className="space-y-1.5">
-                  {[['₱15,000.00', 'May 1, 2025'], ['₱12,500.00', 'April 1, 2025'], ['₱8,250.00', 'March 1, 2025']].map(([a, d]) => (
-                    <div key={d} className="flex items-center justify-between">
-                      <div>
-                        <div className="text-[7px] font-bold text-slate-600">{a}</div>
-                        <div className="text-[6px] text-slate-400">{d}</div>
-                      </div>
-                      <span className="text-[5px] font-bold text-emerald-600 bg-emerald-50 rounded px-1 py-0.5">Paid</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-[6px] font-bold text-violet-600 mt-1.5">View all payments →</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Secure Login popup — centered over the dashboard */}
-      <div className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 z-20 w-48 bg-white rounded-2xl shadow-2xl p-5 flex flex-col items-center">
-        <img src={mochiLogo} alt="Mochi" className="h-6 w-auto" />
-        <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center my-3.5">
-          <Lock size={20} weight="fill" className="text-violet-600" />
+      {/* Verify your identity popup — mirrors the real OTP verification screen */}
+      <div className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 z-20 w-56 bg-white rounded-2xl shadow-2xl p-5 flex flex-col items-center">
+        <div className="text-sm font-bold text-slate-900 text-center">Verify your identity</div>
+        <div className="w-11 h-11 flex items-center justify-center my-3">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <path d="M8 28L32 12L56 28V50C56 51.1 55.1 52 54 52H10C8.9 52 8 51.1 8 50V28Z" fill="#DDD6FE" stroke="#6D4EE8" strokeWidth="2" strokeLinejoin="round" />
+            <path d="M8 28L32 44L56 28" stroke="#6D4EE8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="19" y="15" width="26" height="22" rx="2" fill="#FFFFFF" stroke="#6D4EE8" strokeWidth="2" />
+            <path d="M24 22H40" stroke="#6D4EE8" strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M24 28H34" stroke="#6D4EE8" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
         </div>
-        <div className="text-base font-bold text-slate-800">Secure Login</div>
-        <div className="text-[10px] text-slate-400 mt-1">Enter your 4-digit PIN</div>
-        <div className="flex gap-2 mt-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="w-8 h-9 rounded-md border border-slate-200 flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full" style={GRAD} />
-            </div>
+        <div className="text-[9px] text-slate-500 text-center leading-relaxed px-1">Enter the 6-digit OTP sent to your registered email address.</div>
+        <div className="flex gap-1.5 mt-3.5">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="w-6 h-7 rounded-md border border-slate-200 bg-slate-50" />
           ))}
         </div>
-        <div className="mt-4 w-full rounded-lg bg-violet-50 px-3 py-2 flex items-center gap-2">
-          <ShieldCheck size={16} weight="fill" className="text-violet-600 shrink-0" />
-          <div>
-            <div className="text-[10px] font-bold text-violet-700 leading-none">Protected</div>
-            <div className="text-[8px] text-slate-400 mt-0.5">Your account is safe with us</div>
-          </div>
+        <div className="text-[7.5px] text-slate-400 mt-2.5">
+          Didn't get the code? <span className="font-semibold text-violet-500">Resend</span>
+        </div>
+        <div className="mt-3 w-full rounded-lg py-2 flex items-center justify-center" style={GRAD}>
+          <span className="text-[10px] font-bold text-white">Verify</span>
         </div>
       </div>
 
-      {/* small floating status pills around the login card */}
-      <SecPill className="left-[120px] top-16" icon={<Lock size={13} weight="fill" />} label="Encrypted" />
-      <SecPill className="right-[120px] top-24" tint="emerald" icon={<CheckCircle size={14} weight="fill" />} label="Verified" />
-      <SecPill className="left-[150px] bottom-24" icon={<ShieldCheck size={13} weight="fill" />} label="Secure PIN" />
-      <SecPill className="right-[140px] bottom-16" icon={<Lock size={13} weight="fill" />} label="Protected" />
+      {/* small floating status pills around the verification card */}
+      <SecPill className="left-[100px] top-14" icon={<Lock size={13} weight="fill" />} label="Encrypted" />
+      <SecPill className="right-[100px] top-24" tint="emerald" icon={<CheckCircle size={14} weight="fill" />} label="Verified" />
+      <SecPill className="left-[130px] bottom-16" icon={<EnvelopeSimple size={13} weight="fill" />} label="Secure OTP" />
+      <SecPill className="right-[120px] bottom-8" icon={<Lock size={13} weight="fill" />} label="Protected" />
     </div>
   );
 }
@@ -1862,14 +1932,22 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
     }
   }
 
+  // Status filter handled inline — not counted in drawer badge
   const activeFilterCount = [
-    appliedFilters.status !== 'all',
     appliedFilters.billType !== 'all',
     appliedFilters.amountMin || appliedFilters.amountMax,
     appliedFilters.overdueMin || appliedFilters.overdueMax,
     appliedFilters.billDateFrom || appliedFilters.billDateTo,
     appliedFilters.dueDateFrom || appliedFilters.dueDateTo,
   ].filter(Boolean).length;
+
+  const ALL_STATUSES: Array<{ value: BillStatus | 'all'; label: string }> = [
+    { value: 'all', label: 'All' },
+    { value: 'unpaid', label: 'Unpaid' },
+    { value: 'overdue', label: 'Overdue' },
+    { value: 'paid', label: 'Paid' },
+    { value: 'pending', label: 'Pending' },
+  ];
 
   return (
     <>
@@ -1898,7 +1976,7 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
             {/* Active filter chips */}
             {activeFilterCount > 0 && (() => {
               const chips: { label: string; clear: () => void }[] = [];
-              if (appliedFilters.status !== 'all') chips.push({ label: `Status: ${appliedFilters.status}`, clear: () => { setFilters(f => ({ ...f, status: 'all' })); setAppliedFilters(f => ({ ...f, status: 'all' })); } });
+              // Status handled by inline chips — skip here
               if (appliedFilters.billType !== 'all') chips.push({ label: `Type: ${appliedFilters.billType}`, clear: () => { setFilters(f => ({ ...f, billType: 'all' })); setAppliedFilters(f => ({ ...f, billType: 'all' })); } });
               if (appliedFilters.amountMin || appliedFilters.amountMax) chips.push({ label: `Amount: ${appliedFilters.amountMin || '0'} – ${appliedFilters.amountMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, amountMin: '', amountMax: '' })); setAppliedFilters(f => ({ ...f, amountMin: '', amountMax: '' })); } });
               if (appliedFilters.overdueMin || appliedFilters.overdueMax) chips.push({ label: `Overdue: ${appliedFilters.overdueMin || '0'} – ${appliedFilters.overdueMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); setAppliedFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); } });
@@ -1929,12 +2007,43 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
               );
             })()}
 
-            {/* Filter + Select All — right-aligned */}
-            <div className="flex items-center gap-2 justify-end">
+            {/* Status chips + Filter — same row */}
+            <div className="flex items-center justify-between gap-3">
+              {/* Status chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {ALL_STATUSES.map(({ value, label }) => {
+                  const count = value === 'all'
+                    ? getActiveBills().length
+                    : getActiveBills().filter(b => b.status === value).length;
+                  const active = appliedFilters.status === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => {
+                        setFilters(f => ({ ...f, status: value }));
+                        setAppliedFilters(f => ({ ...f, status: value }));
+                      }}
+                      className={[
+                        'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+                        active
+                          ? 'bg-violet-50 text-violet-700 border-violet-400'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+                      ].join(' ')}
+                    >
+                      {label}
+                      <span className={['text-xs font-semibold', active ? 'text-violet-500' : 'text-slate-400'].join(' ')}>
+                        ({count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Filter button */}
               <button
                 onClick={() => setDrawerOpen(true)}
                 className={[
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors',
+                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors shrink-0',
                   activeFilterCount > 0
                     ? 'bg-violet-600 text-white border-violet-600'
                     : 'bg-violet-50 border-violet-200 text-slate-800 hover:bg-violet-100',
@@ -1979,10 +2088,12 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
         {selected.size > 0 && (
           <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
             <div className="pointer-events-auto bg-white border border-slate-200 rounded-lg shadow-lg py-4 px-4 flex items-center gap-8 w-fit">
-              {/* Left: count + total */}
+              {/* Left: bills visible (respects active filters) + selected */}
               <div className="flex flex-col shrink-0">
-                <p className="text-sm font-semibold text-slate-900 leading-6">{selected.size} selected</p>
-                <p className="text-sm font-medium text-slate-500 leading-6">{fmt(selectedTotal)} in total</p>
+                <p className="text-sm font-semibold text-slate-900 leading-6">
+                  {activeFilterCount > 0 || appliedFilters.status !== 'all' ? 'Bills Matching Filter' : 'Bills in Portal'} &nbsp;&nbsp; {allVisiblePayable.length}
+                </p>
+                <p className="text-sm font-medium text-slate-500 leading-6">Selected Bills &nbsp;&nbsp; {selected.size}</p>
               </div>
               {/* Right: actions */}
               <div className="flex items-center gap-2">
@@ -1991,7 +2102,7 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                     onClick={handleSelectAll}
                     className="inline-flex items-center px-4 py-2 rounded-md border border-dashed border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors whitespace-nowrap"
                   >
-                    Select all {payableBills.length} bills
+                    Select all {allVisiblePayable.length} bills
                   </button>
                 )}
                 <button
@@ -2008,14 +2119,20 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
 
         {/* Sticky footer — amount + continue */}
         <div className="border-t border-slate-200 bg-white shrink-0">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-end gap-4">
-            <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
-            <button
-              onClick={onContinue}
-              className={['px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors', selected.size > 0 ? 'bg-violet-600 hover:bg-violet-700' : 'bg-violet-300 cursor-not-allowed'].join(' ')}
-            >
-              Continue
-            </button>
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400">Powered by</span>
+              <img src={mochiLogo} alt="Mochi" className="h-4 w-auto opacity-60" />
+            </div>
+            <div className="flex items-center gap-4">
+              <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+              <button
+                onClick={onContinue}
+                className={['px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors', selected.size > 0 ? 'bg-violet-600 hover:bg-violet-700' : 'bg-violet-300 cursor-not-allowed'].join(' ')}
+              >
+                Continue
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2109,13 +2226,19 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
         </button>
         {open && (
           <div className="px-5 pb-4">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
+              <colgroup>
+                <col />
+                <col className="w-12" />
+                <col className="w-28" />
+                <col className="w-28" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-slate-200">
                   <th className="text-left font-medium text-slate-500 py-2 pr-4">Item</th>
-                  <th className="text-right font-medium text-slate-500 py-2 px-4 w-16">Qty</th>
-                  <th className="text-right font-medium text-slate-500 py-2 px-4 w-36">Price</th>
-                  <th className="text-right font-medium text-slate-500 py-2 pl-4 w-36">Subtotal</th>
+                  <th className="text-right font-medium text-slate-500 py-2 px-4">Qty</th>
+                  <th className="text-right font-medium text-slate-500 py-2 px-4 whitespace-nowrap">Price</th>
+                  <th className="text-right font-medium text-slate-500 py-2 pl-4 whitespace-nowrap">Subtotal</th>
                 </tr>
               </thead>
               <tbody>
@@ -2131,16 +2254,16 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
                         <p className="text-sm text-slate-400 mt-0.5">{li.description}</p>
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-slate-800">{li.quantity}</td>
-                      <td className="py-3 px-4 text-right">
-                        <p className="font-semibold text-slate-800">{fmt(originalPrice)}</p>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <p className="font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(originalPrice)}</p>
                         {discountPct > 0 && (
-                          <p className="text-xs text-violet-600 mt-0.5">{discountPct}% discount</p>
+                          <p className="text-xs text-violet-600 mt-0.5 whitespace-nowrap">{discountPct}% discount</p>
                         )}
                       </td>
-                      <td className="py-3 pl-4 text-right">
-                        <p className="font-semibold text-slate-800">{fmt(li.subtotal)}</p>
+                      <td className="py-3 pl-4 text-right whitespace-nowrap">
+                        <p className="font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(li.subtotal)}</p>
                         {discountPct > 0 && (
-                          <p className="text-xs text-slate-400 line-through mt-0.5">{fmt(originalPrice)}</p>
+                          <p className="text-xs text-slate-400 line-through mt-0.5 tabular-nums whitespace-nowrap">{fmt(originalPrice)}</p>
                         )}
                       </td>
                     </tr>
@@ -2282,8 +2405,6 @@ function UploadProofCard({ files, onAddFile, onChangeFile, onRemove, error }: {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-semibold text-slate-800">Upload proof of payment</p>
-
       {/* Uploaded file list */}
       {hasFiles && (
         <div className="flex flex-col gap-2">
@@ -2438,62 +2559,62 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Sticky header — title + full-width breakdown */}
+      {/* Sticky header — title only, compact */}
       <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-5 flex flex-col gap-4">
-          <div>
-            <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Step 2</p>
-            <h1 className="text-xl font-bold text-slate-800">Confirm Payment</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Review your bills and choose how you'd like to pay.</p>
-          </div>
+        <div className="max-w-5xl mx-auto px-6 py-5">
+          <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-1">Step 2</p>
+          <h1 className="text-xl font-bold text-slate-800">Confirm Payment</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Review your bills and choose how you'd like to pay.</p>
+        </div>
+      </div>
 
-          {/* Breakdown card — full width */}
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-auto py-8">
+        <div className="max-w-5xl mx-auto px-6 flex flex-col gap-6">
+
+          {/* Breakdown card — full width, above the two-column content */}
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
               <p className="text-sm font-bold text-slate-800">Breakdown</p>
               {!isUpload && (
-                <button onClick={() => setShowFees(f => !f)} className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors">
+                <button onClick={() => setShowFees(f => !f)} className="flex items-center gap-1 text-sm font-semibold text-violet-600 hover:text-violet-800 transition-colors">
                   {showFees ? 'Hide fees' : 'View fees'}
                   <CaretDown size={11} className={['transition-transform', showFees ? 'rotate-180' : ''].join(' ')} />
                 </button>
               )}
             </div>
-            <div className="flex flex-col">
-              <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-                <span className="text-slate-600">Number of bills selected</span>
-                <span className="font-medium text-slate-800">{selectedBills.length}</span>
-              </div>
-              <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-                <span className="text-slate-600">Subtotal</span>
-                <span className="font-medium text-slate-800">{fmt(amountDue)}</span>
-              </div>
-              {!isUpload && showFees && (
-                <>
-                  <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-                    <span className="text-slate-600">Payment Gateway Fee</span>
-                    <span className="font-medium text-slate-800">3.50%</span>
-                  </div>
-                  <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-                    <span className="text-slate-600">Total Gateway Fee</span>
-                    <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between items-center px-5 py-3.5 bg-slate-50">
-                <span className="text-sm font-bold text-slate-800">Total Amount Due</span>
-                <span className="text-base font-bold text-violet-700">{fmt(totalDue)}</span>
-              </div>
+            <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
+              <span className="text-slate-500">Number of bills selected</span>
+              <span className="font-medium text-slate-800">{selectedBills.length}</span>
+            </div>
+            <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
+              <span className="text-slate-500">Subtotal</span>
+              <span className="font-medium text-slate-800">{fmt(amountDue)}</span>
+            </div>
+            {/* Gateway fees — expandable */}
+            {showFees && !isUpload && (
+              <>
+                <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
+                  <span className="text-slate-500">Payment Gateway Fee</span>
+                  <span className="font-medium text-slate-800">3.50%</span>
+                </div>
+                <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
+                  <span className="text-slate-500">Total Gateway Fee</span>
+                  <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between items-center px-5 py-3.5 bg-violet-50">
+              <span className="text-sm font-bold text-slate-800">Total Amount Due</span>
+              <span className="text-base font-bold text-violet-700">{fmt(totalDue)}</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Scrollable body — two-column centered */}
-      <div className="flex-1 overflow-auto py-8">
-        <div className="max-w-5xl mx-auto px-6 flex gap-8 items-start">
+          {/* Two-column: Order summary + Payment method */}
+          <div className="flex gap-8 items-start">
 
           {/* LEFT: Order summary */}
-          <div className="flex-1 flex flex-col gap-4">
+          <div className="flex-1 flex flex-col gap-3">
             <p className="text-sm font-semibold text-slate-800">Order summary</p>
             <div className="flex flex-col gap-3">
               {selectedBills.map((bill) => (
@@ -2502,59 +2623,93 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
             </div>
           </div>
 
-          {/* RIGHT: Payment method card — Stripe style */}
+          {/* RIGHT: Payment method — single cohesive card */}
           <div className="w-96 shrink-0 flex flex-col gap-3">
-            {/* Payment method selector */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="px-5 pt-5 pb-3">
-                <p className="text-sm font-semibold text-slate-800">Payment method</p>
-              </div>
-              <div className="border-t border-slate-100">
-                {PAYMENT_METHODS.filter(opt => showUpload || opt.id !== 'upload').map((opt, i, arr) => {
-                  const Icon = opt.icon;
-                  const isSelected = method === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      onClick={() => { setMethod(opt.id); setSubmitError(false); setUploadError(''); }}
-                      className={['w-full flex items-center gap-3 px-5 py-3.5 text-left transition-colors', i < arr.length - 1 ? 'border-b border-slate-100' : '', isSelected ? 'bg-violet-50' : 'hover:bg-slate-50'].join(' ')}
-                    >
-                      <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0', isSelected ? 'border-violet-600' : 'border-slate-300'].join(' ')}>
-                        {isSelected && <div className="w-2 h-2 rounded-full bg-violet-600" />}
-                      </div>
-                      <div className={['w-8 h-8 rounded-lg flex items-center justify-center shrink-0', isSelected ? 'bg-violet-100' : 'bg-slate-100'].join(' ')}>
-                        <Icon size={16} className={isSelected ? 'text-violet-600' : 'text-slate-500'} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={['text-sm font-medium', isSelected ? 'text-violet-700' : 'text-slate-800'].join(' ')}>{opt.label}</p>
-                        <p className="text-xs text-slate-400 leading-snug">{opt.desc}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <p className="text-sm font-semibold text-slate-800">Payment method</p>
 
-            {/* Upload proof (only for upload method) */}
-            {isUpload && (
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
-                {submitError && (
-                  <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-                    <Warning size={16} weight="fill" className="shrink-0" />
-                    Proof of payment could not be submitted. Please try again.
-                  </div>
-                )}
-                <UploadProofCard files={files} onAddFile={handleAddFile} onChangeFile={handleChangeFile} onRemove={handleRemove} error={uploadError} />
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-800">Remarks <span className="font-normal text-slate-400">(optional)</span></label>
-                  <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3}
-                    placeholder="Add a note for this payment…"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 resize-y" />
+            <div className="bg-white border border-slate-200 rounded-lg overflow-hidden p-4 flex flex-col gap-2.5">
+
+              {/* Online payment method cards */}
+              {PAYMENT_METHODS.filter(opt => opt.id !== 'upload').map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = method === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setMethod(opt.id); setSubmitError(false); setUploadError(''); }}
+                    className={[
+                      'w-full flex items-center gap-3 px-4 py-3.5 text-left rounded-xl border-2 bg-white transition-colors',
+                      isSelected ? 'border-violet-500' : 'border-slate-200 hover:border-slate-300',
+                    ].join(' ')}
+                  >
+                    <div className={['w-9 h-9 rounded-lg flex items-center justify-center shrink-0', isSelected ? 'bg-violet-100' : 'bg-slate-100'].join(' ')}>
+                      <Icon size={17} className={isSelected ? 'text-violet-600' : 'text-slate-500'} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={['text-sm font-medium', isSelected ? 'text-violet-700' : 'text-slate-800'].join(' ')}>{opt.label}</p>
+                      <p className="text-xs text-slate-400 leading-snug">{opt.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Divider — signals alternative payment flow */}
+              {showUpload && (
+                <div className="flex items-center gap-3 py-1">
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <span className="text-xs font-semibold text-slate-400">OR</span>
+                  <div className="flex-1 h-px bg-slate-200" />
                 </div>
-              </div>
-            )}
+              )}
 
-            <p className="text-xs text-slate-400 text-center">Secured by <span className="font-semibold text-slate-500">PayMongo</span></p>
+              {/* Upload Proof of Payment — expanding card */}
+              {showUpload && (
+                <div
+                  className={[
+                    'rounded-xl border-2 transition-colors',
+                    isUpload ? 'border-violet-500 bg-white' : 'border-slate-200 bg-white',
+                  ].join(' ')}
+                >
+                  <button
+                    onClick={() => { setMethod('upload'); setSubmitError(false); setUploadError(''); }}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+                  >
+                    <div className={['w-9 h-9 rounded-lg flex items-center justify-center shrink-0', isUpload ? 'bg-violet-100' : 'bg-slate-100'].join(' ')}>
+                      <UploadSimple size={17} className={isUpload ? 'text-violet-600' : 'text-slate-500'} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={['text-sm font-medium', isUpload ? 'text-violet-700' : 'text-slate-800'].join(' ')}>Upload Proof of Payment</p>
+                      <p className="text-xs text-slate-400 leading-snug">Upload your payment receipt</p>
+                    </div>
+                  </button>
+
+                  {/* Expanded content — accordion */}
+                  {isUpload && (
+                    <div className="px-4 pb-4 flex flex-col gap-4 border-t border-violet-100 pt-4">
+                      {submitError && (
+                        <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+                          <Warning size={16} weight="fill" className="shrink-0" />
+                          Proof of payment could not be submitted. Please try again.
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800 mb-2">Upload Receipt</p>
+                        <UploadProofCard files={files} onAddFile={handleAddFile} onChangeFile={handleChangeFile} onRemove={handleRemove} error={uploadError} />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold text-slate-800">Remarks <span className="font-normal text-slate-400">(optional)</span></label>
+                        <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3}
+                          placeholder="Add a note for this payment…"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 resize-y" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className="text-xs text-slate-400 text-center pt-1">Secured by <span className="font-semibold text-slate-500">PayMongo</span></p>
+            </div>
+          </div>
           </div>
         </div>
       </div>
@@ -3426,151 +3581,102 @@ function SettingsPage({ currentPin, onChangePin, onBack }: { currentPin: string;
   const c = getActiveCustomer();
 
   return (
-    <div className="flex-1 overflow-auto px-8 py-8">
-      <div className="flex flex-col gap-5">
+    <div className="flex-1 overflow-auto py-8">
+      <div className="max-w-5xl mx-auto px-6 flex flex-col gap-5">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors self-start">
           <ArrowLeft size={16} /> Back to portal
         </button>
+
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Account &amp; Security</h1>
           <p className="text-sm text-slate-500 mt-1">View your account information and manage your security settings.</p>
         </div>
 
-        {/* ── Account Information ── */}
+        {/* Account Information */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          {/* Section label */}
           <div className="px-6 pt-5 pb-3">
             <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">Account Information</p>
           </div>
-
-          {/* Company identity */}
-          <div className="flex items-center gap-4 px-6 pb-5 border-b border-slate-100">
+          <div className="flex items-center gap-4 px-6 pb-6">
             <img src="/metroview-logo.jpeg" alt="logo" className="w-14 h-14 rounded-full object-cover shrink-0" />
             <div>
               <p className="text-base font-bold text-slate-900">{c.name}</p>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1.5">
                 <span className="text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2.5 py-0.5">Customer ID</span>
                 <span className="text-sm text-slate-500">{c.id}</span>
               </div>
             </div>
           </div>
-
-          {/* Contact Information subsection */}
-          <div className="px-6 py-5 border-b border-slate-100">
-            <div className="flex items-center gap-2 mb-4">
-              <User size={15} className="text-slate-400" />
-              <p className="text-sm font-semibold text-slate-700">Contact Information</p>
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-slate-100">
-              {[
-                { icon: <EnvelopeSimple size={16} className="text-violet-600" weight="duotone" />, label: 'Email Address', value: c.email },
-                { icon: <Phone size={16} className="text-violet-600" weight="duotone" />, label: 'Phone Number', value: c.phone },
-                { icon: <MapPin size={16} className="text-violet-600" weight="duotone" />, label: 'Address', value: c.address },
-              ].map(({ icon, label, value }) => (
-                <div key={label} className="flex items-start gap-3 px-4 first:pl-0 last:pr-0">
-                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0 mt-0.5">{icon}</div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-400">{label}</p>
-                    <p className="text-sm text-slate-800 mt-0.5 leading-snug">{value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Tax Information subsection */}
-          <div className="px-6 py-5">
-            <div className="flex items-center gap-2 mb-4">
-              <IdentificationCard size={15} className="text-slate-400" />
-              <p className="text-sm font-semibold text-slate-700">Tax Information</p>
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-slate-100">
-              {[
-                { icon: <IdentificationCard size={16} className="text-violet-600" weight="duotone" />, label: 'VAT Status', value: c.vatStatus, badge: true },
-                { icon: <IdentificationCard size={16} className="text-violet-600" weight="duotone" />, label: 'TIN', value: c.tin },
-                { icon: <Percent size={16} className="text-violet-600" weight="duotone" />, label: 'Withholding Tax', value: c.withholdingTax },
-              ].map(({ icon, label, value, badge }) => (
-                <div key={label} className="flex items-start gap-3 px-4 first:pl-0 last:pr-0">
-                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0 mt-0.5">{icon}</div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-400">{label}</p>
-                    {badge
-                      ? <span className="inline-block text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5 mt-1">{value}</span>
-                      : <p className="text-sm text-slate-800 mt-0.5">{value}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* ── Security ── */}
+        {/* Security card */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="px-6 pt-5 pb-3">
-            <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">Security</p>
-          </div>
+            <div className="px-6 pt-5 pb-3 border-b border-slate-100">
+              <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">Security</p>
+            </div>
 
-          <div className="px-6 pb-5">
-            {done && (
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700 mb-4">
-                <CheckCircle size={16} weight="fill" /> Your PIN has been updated successfully.
-              </div>
-            )}
+            <div className="px-6 py-5">
+              {done && (
+                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 mb-4">
+                  <CheckCircle size={16} weight="fill" className="shrink-0" /> Your PIN has been updated successfully.
+                </div>
+              )}
 
-            {!open ? (
-              <div className="flex items-center gap-6">
-                {/* PIN Status */}
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
-                    <ShieldCheck size={22} className="text-violet-600" weight="duotone" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">PIN Status</p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-sm font-semibold text-emerald-600">Active</span>
+              {!open ? (
+                <div className="flex items-center gap-4">
+                  {/* PIN Status */}
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+                      <ShieldCheck size={20} className="text-violet-600" weight="duotone" />
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">Your payment portal is protected by a 4-digit PIN.</p>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">PIN Status</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="text-sm font-semibold text-emerald-600">Active</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">Your payment portal is protected by a 4-digit PIN.</p>
+                    </div>
+                  </div>
+                  {/* Last Updated */}
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-700">Last Updated</p>
+                    <p className="text-sm text-slate-600 mt-1">Jan 15, 2026 &bull; 10:42 AM</p>
+                    <p className="text-xs text-slate-400 mt-0.5">For your security, change your PIN regularly.</p>
+                  </div>
+                  {/* CTA */}
+                  <button
+                    onClick={() => { setOpen(true); setDone(false); }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors shrink-0"
+                  >
+                    <ShieldCheck size={16} weight="duotone" /> Change PIN
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4 max-w-sm">
+                  <p className="text-sm font-semibold text-slate-800">Change your PIN</p>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-slate-700">Current PIN</label>
+                    {pinInput(oldPin, setOldPin, 'Enter current PIN', currentWrong)}
+                    {currentWrong && <p className="flex items-center gap-1.5 text-xs text-red-600"><Warning size={12} weight="fill" /> Incorrect current PIN.</p>}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-slate-700">New PIN</label>
+                    {pinInput(newPin, setNewPin, 'Enter 4-digit PIN')}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-slate-700">Confirm New PIN</label>
+                    {pinInput(confirmPin, setConfirmPin, 'Re-enter 4-digit PIN', mismatch)}
+                    {mismatch && <p className="flex items-center gap-1.5 text-xs text-red-600"><Warning size={12} weight="fill" /> PINs do not match.</p>}
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button onClick={handleSave} disabled={!canSave} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Update PIN</button>
+                    <button onClick={reset} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
                   </div>
                 </div>
-                {/* Last Updated */}
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-700">Last Updated</p>
-                  <p className="text-sm text-slate-600 mt-1">Jan 15, 2026 &bull; 10:42 AM</p>
-                  <p className="text-xs text-slate-400 mt-0.5">For your security, change your PIN regularly.</p>
-                </div>
-                {/* CTA */}
-                <button
-                  onClick={() => { setOpen(true); setDone(false); }}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors shrink-0"
-                >
-                  <ShieldCheck size={16} weight="duotone" /> Change PIN
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4 max-w-sm">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-slate-700">Current PIN</label>
-                  {pinInput(oldPin, setOldPin, 'Enter current PIN', currentWrong)}
-                  {currentWrong && <p className="flex items-center gap-1.5 text-xs text-red-600"><Warning size={12} weight="fill" /> Incorrect current PIN.</p>}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-slate-700">New PIN</label>
-                  {pinInput(newPin, setNewPin, 'Enter 4-digit PIN')}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-slate-700">Confirm New PIN</label>
-                  {pinInput(confirmPin, setConfirmPin, 'Re-enter 4-digit PIN', mismatch)}
-                  {mismatch && <p className="flex items-center gap-1.5 text-xs text-red-600"><Warning size={12} weight="fill" /> PINs do not match.</p>}
-                </div>
-                <div className="flex gap-3 pt-1">
-                  <button onClick={handleSave} disabled={!canSave} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Update PIN</button>
-                  <button onClick={reset} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
 
       </div>
     </div>
@@ -3584,7 +3690,7 @@ export default function CustomerPaymentPortalPage() {
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const urlMode = urlParams.get('mode');
   const isPreview = urlMode !== null;
-  const initialState: AppState = urlMode === 'portal' ? 'portal' : urlMode === 'login' ? 'login' : 'setupPin';
+  const initialState: AppState = urlMode === 'portal' ? 'portal' : 'login';
   // Read visibility settings from URL params (set by the settings page preview)
   const previewShowSummary = urlParams.get('summary') !== '0';
   const previewShowCustomerInfo = urlParams.get('info') !== '0';
@@ -3618,25 +3724,6 @@ export default function CustomerPaymentPortalPage() {
     setShowPinSuccessBanner(true);
     setShowSettingsBanner(true);
     setAppState('portal');
-  }
-
-  // Demo state switch (for stakeholder review)
-  function demoFirstTime() {
-    setShowPinSuccessBanner(false);
-    setShowSettingsBanner(false);
-    setPortalView('flow');
-    setStep(1);
-    setSelected(new Set());
-    setAppState('setupPin');
-  }
-  function demoReturning() {
-    setShowPinSuccessBanner(false);
-    setShowSettingsBanner(false);
-    setPortalView('flow');
-    setStep(1);
-    setSelected(new Set());
-    setCurrentPin('1234');
-    setAppState('login');
   }
 
   const selectedBills = getActiveBills().filter((b) => selected.has(b.id));
@@ -3674,18 +3761,6 @@ export default function CustomerPaymentPortalPage() {
             <span className="text-xs text-slate-400 leading-tight">Customer Payment Portal</span>
           </div>
         </div>
-        {!locked && (
-          <button
-            onClick={() => setPortalView(portalView === 'settings' ? 'flow' : 'settings')}
-            className={[
-              'ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-              portalView === 'settings' ? 'bg-violet-50 text-violet-700' : 'text-slate-600 hover:bg-slate-100',
-            ].join(' ')}
-          >
-            <Gear size={16} className={portalView === 'settings' ? 'text-violet-600' : 'text-slate-400'} />
-            Settings
-          </button>
-        )}
       </header>
 
       {/* Post-setup banners (above all portal content) */}
@@ -3693,8 +3768,7 @@ export default function CustomerPaymentPortalPage() {
         <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3 flex items-center justify-between shrink-0">
           <p className="flex items-center gap-2 text-sm text-emerald-700 font-medium">
             <CheckCircle size={18} weight="fill" />
-            Your PIN has been set. You're all set! Use it the next time you log in. Need to change it? Go to{' '}
-            <button onClick={() => setPortalView('settings')} className="font-semibold underline hover:text-emerald-900 transition-colors">Settings</button>.
+            Your PIN has been set. You're all set! Use it the next time you log in.
           </p>
           <button onClick={() => { setShowPinSuccessBanner(false); setShowSettingsBanner(false); }} className="text-emerald-600 hover:text-emerald-800 transition-colors" aria-label="Dismiss">
             <X size={16} />
@@ -3716,7 +3790,6 @@ export default function CustomerPaymentPortalPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {locked && <RestrictedPortalView />}
-        {!locked && portalView === 'settings' && <SettingsPage currentPin={currentPin} onChangePin={setCurrentPin} onBack={() => setPortalView('flow')} />}
         {!locked && portalView === 'flow' && step === 1 && <Step1 selected={selected} onToggle={toggle} showError={showStep1Error} onContinue={handleStep1Continue} showSummary={previewShowSummary} showCustomerInfo={previewShowCustomerInfo} visibleFields={previewVisibleFields} step={step} />}
         {!locked && portalView === 'flow' && step === 2 && (
           <Step2
@@ -3734,28 +3807,11 @@ export default function CustomerPaymentPortalPage() {
         {!locked && portalView === 'flow' && step === 3 && <Step3 selected={selected} total={total} method={method} onBackToPortal={handleBackToPortal} step={step} />}
       </div>
 
-      {/* First-time: mandatory Set Up PIN (cannot be dismissed) */}
+      {/* First-time: mandatory Set Up PIN (cannot be dismissed) — legacy flow, no longer reachable via demo toolbar */}
       {isSetup && <SetUpPinModal onComplete={handleSetupComplete} />}
 
-      {/* Returning: PIN authentication */}
+      {/* Email + OTP authentication */}
       {isLogin && <PinAuthModal currentPin={currentPin} onSuccess={() => setAppState('portal')} />}
-
-      {/* Demo state switch — hidden in preview mode */}
-      {!isPreview && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1.5 flex items-center gap-1">
-        <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Demo</span>
-        <button
-          onClick={demoFirstTime}
-          className={['px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', isSetup ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-100'].join(' ')}
-        >
-          First-Time
-        </button>
-        <button
-          onClick={demoReturning}
-          className={['px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', isLogin ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-100'].join(' ')}
-        >
-          Returning
-        </button>
-      </div>}
 
       {gatewayStage === 'modal' && (
         <PayMongoRedirectModal
