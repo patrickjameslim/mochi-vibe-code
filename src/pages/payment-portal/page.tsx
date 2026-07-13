@@ -48,7 +48,7 @@ type AppState = 'setupPin' | 'login' | 'portal';
 type Step = 1 | 2 | 3;
 type PaymentMethod = 'card' | 'gcash' | 'maya' | 'bank' | 'qrph' | 'upload';
 type BillStatus = 'paid' | 'unpaid' | 'pending' | 'overdue';
-type BillType = 'one-time' | 'recurring';
+type BillType = 'one-time' | 'recurring' | 'installment';
 type CustomerType = 'organization' | 'individual';
 
 interface LineItem {
@@ -275,6 +275,14 @@ const DEMO_CUSTOMER: Customer = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Obscures an email address for display, e.g. "demo@mochi.ph" → "de••••••@mochi.ph". */
+function maskEmail(email: string) {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return email;
+  const visible = local.slice(0, 2);
+  return `${visible}${'•'.repeat(6)}@${domain}`;
+}
+
 function fmt(n: number) {
   return `₱ ${n.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 }
@@ -331,9 +339,7 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
         isPaid ? 'opacity-70 cursor-default' : 'cursor-pointer',
         checked
           ? 'border-violet-400 ring-2 ring-violet-100 shadow-sm'
-          : isOverdue
-            ? 'border-red-200 hover:border-red-300 hover:shadow-sm'
-            : 'border-slate-200 hover:border-slate-300 hover:shadow-sm',
+          : 'border-slate-200 hover:border-slate-300 hover:shadow-sm',
       ].join(' ')}
     >
       {/* ── Checkbox ── */}
@@ -873,9 +879,9 @@ function FilterDrawer({ open, onClose, filters, onChange, onApply, onReset }: {
   onReset: () => void;
 }) {
   const statuses: (BillStatus | 'all')[] = ['all', 'paid', 'unpaid', 'pending', 'overdue'];
-  const billTypes: (BillType | 'all')[] = ['all', 'one-time', 'recurring'];
+  const billTypes: (BillType | 'all')[] = ['all', 'one-time', 'recurring', 'installment'];
   const billTypeLabels: Record<BillType | 'all', string> = {
-    'all': 'All', 'one-time': 'One-Time', 'recurring': 'Recurring',
+    'all': 'All', 'one-time': 'One-Time', 'recurring': 'Recurring', 'installment': 'Installment',
   };
 
   if (!open) return null;
@@ -1364,8 +1370,8 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
             <img src={envelopeOtpIcon} alt="Verify identity" className="w-full h-full object-contain" />
           </div>
 
-          <p className="w-full max-w-[400px] text-sm text-slate-600 text-center whitespace-nowrap">
-            Enter the 6-digit OTP sent to your registered email address.
+          <p className="w-full max-w-[400px] text-sm text-slate-600 text-center leading-relaxed">
+            We've sent a 6-digit OTP to <span className="font-semibold text-slate-800">{maskEmail(email)}</span>. Please check your email and enter it below.
           </p>
 
           <div className="w-full max-w-[400px] flex items-center justify-between mt-5">
@@ -1413,7 +1419,7 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
           </button>
 
           <div className="w-full border-t border-slate-100 mt-5 pt-3.5 flex flex-col items-center gap-0.5">
-            <p className="text-xs text-slate-400">Need assistance</p>
+            <p className="text-xs text-slate-400">Need assistance?</p>
             <p className="text-xs text-slate-400">
               Contact us at <a href="mailto:supports@mochi.com" className="text-violet-600 hover:underline">supports@mochi.com</a>
             </p>
@@ -1945,8 +1951,8 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
     { value: 'all', label: 'All' },
     { value: 'unpaid', label: 'Unpaid' },
     { value: 'overdue', label: 'Overdue' },
-    { value: 'paid', label: 'Paid' },
     { value: 'pending', label: 'Pending' },
+    { value: 'paid', label: 'Paid' },
   ];
 
   return (
@@ -1972,40 +1978,6 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
               <h1 className="text-xl font-bold text-slate-800">Select Bills to Pay</h1>
               <p className="text-sm text-slate-500 mt-0.5">Choose one or more bills below to proceed with payment.</p>
             </div>
-
-            {/* Active filter chips */}
-            {activeFilterCount > 0 && (() => {
-              const chips: { label: string; clear: () => void }[] = [];
-              // Status handled by inline chips — skip here
-              if (appliedFilters.billType !== 'all') chips.push({ label: `Type: ${appliedFilters.billType}`, clear: () => { setFilters(f => ({ ...f, billType: 'all' })); setAppliedFilters(f => ({ ...f, billType: 'all' })); } });
-              if (appliedFilters.amountMin || appliedFilters.amountMax) chips.push({ label: `Amount: ${appliedFilters.amountMin || '0'} – ${appliedFilters.amountMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, amountMin: '', amountMax: '' })); setAppliedFilters(f => ({ ...f, amountMin: '', amountMax: '' })); } });
-              if (appliedFilters.overdueMin || appliedFilters.overdueMax) chips.push({ label: `Overdue: ${appliedFilters.overdueMin || '0'} – ${appliedFilters.overdueMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); setAppliedFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); } });
-              if (appliedFilters.billDateFrom || appliedFilters.billDateTo) chips.push({ label: `Bill date: ${appliedFilters.billDateFrom || '—'} to ${appliedFilters.billDateTo || '—'}`, clear: () => { setFilters(f => ({ ...f, billDateFrom: '', billDateTo: '' })); setAppliedFilters(f => ({ ...f, billDateFrom: '', billDateTo: '' })); } });
-              if (appliedFilters.dueDateFrom || appliedFilters.dueDateTo) chips.push({ label: `Due date: ${appliedFilters.dueDateFrom || '—'} to ${appliedFilters.dueDateTo || '—'}`, clear: () => { setFilters(f => ({ ...f, dueDateFrom: '', dueDateTo: '' })); setAppliedFilters(f => ({ ...f, dueDateFrom: '', dueDateTo: '' })); } });
-              return (
-                <div className="flex items-center gap-2 flex-wrap">
-                  {chips.map((chip) => {
-                    const [filterName, filterValue] = chip.label.split(': ');
-                    return (
-                      <span key={chip.label} className="inline-flex items-center border border-slate-200 rounded-md overflow-hidden text-xs bg-white shadow-sm">
-                        <span className="px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200 flex items-center gap-1.5">
-                          <FunnelSimple size={11} className="text-slate-400" />
-                          {filterName}
-                        </span>
-                        <span className="px-2.5 py-1.5 text-slate-500 border-r border-slate-200">is</span>
-                        <span className="px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200">{filterValue}</span>
-                        <button onClick={chip.clear} className="px-2 py-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
-                          <X size={11} weight="bold" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                  <button onClick={() => { setFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); }} className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors ml-1">
-                    Clear
-                  </button>
-                </div>
-              );
-            })()}
 
             {/* Status chips + Filter — same row */}
             <div className="flex items-center justify-between gap-3">
@@ -2039,25 +2011,67 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                 })}
               </div>
 
-              {/* Filter button */}
-              <button
-                onClick={() => setDrawerOpen(true)}
-                className={[
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors shrink-0',
-                  activeFilterCount > 0
-                    ? 'bg-violet-600 text-white border-violet-600'
-                    : 'bg-violet-50 border-violet-200 text-slate-800 hover:bg-violet-100',
-                ].join(' ')}
-              >
-                <FunnelSimple size={15} />
-                Filter
-                {activeFilterCount > 0 && (
-                  <span className="bg-white text-violet-600 text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
+              {/* Right: Select all + Filter */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleSelectAll}
+                  className="inline-flex items-center px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors whitespace-nowrap"
+                >
+                  {allSelected ? 'Deselect' : 'Select all'}
+                </button>
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  className={[
+                    'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors shrink-0',
+                    activeFilterCount > 0
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-violet-50 border-violet-200 text-slate-800 hover:bg-violet-100',
+                  ].join(' ')}
+                >
+                  <FunnelSimple size={15} />
+                  Filter
+                  {activeFilterCount > 0 && (
+                    <span className="bg-white text-violet-600 text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* Active filter chips */}
+            {activeFilterCount > 0 && (() => {
+              const chips: { label: string; clear: () => void }[] = [];
+              // Status handled by inline chips — skip here
+              if (appliedFilters.billType !== 'all') chips.push({ label: `Type: ${appliedFilters.billType}`, clear: () => { setFilters(f => ({ ...f, billType: 'all' })); setAppliedFilters(f => ({ ...f, billType: 'all' })); } });
+              if (appliedFilters.amountMin || appliedFilters.amountMax) chips.push({ label: `Amount: ${appliedFilters.amountMin || '0'} – ${appliedFilters.amountMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, amountMin: '', amountMax: '' })); setAppliedFilters(f => ({ ...f, amountMin: '', amountMax: '' })); } });
+              if (appliedFilters.overdueMin || appliedFilters.overdueMax) chips.push({ label: `Overdue: ${appliedFilters.overdueMin || '0'} – ${appliedFilters.overdueMax || '∞'}`, clear: () => { setFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); setAppliedFilters(f => ({ ...f, overdueMin: '', overdueMax: '' })); } });
+              if (appliedFilters.billDateFrom || appliedFilters.billDateTo) chips.push({ label: `Bill date: ${appliedFilters.billDateFrom || '—'} to ${appliedFilters.billDateTo || '—'}`, clear: () => { setFilters(f => ({ ...f, billDateFrom: '', billDateTo: '' })); setAppliedFilters(f => ({ ...f, billDateFrom: '', billDateTo: '' })); } });
+              if (appliedFilters.dueDateFrom || appliedFilters.dueDateTo) chips.push({ label: `Due date: ${appliedFilters.dueDateFrom || '—'} to ${appliedFilters.dueDateTo || '—'}`, clear: () => { setFilters(f => ({ ...f, dueDateFrom: '', dueDateTo: '' })); setAppliedFilters(f => ({ ...f, dueDateFrom: '', dueDateTo: '' })); } });
+              return (
+                <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                  {chips.map((chip) => {
+                    const [filterName, filterValue] = chip.label.split(': ');
+                    return (
+                      <span key={chip.label} className="inline-flex items-center border border-slate-200 rounded-md overflow-hidden text-xs bg-white shadow-sm">
+                        <span className="px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200 flex items-center gap-1.5">
+                          <FunnelSimple size={11} className="text-slate-400" />
+                          {filterName}
+                        </span>
+                        <span className="px-2.5 py-1.5 text-slate-500 border-r border-slate-200">is</span>
+                        <span className="px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200">{filterValue}</span>
+                        <button onClick={chip.clear} className="px-2 py-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                          <X size={11} weight="bold" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                  <button onClick={() => { setFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); }} className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors ml-1">
+                    Clear
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -2084,45 +2098,17 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
           </div>
         </div>
 
-        {/* Floating selection toolbar — fixed above footer */}
-        {selected.size > 0 && (
-          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-            <div className="pointer-events-auto bg-white border border-slate-200 rounded-lg shadow-lg py-4 px-4 flex items-center gap-8 w-fit">
-              {/* Left: bills visible (respects active filters) + selected */}
-              <div className="flex flex-col shrink-0">
-                <p className="text-sm font-semibold text-slate-900 leading-6">
-                  {activeFilterCount > 0 || appliedFilters.status !== 'all' ? 'Bills Matching Filter' : 'Bills in Portal'} &nbsp;&nbsp; {allVisiblePayable.length}
-                </p>
-                <p className="text-sm font-medium text-slate-500 leading-6">Selected Bills &nbsp;&nbsp; {selected.size}</p>
-              </div>
-              {/* Right: actions */}
-              <div className="flex items-center gap-2">
-                {!allSelected && (
-                  <button
-                    onClick={handleSelectAll}
-                    className="inline-flex items-center px-4 py-2 rounded-md border border-dashed border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors whitespace-nowrap"
-                  >
-                    Select all {allVisiblePayable.length} bills
-                  </button>
-                )}
-                <button
-                  onClick={() => allVisiblePayable.forEach((b) => { if (selected.has(b.id)) onToggle(b.id); })}
-                  className="w-7 h-7 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                  aria-label="Clear selection"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Sticky footer — amount + continue */}
+        {/* Sticky footer — selection summary + amount + continue */}
         <div className="border-t border-slate-200 bg-white shrink-0">
           <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-400">Powered by</span>
-              <img src={mochiLogo} alt="Mochi" className="h-4 w-auto opacity-60" />
+            <div className="flex items-center gap-5">
+              <p className="text-sm text-slate-500">
+                {activeFilterCount > 0 || appliedFilters.status !== 'all' ? 'Bills Matching Filter' : 'Bills in Portal'}{' '}
+                <span className="font-semibold text-slate-800">{allVisiblePayable.length}</span>
+              </p>
+              <p className="text-sm text-slate-500">
+                Selected Bills <span className="font-semibold text-slate-800">{selected.size}</span>
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
@@ -2649,6 +2635,9 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
                       <p className={['text-sm font-medium', isSelected ? 'text-violet-700' : 'text-slate-800'].join(' ')}>{opt.label}</p>
                       <p className="text-xs text-slate-400 leading-snug">{opt.desc}</p>
                     </div>
+                    <div className={['w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0', isSelected ? 'border-violet-600' : 'border-slate-300'].join(' ')}>
+                      {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-violet-600" />}
+                    </div>
                   </button>
                 );
               })}
@@ -2680,6 +2669,9 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
                     <div className="flex-1 min-w-0">
                       <p className={['text-sm font-medium', isUpload ? 'text-violet-700' : 'text-slate-800'].join(' ')}>Upload Proof of Payment</p>
                       <p className="text-xs text-slate-400 leading-snug">Upload your payment receipt</p>
+                    </div>
+                    <div className={['w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0', isUpload ? 'border-violet-600' : 'border-slate-300'].join(' ')}>
+                      {isUpload && <div className="w-2.5 h-2.5 rounded-full bg-violet-600" />}
                     </div>
                   </button>
 
@@ -2717,23 +2709,17 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
       {/* Footer — aligned to max-w-5xl */}
       <div className="border-t border-slate-200 bg-white shrink-0">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400">Powered by</span>
-            <img src={mochiLogo} alt="Mochi" className="h-4 w-auto opacity-60" />
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={onPrevious} className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-              <ArrowLeft size={16} /> Previous
-            </button>
-            <button
-              onClick={handlePrimary}
-              disabled={submitting || (isUpload && anyUploading)}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-            >
-              {submitting && <Spinner size={16} className="animate-spin" />}
-              {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Proceed to Payment'}
-            </button>
-          </div>
+          <button onClick={onPrevious} className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+            <ArrowLeft size={16} /> Previous
+          </button>
+          <button
+            onClick={handlePrimary}
+            disabled={submitting || (isUpload && anyUploading)}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {submitting && <Spinner size={16} className="animate-spin" />}
+            {isUpload ? (submitting ? 'Submitting…' : 'Submit Proof') : 'Proceed to Payment'}
+          </button>
         </div>
       </div>
     </div>
@@ -3271,9 +3257,6 @@ function PayMongoCheckout({ method, selectedBills, gatewayFee, total, onPay, onB
           <div className="w-full flex flex-col gap-3">
             <button onClick={onPay} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">
               Return to Billing Portal
-            </button>
-            <button onClick={onPay} className="w-full py-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-              Return to Merchant Portal
             </button>
           </div>
           <p className="flex items-center justify-center gap-1.5 text-sm text-slate-400 mt-2">

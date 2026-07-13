@@ -20,6 +20,7 @@ import {
   CaretRight,
   CaretDown,
   Check,
+  CheckCircle,
   Circle,
   DotsSixVertical,
   Minus,
@@ -66,8 +67,7 @@ type SettingsSection =
   | 'template-library'
   | 'custom-fields-form'
   | 'custom-fields-bills'
-  | 'portal-customization'
-  | 'portal-payment-methods'
+  | 'customer-payment-portal'
   | 'disbursements'
   | 'users'
   | 'developer-settings';
@@ -1074,119 +1074,9 @@ function SettingsPortalPreview({ pinEnabled, showSummary, showCustomerInfo, orgF
 
 // ─── Customer Payment Portal Settings ────────────────────────────────────────
 
-function PaymentPortalSettings() {
-  const [tab, setTab] = useState<'build' | 'preview'>('build');
-  const [pinEnabled, setPinEnabled] = useState(false);
-  const [requirePinOnReturn, setRequirePinOnReturn] = useState(true);
-  const [portalTitle, setPortalTitle] = useState('Customer Payment Portal');
-  const [welcomeMessage, setWelcomeMessage] = useState('View and pay your bills securely.');
-  const [methods, setMethods] = useState({ card: true, gcash: true, maya: true, grabpay: false, bpi: false });
+function CustomerPaymentPortalSettings() {
   const [saved, setSaved] = useState(false);
-  // Portal Customization state
-  const [applyTo, setApplyTo] = useState<'all' | 'group' | 'individual'>('all');
-  const [showSummary, setShowSummary] = useState(true);
-  const [showCustomerInfo, setShowCustomerInfo] = useState(true);
-  const [customerInfoTab, setCustomerInfoTab] = useState<'organization' | 'individual'>('organization');
-  const [orgFields, setOrgFields] = useState({ customerId: true, customerName: true, email: true, phone: true, address: true, withholdingTax: true, primaryContactName: true, primaryContactPosition: false, primaryContactEmail: true, primaryContactPhone: true, otherContacts: false });
-  const [indFields, setIndFields] = useState({ customerId: true, customerName: true, email: true, phone: true, address: true, withholdingTax: true });
   // Payment Methods state
-  const [manualUpload, setManualUpload] = useState(true);
-  const [paymongoStatus, setPaymongoStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
-  const [paymongoEnabled, setPaymongoEnabled] = useState(false);
-  const [xenditStatus, setXenditStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
-  const [xenditEnabled, setXenditEnabled] = useState(false);
-  type CustomMethod = { id: string; name: string; desc: string; requiresRemarks: boolean; requiresProof: boolean; internalOnly: boolean };
-  const [customMethods, setCustomMethods] = useState<CustomMethod[]>([]);
-  const [showAddMethod, setShowAddMethod] = useState(false);
-  const [newMethod, setNewMethod] = useState({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false });
-  const [methodErrors, setMethodErrors] = useState({ name: false, desc: false });
-
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  }
-
-  const methodLabels: Record<string, string> = { card: 'Credit / Debit Card', gcash: 'GCash', maya: 'Maya', grabpay: 'GrabPay', bpi: 'BPI Online Banking' };
-
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-
-      {/* ── Sticky toolbar ── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
-        <div />
-
-        <div />
-
-        {/* Right — Discard + Save */}
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="md" onClick={() => {}} className="text-slate-800">
-            Discard changes
-          </Button>
-          <Button colorScheme="primary" size="md" onClick={handleSave}>
-            {saved ? '✓ Saved' : 'Save changes'}
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Scrollable content ── */}
-      <div className={['flex-1 overflow-y-auto px-8 py-8', tab === 'preview' ? 'flex flex-col gap-4' : 'flex flex-col gap-6'].join(' ')}>
-
-        {/* Page header */}
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Customer Payment Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Configure how your customers access and interact with their payment portal. Each customer is assigned a unique portal where they can view and pay their bills.
-          </p>
-        </div>
-
-        {/* BUILD mode */}
-        {tab === 'build' && (
-          <>
-            {/* Access & Security */}
-            <div className="bg-white border border-slate-200 rounded-xl">
-              <div className="px-6 py-5 border-b border-slate-100">
-                <h2 className="text-sm font-semibold text-slate-800">Access & Security</h2>
-                <p className="text-xs text-slate-500 mt-1">How customers securely access their payment portal.</p>
-              </div>
-              <div className="px-6 py-6 flex flex-col gap-4">
-                <p className="text-sm font-semibold text-slate-800">Email Authentication</p>
-                <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-4">
-                  <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-sm text-slate-500 leading-relaxed">
-                      Customers authenticate using their registered email address. A one-time password (OTP) is sent to their email each time they sign in. The OTP expires after <span className="font-semibold text-slate-700">5 minutes</span> and customers can request a new code if it expires.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-          </>
-        )}
-
-        {/* PREVIEW mode — scaled actual portal, settings-driven */}
-        {tab === 'preview' && (
-          <SettingsPortalPreview
-            pinEnabled={pinEnabled}
-            showSummary={showSummary}
-            showCustomerInfo={showCustomerInfo}
-            orgFields={orgFields}
-            indFields={indFields}
-            customerInfoTab={customerInfoTab}
-            manualUpload={manualUpload}
-            onBack={() => setTab('build')}
-          />
-        )}
-
-      </div>
-    </div>
-  );
-}
-
-// ─── Payment Methods Settings ─────────────────────────────────────────────────
-
-function PaymentMethodsSettings() {
   const [manualUpload, setManualUpload] = useState(true);
   const [paymongoStatus, setPaymongoStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
   const [paymongoEnabled, setPaymongoEnabled] = useState(false);
@@ -1213,17 +1103,25 @@ function PaymentMethodsSettings() {
   const [showAddMethod, setShowAddMethod] = useState(false);
   const [newMethod, setNewMethod] = useState({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false });
   const [methodErrors, setMethodErrors] = useState({ name: false, desc: false });
-  const [saved, setSaved] = useState(false);
 
-  function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+  const [showToast, setShowToast] = useState(false);
+
+  function handleSave() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden relative">
 
-      {/* Sticky toolbar — same style as Customization, no tabs */}
+      {/* ── Sticky toolbar ── */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
         <div />
+
         <div />
+
         {/* Right — Discard + Save */}
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" size="md" onClick={() => {}} className="text-slate-800">
@@ -1235,14 +1133,44 @@ function PaymentMethodsSettings() {
         </div>
       </div>
 
-    <div className="flex-1 overflow-y-auto px-8 py-8 flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">Payment Methods</h1>
-        <p className="text-sm text-slate-500 mt-1">Choose how your customers can pay invoices through the customer portal.</p>
-      </div>
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto px-8 py-8 flex flex-col gap-6">
+
+        {/* Page header */}
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Customer Payment Portal</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Manage your customer payment portal, view how customers sign in, and configure your payment methods.
+          </p>
+        </div>
+
+        {/* Access & Security */}
+        <div className="bg-white border border-slate-200 rounded-xl">
+          <div className="px-6 py-5 border-b border-slate-100">
+            <h2 className="text-sm font-semibold text-slate-800">Access & Security</h2>
+            <p className="text-xs text-slate-500 mt-1">How customers securely access their payment portal.</p>
+          </div>
+          <div className="px-6 py-6 flex flex-col gap-4">
+            <p className="text-sm font-semibold text-slate-800">Email Authentication</p>
+            <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-4">
+              <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
+              <div className="flex flex-col gap-1.5">
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Customers authenticate using their registered email address. A one-time password (OTP) is sent to their email each time they sign in. The OTP expires after <span className="font-semibold text-slate-700">5 minutes</span> and customers can request a new code if it expires.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
       <div className="bg-white border border-slate-200 rounded-xl">
         <div className="px-6 py-6 flex flex-col gap-6">
+
+          {/* Payment Methods header */}
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Payment Methods</h2>
+            <p className="text-xs text-slate-500 mt-1">Choose how your customers can pay invoices through the customer portal.</p>
+          </div>
 
           {/* Manual Payment */}
           <div>
@@ -1406,7 +1334,7 @@ function PaymentMethodsSettings() {
           <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col gap-4 p-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-800">Switch Active Payment Gateway?</h3>
+                <h3 className="text-base font-semibold text-slate-800">Switch active payment gateway?</h3>
                 <button onClick={() => setSwitchGatewayTarget(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
               </div>
               <div className="flex flex-col gap-2 text-sm text-slate-600 leading-relaxed">
@@ -1416,12 +1344,20 @@ function PaymentMethodsSettings() {
               </div>
               <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
                 <button onClick={() => setSwitchGatewayTarget(null)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={confirmSwitchGateway} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors">Switch Gateway</button>
+                <button onClick={confirmSwitchGateway} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors">Switch to {targetName}</button>
               </div>
             </div>
           </div>
         );
       })()}
+
+      {/* Save confirmation toast — bottom-left, auto-dismisses */}
+      {showToast && (
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl shadow-lg px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle size={18} weight="fill" className="text-emerald-500 shrink-0" />
+          Customer Payment Portal updated successfully
+        </div>
+      )}
     </div>
     </div>
   );
@@ -1467,7 +1403,6 @@ export function SettingsPage() {
   const { saveCustomFields } = useCustomFields();
   const [activeSection, setActiveSection] = useState<SettingsSection>('custom-fields-form');
   const [customFieldsOpen, setCustomFieldsOpen] = useState(true);
-  const [customerPortalOpen, setCustomerPortalOpen] = useState(true);
 
   // Committed (saved) state
   const [savedSections, setSavedSections] = useState<FieldSection[]>(SYSTEM_SECTIONS);
@@ -1575,9 +1510,7 @@ export function SettingsPage() {
     'template-library':    ['Settings', 'Template Library'],
     'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
     'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
-    'portal-customization': ['Settings', 'Customer Payment Portal', 'Customization'],
-    'portal-payment-methods': ['Settings', 'Customer Payment Portal', 'Payment Methods'],
-    
+    'customer-payment-portal': ['Settings', 'Customer Payment Portal'],
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
     'developer-settings':  ['Settings', 'Developer Settings'],
@@ -1590,8 +1523,7 @@ export function SettingsPage() {
     'template-library':    'Template Library',
     'custom-fields-form':  'Customer',
     'custom-fields-bills': 'Bills',
-    'portal-customization': 'Customization',
-    'portal-payment-methods': 'Payment Methods',
+    'customer-payment-portal': 'Customer Payment Portal',
     'disbursements':       'Disbursements',
     'users':               'Users',
     'developer-settings':  'Developer Settings',
@@ -1615,11 +1547,8 @@ export function SettingsPage() {
         />
       );
     }
-    if (activeSection === 'portal-customization') {
-      return <PaymentPortalSettings />;
-    }
-    if (activeSection === 'portal-payment-methods') {
-      return <PaymentMethodsSettings />;
+    if (activeSection === 'customer-payment-portal') {
+      return <CustomerPaymentPortalSettings />;
     }
     return <PlaceholderContent label={placeholderLabels[activeSection]} />;
   }
@@ -1683,32 +1612,7 @@ export function SettingsPage() {
               </>
             )}
 
-            {/* Customer Payment Portal — expandable */}
-            <button
-              onClick={() => setCustomerPortalOpen(o => !o)}
-              className={cn(
-                'w-full text-left px-4 py-2 text-sm border-l-[3px] flex items-center justify-between transition-colors',
-                (activeSection === 'portal-customization' || activeSection === 'portal-payment-methods')
-                  ? 'border-violet-600 bg-violet-50 text-violet-700 font-medium'
-                  : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-              )}
-            >
-              Customer Payment Portal
-              <CaretDown
-                size={11}
-                className={cn(
-                  'shrink-0 transition-transform duration-150',
-                  (activeSection === 'portal-customization' || activeSection === 'portal-payment-methods') ? 'text-violet-500' : 'text-slate-400',
-                  customerPortalOpen ? 'rotate-0' : '-rotate-90',
-                )}
-              />
-            </button>
-            {customerPortalOpen && (
-              <>
-                <SecSubNavItem label="Customization"   active={activeSection === 'portal-customization'}    onClick={() => setActiveSection('portal-customization')} />
-                <SecSubNavItem label="Payment Methods" active={activeSection === 'portal-payment-methods'}  onClick={() => setActiveSection('portal-payment-methods')} />
-              </>
-            )}
+            <SecNavItem label="Customer Payment Portal" active={activeSection === 'customer-payment-portal'} onClick={() => setActiveSection('customer-payment-portal')} />
             <SecNavItem label="Disbursements"      active={activeSection === 'disbursements'}      onClick={() => setActiveSection('disbursements')} />
             <SecNavItem label="Users"              active={activeSection === 'users'}              onClick={() => setActiveSection('users')} />
             <SecNavItem label="Developer Settings" active={activeSection === 'developer-settings'} onClick={() => setActiveSection('developer-settings')} />
@@ -1716,10 +1620,10 @@ export function SettingsPage() {
 
           {/* Main content */}
           <main className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
-            <div className={['flex-1', activeSection === 'portal-customization' || activeSection === 'portal-payment-methods' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
+            <div className={['flex-1', activeSection === 'customer-payment-portal' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
               {renderContent()}
             </div>
-            {hasPendingChanges && activeSection !== 'portal-customization' && (
+            {hasPendingChanges && activeSection !== 'customer-payment-portal' && (
               <SaveBar onSave={handleSave} onDiscard={handleDiscard} />
             )}
           </main>
