@@ -2159,7 +2159,7 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
   const isOverdue = bill.status === 'overdue';
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-lg">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-4">
         <div className="flex items-center gap-3">
@@ -2168,10 +2168,14 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
           </button>
           <StatusBadge status={bill.status} />
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">
-          <DownloadSimple size={14} />
-          Download Bill PDF
-        </button>
+        <span className="relative group inline-flex">
+          <button aria-label="Download Bill PDF" className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">
+            <DownloadSimple size={14} />
+          </button>
+          <span className="pointer-events-none absolute right-0 bottom-full mb-2 w-max rounded-lg bg-slate-800 text-white text-xs leading-snug px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg whitespace-nowrap">
+            Download Bill PDF
+          </span>
+        </span>
       </div>
 
       {/* Bill name — only for recurring bills */}
@@ -2202,7 +2206,7 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
       </div>
 
       {/* Line Items Accordion */}
-      <div className="border-t border-slate-100">
+      <div className="border-t border-slate-100 rounded-b-lg overflow-hidden">
         <button
           onClick={() => setOpen((o) => !o)}
           className="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
@@ -2560,35 +2564,43 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
 
           {/* Breakdown card — full width, above the two-column content */}
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+            <div className="px-5 py-3 border-b border-slate-100">
               <p className="text-sm font-bold text-slate-800">Breakdown</p>
-              {!isUpload && (
-                <button onClick={() => setShowFees(f => !f)} className="flex items-center gap-1 text-sm font-semibold text-violet-600 hover:text-violet-800 transition-colors">
-                  {showFees ? 'Hide fees' : 'View fees'}
-                  <CaretDown size={11} className={['transition-transform', showFees ? 'rotate-180' : ''].join(' ')} />
-                </button>
-              )}
             </div>
             <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-              <span className="text-slate-500">Number of bills selected</span>
+              <span className="text-slate-900">Number of bills selected</span>
               <span className="font-medium text-slate-800">{selectedBills.length}</span>
             </div>
             <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-              <span className="text-slate-500">Subtotal</span>
+              <span className="text-slate-900">Subtotal</span>
               <span className="font-medium text-slate-800">{fmt(amountDue)}</span>
             </div>
-            {/* Gateway fees — expandable */}
-            {showFees && !isUpload && (
-              <>
-                <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-                  <span className="text-slate-500">Payment Gateway Fee</span>
-                  <span className="font-medium text-slate-800">3.50%</span>
-                </div>
-                <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-                  <span className="text-slate-500">Total Gateway Fee</span>
+            {/* Payment Gateway Fee — expandable row */}
+            {!isUpload && (
+              <div className="border-b border-slate-100">
+                <button
+                  onClick={() => setShowFees(f => !f)}
+                  className="w-full flex justify-between items-center px-5 py-3 text-sm cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5 font-medium text-violet-600">
+                    Payment Gateway Fee
+                    <CaretDown size={12} weight="bold" className={['text-violet-500 transition-transform', showFees ? 'rotate-180' : ''].join(' ')} />
+                  </span>
                   <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
-                </div>
-              </>
+                </button>
+                {showFees && (
+                  <div className="px-5 pb-3 flex flex-col gap-2">
+                    <div className="flex justify-between items-center pl-4 text-sm">
+                      <span className="text-slate-900">Gateway Rate (3.5%)</span>
+                      <span className="text-slate-600">3.50%</span>
+                    </div>
+                    <div className="flex justify-between items-center pl-4 text-sm">
+                      <span className="text-slate-900">Gateway Fee Amount</span>
+                      <span className="text-slate-600">{fmt(gatewayFee)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             <div className="flex justify-between items-center px-5 py-3.5 bg-violet-50">
               <span className="text-sm font-bold text-slate-800">Total Amount Due</span>
