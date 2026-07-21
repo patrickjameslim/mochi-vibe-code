@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSearch } from '@tanstack/react-router';
 import {
   DndContext,
   closestCenter,
@@ -22,9 +23,15 @@ import {
   Check,
   CheckCircle,
   Circle,
+  CreditCard,
   DotsSixVertical,
+  DotsThreeVertical,
+  DownloadSimple,
+  FilePdf,
+  MagnifyingGlass,
   Minus,
   Plus,
+  Receipt,
   Square,
   Trash,
   UploadSimple,
@@ -36,12 +43,25 @@ import {
   X,
 } from '@phosphor-icons/react';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
+import { UpgradeModal } from '#/components/organisms/UpgradeModal';
+import { UpdateCardModal } from '#/components/organisms/UpdateCardModal';
+import type { BillingAddress } from '#/components/organisms/UpgradeModal/shared';
 import { Switch } from '#/components/atoms/Switch';
+import { Checkbox } from '#/components/atoms/Checkbox';
 import { Button } from '#/components/atoms/Button';
 import { Input } from '#/components/atoms/Input';
 import { TextareaInput as Textarea } from '#/components/atoms/TextareaInput';
 import { Label } from '#/components/atoms/Label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '#/components/atoms/Card';
+import { Badge } from '#/components/atoms/Badge';
+import { Progress } from '#/components/atoms/Progress';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '#/components/atoms/DropdownMenu';
+import { Paginate, usePaginate, usePaginateStateLocal } from '#/components/molecules/Paginate';
 import {
   Select,
   SelectTrigger,
@@ -49,6 +69,7 @@ import {
   SelectContent,
   SelectItem,
 } from '#/components/atoms/Select';
+import { BILLS } from '#/data/bills';
 import { cn } from '#/components/utils';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -62,6 +83,7 @@ const FIELD_TYPES = [
 
 type SettingsSection =
   | 'business-info'
+  | 'subscription'
   | 'receiving-accounts'
   | 'bir-invoicing'
   | 'template-library'
@@ -1395,13 +1417,674 @@ function SaveBar({ onSave, onDiscard }: { onSave: () => void; onDiscard: () => v
   );
 }
 
+// ─── Subscription ─────────────────────────────────────────────────────────────
+
+type BillingCycle = 'monthly' | 'annual';
+
+const MONTHLY_PRICE = 1899;
+const ANNUAL_PRICE = 18990;
+const ANNUAL_EFFECTIVE_MONTHLY = (ANNUAL_PRICE / 12).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function peso(amount: number) {
+  return `PHP ${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatDate(date: Date) {
+  return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function addCycle(date: Date, cycle: BillingCycle) {
+  const next = new Date(date);
+  if (cycle === 'monthly') next.setMonth(next.getMonth() + 1);
+  else next.setFullYear(next.getFullYear() + 1);
+  return next;
+}
+
+/** Prototype-only: lets stakeholders flip between the trial and subscribed views without running the full upgrade flow. */
+function DemoPlanToggle({ subscribed, onChange }: { subscribed: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2.5 bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-md pl-3.5 pr-2.5 py-2 text-xs text-slate-400">
+      <span className="font-medium tracking-wide uppercase">Preview</span>
+      <span className={cn('font-medium', !subscribed ? 'text-slate-700' : 'text-slate-300')}>Trial</span>
+      <Switch checked={subscribed} onCheckedChange={onChange} checkedBg="primary" />
+      <span className={cn('font-medium', subscribed ? 'text-slate-700' : 'text-slate-300')}>Standard</span>
+    </div>
+  );
+}
+
+function BillingCycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange: (c: BillingCycle) => void }) {
+  return (
+    <div className="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <button
+        onClick={() => onChange('monthly')}
+        className={cn(
+          'px-4 py-2 text-sm font-medium transition-colors',
+          cycle === 'monthly' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50',
+        )}
+      >
+        Monthly
+      </button>
+      <button
+        onClick={() => onChange('annual')}
+        className={cn(
+          'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
+          cycle === 'annual' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50',
+        )}
+      >
+        Annually
+        <span className={cn(
+          'text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+          cycle === 'annual' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700',
+        )}>
+          2 months free
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function PlanCard({
+  highlighted,
+  badgeLabel,
+  name,
+  price,
+  priceSuffix,
+  savingsNote,
+  bestFor,
+  featuresHeading,
+  features,
+  ctaLabel,
+  ctaHref,
+  ctaOnClick,
+  ctaDisabled,
+}: {
+  highlighted?: boolean;
+  badgeLabel?: string;
+  name: string;
+  price: string;
+  priceSuffix: string;
+  savingsNote?: string;
+  bestFor: string;
+  featuresHeading: string;
+  features: string[];
+  ctaLabel: string;
+  ctaHref?: string;
+  ctaOnClick?: () => void;
+  ctaDisabled?: boolean;
+}) {
+  const ctaClass = cn(
+    'w-full inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
+    ctaDisabled
+      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+      : highlighted
+        ? 'bg-white text-violet-700 hover:bg-violet-50'
+        : 'bg-violet-600 text-white hover:bg-violet-700',
+  );
+
+  return (
+    <div className={cn(
+      'flex flex-col rounded-2xl border overflow-hidden',
+      highlighted ? 'bg-violet-600 border-violet-600' : 'bg-white border-slate-200',
+    )}>
+      <div className="p-6 flex flex-col gap-4 flex-1">
+        <div className="h-6">
+          {badgeLabel && (
+            <span className={cn(
+              'inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold',
+              highlighted ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600',
+            )}>
+              {badgeLabel}
+            </span>
+          )}
+        </div>
+
+        <h3 className={cn('text-lg font-bold', highlighted ? 'text-white' : 'text-slate-900')}>{name}</h3>
+
+        <div>
+          <p className={cn('text-3xl font-extrabold', highlighted ? 'text-white' : 'text-slate-900')}>{price}</p>
+          <p className={cn('text-sm mt-0.5', highlighted ? 'text-violet-100' : 'text-slate-500')}>{priceSuffix}</p>
+          {savingsNote && (
+            <p className={cn('text-xs mt-1.5 font-medium', highlighted ? 'text-emerald-200' : 'text-emerald-600')}>
+              {savingsNote}
+            </p>
+          )}
+        </div>
+
+        <div className={cn('border-t', highlighted ? 'border-white/20' : 'border-slate-100')} />
+
+        <div>
+          <p className={cn('text-sm font-semibold mb-1.5', highlighted ? 'text-white' : 'text-slate-800')}>This plan is best for:</p>
+          <p className={cn('text-sm leading-relaxed', highlighted ? 'text-violet-100' : 'text-slate-500')}>{bestFor}</p>
+        </div>
+
+        <div className={cn('border-t', highlighted ? 'border-white/20' : 'border-slate-100')} />
+
+        <div className="flex flex-col gap-2.5">
+          <p className={cn('text-sm font-semibold', highlighted ? 'text-white' : 'text-slate-800')}>{featuresHeading}</p>
+          <ul className="flex flex-col gap-2">
+            {features.map(item => (
+              <li key={item} className="flex items-start gap-2">
+                <Check size={14} weight="bold" className={cn('shrink-0 mt-0.5', highlighted ? 'text-white' : 'text-violet-500')} />
+                <span className={cn('text-sm', highlighted ? 'text-violet-50' : 'text-slate-600')}>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="p-6 pt-0">
+        {ctaHref
+          ? <a href={ctaHref} className={ctaClass}>{ctaLabel}</a>
+          : <button disabled={ctaDisabled} onClick={ctaOnClick} className={ctaClass}>{ctaLabel}</button>}
+      </div>
+    </div>
+  );
+}
+
+// Prototype-only: no team/seats data source exists yet, so usage is mocked against the
+// "Up to 5 user accounts" cap already established in the plan feature lists above.
+const USER_ACCOUNTS_USED = 3;
+const USER_ACCOUNTS_LIMIT = 5;
+const INVOICE_LIMIT = 1000;
+
+function MetricCard({
+  icon: Icon,
+  label,
+  used,
+  limit,
+  unit,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  used: number;
+  limit: number;
+  unit: string;
+}) {
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  const nearLimit = pct >= 90;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 flex flex-col gap-4">
+      <div className="flex items-center gap-2.5">
+        <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+          <Icon size={18} className="text-violet-600" />
+        </div>
+        <p className="text-sm font-semibold text-slate-800">{label}</p>
+      </div>
+      <div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-extrabold text-slate-900">{used.toLocaleString('en-PH')}</span>
+          <span className="text-sm text-slate-400">/ {limit.toLocaleString('en-PH')} {unit}</span>
+        </div>
+        <Progress value={pct} color={nearLimit ? 'danger' : 'success'} className="mt-3" />
+        <p className={cn('text-xs mt-1.5', nearLimit ? 'text-red-500 font-medium' : 'text-slate-400')}>
+          {limit - used} {unit} left this cycle
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CurrentPlanPanel({
+  cycle,
+  nextBillingDate,
+  onCancelClick,
+  onUpdateCardClick,
+}: {
+  cycle: BillingCycle;
+  nextBillingDate: Date | null;
+  onCancelClick: () => void;
+  onUpdateCardClick: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 flex items-center justify-between gap-6 flex-wrap">
+      <div>
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-lg font-bold text-slate-900">Standard</h2>
+          <Badge colorScheme="emerald" className="border-emerald-700">Active</Badge>
+        </div>
+        <p className="text-sm text-slate-500 mt-1">
+          {cycle === 'monthly' ? 'Billed monthly' : 'Billed annually'}
+          {nextBillingDate && <> · Next billing date: <span className="font-medium text-slate-700">{formatDate(nextBillingDate)}</span></>}
+        </p>
+      </div>
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={onUpdateCardClick}>
+          <CreditCard size={14} />
+          Update payment information
+        </Button>
+        <button
+          onClick={onCancelClick}
+          className="text-sm text-slate-400 hover:text-red-500 transition-colors underline underline-offset-2"
+        >
+          Cancel subscription
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const CANCEL_REASONS = [
+  'Too expensive for what I need',
+  'Missing features I was looking for',
+  'Switching to a different tool',
+  'Not using it enough right now',
+  'Found it difficult to use',
+  'Ran into bugs or technical issues',
+  'Just taking a temporary break',
+  'Other',
+];
+
+function CancelSubscriptionModal({
+  open,
+  onKeepPlan,
+  onConfirmCancel,
+}: {
+  open: boolean;
+  onKeepPlan: () => void;
+  onConfirmCancel: () => void;
+}) {
+  const [selectedReasons, setSelectedReasons] = useState<Set<string>>(new Set());
+  const [feedback, setFeedback] = useState('');
+
+  function toggleReason(reason: string) {
+    setSelectedReasons(prev => {
+      const next = new Set(prev);
+      if (next.has(reason)) next.delete(reason);
+      else next.add(reason);
+      return next;
+    });
+  }
+
+  function reset() {
+    setSelectedReasons(new Set());
+    setFeedback('');
+  }
+
+  function handleKeepPlan() {
+    reset();
+    onKeepPlan();
+  }
+
+  function handleConfirmCancel() {
+    reset();
+    onConfirmCancel();
+  }
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-semibold text-slate-900">Cancel your subscription?</h2>
+          <button onClick={handleKeepPlan} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 flex-1 overflow-y-auto flex flex-col gap-5">
+          <p className="text-sm text-slate-500 leading-relaxed">
+            You'll lose access to Standard features and your invoice/customer limit will drop back to the free trial's.
+            This can't be undone from here.
+          </p>
+
+          <div className="flex flex-col gap-2.5">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Why are you canceling?</p>
+            <div className="flex flex-col gap-2">
+              {CANCEL_REASONS.map(reason => (
+                <label key={reason} className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <Checkbox checked={selectedReasons.has(reason)} onCheckedChange={() => toggleReason(reason)} />
+                  <span className="text-sm text-slate-700">{reason}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+              Anything else you'd like to share? <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <Textarea
+              value={feedback}
+              onChange={e => setFeedback(e.target.value)}
+              placeholder="Tell us more about why you're leaving…"
+              minRows={3}
+              className="text-sm border-slate-200 focus-visible:ring-violet-100 focus-visible:border-violet-300"
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex items-center justify-end gap-2">
+          <Button variant="outline" colorScheme="secondary" size="md" onClick={handleKeepPlan}>Keep plan</Button>
+          <Button colorScheme="destructive" size="md" onClick={handleConfirmCancel}>Cancel subscription</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface BillingHistoryRow {
+  id: string;
+  label: string;
+  billingDate: Date;
+  amount: number;
+}
+
+function generateBillingHistory(nextBillingDate: Date, cycle: BillingCycle, count = 12): BillingHistoryRow[] {
+  const rows: BillingHistoryRow[] = [];
+  const cursor = new Date(nextBillingDate);
+  for (let i = 0; i < count; i++) {
+    if (cycle === 'monthly') cursor.setMonth(cursor.getMonth() - 1);
+    else cursor.setFullYear(cursor.getFullYear() - 1);
+    const monthName = cursor.toLocaleDateString('en-PH', { month: 'long' });
+    const year = cursor.getFullYear();
+    rows.push({
+      id: `INV-${year}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
+      label: `Invoice_${monthName}_${year}`,
+      billingDate: new Date(cursor),
+      amount: cycle === 'monthly' ? MONTHLY_PRICE : ANNUAL_PRICE,
+    });
+  }
+  return rows;
+}
+
+const HISTORY_PAGE_SIZE = 7;
+
+function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle; nextBillingDate: Date | null }) {
+  const [query, setQuery] = useState('');
+  const allRows = nextBillingDate ? generateBillingHistory(nextBillingDate, cycle) : [];
+  const filtered = query.trim()
+    ? allRows.filter(r => r.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : allRows;
+
+  const { currentPage, handlePageChange } = usePaginateStateLocal();
+  const totalPages = Math.max(1, Math.ceil(filtered.length / HISTORY_PAGE_SIZE));
+  const paginateProps = usePaginate({ currentPage, onPageChange: handlePageChange, totalPages });
+  const pageRows = filtered.slice((currentPage - 1) * HISTORY_PAGE_SIZE, currentPage * HISTORY_PAGE_SIZE);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap border-b border-slate-100">
+        <h2 className="text-sm font-semibold text-slate-800">Billing History</h2>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={query}
+              onChange={e => { setQuery(e.target.value); handlePageChange(1); }}
+              placeholder="Search"
+              className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 w-40"
+            />
+          </div>
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <DownloadSimple size={14} />
+            Download all
+          </Button>
+        </div>
+      </div>
+
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-slate-50 border-b border-slate-100">
+            <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Invoice</th>
+            <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Billing date</th>
+            <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Plan</th>
+            <th className="w-12" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {pageRows.length === 0 && (
+            <tr>
+              <td colSpan={4} className="px-5 py-10 text-center text-sm text-slate-400">
+                No billing history yet.
+              </td>
+            </tr>
+          )}
+          {pageRows.map(row => (
+            <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+              <td className="px-5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <FilePdf size={18} className="text-slate-300 shrink-0" />
+                  <span className="font-medium text-slate-700">{row.label}</span>
+                </div>
+              </td>
+              <td className="px-5 py-3 text-slate-500">{formatDate(row.billingDate)}</td>
+              <td className="px-5 py-3">
+                <Badge colorScheme="violet" className="border-violet-700 leading-none py-1">
+                  Standard {cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                </Badge>
+              </td>
+              <td className="px-2 py-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-500 hover:bg-slate-100 transition-colors outline-none">
+                    <DotsThreeVertical size={16} weight="bold" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Receipt size={14} className="text-slate-400" />
+                      View invoice
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <DownloadSimple size={14} className="text-slate-400" />
+                      Download CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <FilePdf size={14} className="text-slate-400" />
+                      Download PDF
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {filtered.length > 0 && (
+        <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between gap-4">
+          <p className="text-xs text-slate-400 shrink-0">
+            {filtered.length} invoice{filtered.length !== 1 ? 's' : ''}
+          </p>
+          {totalPages > 1 && (
+            <div>
+              <Paginate {...paginateProps} currentPage={currentPage} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SubscribedOverview({
+  cycle,
+  nextBillingDate,
+  email,
+  billingAddress,
+  onCancelSubscription,
+  onCardUpdated,
+}: {
+  cycle: BillingCycle;
+  nextBillingDate: Date | null;
+  email: string;
+  billingAddress: BillingAddress;
+  onCancelSubscription: () => void;
+  onCardUpdated: (billingAddress: BillingAddress) => void;
+}) {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showUpdateCard, setShowUpdateCard] = useState(false);
+  const invoicesUsed = BILLS.length;
+
+  return (
+    <>
+      <CurrentPlanPanel
+        cycle={cycle}
+        nextBillingDate={nextBillingDate}
+        onCancelClick={() => setShowCancelConfirm(true)}
+        onUpdateCardClick={() => setShowUpdateCard(true)}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <MetricCard icon={Receipt} label="Invoices this month" used={invoicesUsed} limit={INVOICE_LIMIT} unit="invoices" />
+        <MetricCard icon={User} label="User accounts" used={USER_ACCOUNTS_USED} limit={USER_ACCOUNTS_LIMIT} unit="accounts" />
+      </div>
+
+      <BillingHistorySection cycle={cycle} nextBillingDate={nextBillingDate} />
+
+      <CancelSubscriptionModal
+        open={showCancelConfirm}
+        onKeepPlan={() => setShowCancelConfirm(false)}
+        onConfirmCancel={() => { setShowCancelConfirm(false); onCancelSubscription(); }}
+      />
+
+      {nextBillingDate && (
+        <UpdateCardModal
+          open={showUpdateCard}
+          cycle={cycle}
+          nextBillingDate={nextBillingDate}
+          email={email}
+          billingAddress={billingAddress}
+          onClose={() => setShowUpdateCard(false)}
+          onUpdated={onCardUpdated}
+        />
+      )}
+    </>
+  );
+}
+
+const EMPTY_BILLING_ADDRESS: BillingAddress = {
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  province: '',
+  country: 'Philippines',
+  zip: '',
+};
+
+function SubscriptionSettings() {
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
+  const [currentPlan, setCurrentPlan] = useState<'trial' | 'standard'>('trial');
+  const [nextBillingDate, setNextBillingDate] = useState<Date | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [subscriberEmail, setSubscriberEmail] = useState('');
+  const [billingAddress, setBillingAddress] = useState<BillingAddress>(EMPTY_BILLING_ADDRESS);
+
+  function handleDemoToggle(subscribed: boolean) {
+    if (subscribed) {
+      setCurrentPlan('standard');
+      setNextBillingDate(addCycle(new Date(), cycle));
+    } else {
+      setCurrentPlan('trial');
+      setNextBillingDate(null);
+    }
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-bold text-slate-800">Subscription</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          {currentPlan === 'standard'
+            ? 'Manage your plan, usage, and billing history.'
+            : 'Compare plans and choose the billing cycle that works best for you.'}
+        </p>
+      </div>
+
+      {currentPlan === 'standard' ? (
+        <SubscribedOverview
+          cycle={cycle}
+          nextBillingDate={nextBillingDate}
+          email={subscriberEmail}
+          billingAddress={billingAddress}
+          onCancelSubscription={() => { setCurrentPlan('trial'); setNextBillingDate(null); }}
+          onCardUpdated={setBillingAddress}
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-center">
+            <BillingCycleToggle cycle={cycle} onChange={setCycle} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+            <PlanCard
+              badgeLabel="Current Plan"
+              name="Trial"
+              price="Free"
+              priceSuffix="for 30 days"
+              bestFor="Startups who want to give Mochi a whirl and see what an accounts receivable platform can do for their business — for free!"
+              featuresHeading="Free trial includes:"
+              features={[
+                'Up to 5 user accounts',
+                'Unlimited invoices for 60 days',
+                'Payment links',
+                'Payment reminders',
+                'Customer management',
+                'Workflow automations',
+                'Billing and Collections report',
+              ]}
+              ctaLabel="Current Plan"
+              ctaDisabled
+            />
+
+            <PlanCard
+              highlighted
+              badgeLabel="Most Popular"
+              name="Standard"
+              price={cycle === 'monthly' ? peso(MONTHLY_PRICE) : peso(ANNUAL_PRICE)}
+              priceSuffix={cycle === 'monthly' ? 'per month' : 'per year'}
+              savingsNote={cycle === 'annual' ? `≈ PHP ${ANNUAL_EFFECTIVE_MONTHLY}/mo — 2 months free` : undefined}
+              bestFor="Businesses with a small team handling multiple customers with varying due dates who need help with invoicing — for the price of half an invoice!"
+              featuresHeading="Everything in trial plus:"
+              features={['Up to 1,000 invoices and customers per month']}
+              ctaLabel="Upgrade to Standard"
+              ctaOnClick={() => setUpgradeOpen(true)}
+            />
+
+            <PlanCard
+              badgeLabel="Coming soon"
+              name="Premium"
+              price="Contact us"
+              priceSuffix="at contactus@mochi.ph"
+              bestFor="Businesses who want to integrate their existing systems and accounting platforms and may need extra security layers without breaking the bank."
+              featuresHeading="Everything in standard plus:"
+              features={[
+                'As many user accounts as you want',
+                'As many invoices as you need',
+                'Integration with own accounting systems',
+                'Added security features',
+              ]}
+              ctaLabel="Contact us"
+              ctaHref="mailto:contactus@mochi.ph"
+            />
+          </div>
+        </>
+      )}
+
+      <UpgradeModal
+        open={upgradeOpen}
+        cycle={cycle}
+        onClose={() => setUpgradeOpen(false)}
+        onSubscribed={(details) => {
+          setCurrentPlan('standard');
+          setNextBillingDate(details.nextBillingDate);
+          setSubscriberEmail(details.email);
+          setBillingAddress(details.billingAddress);
+        }}
+      />
+
+      <DemoPlanToggle subscribed={currentPlan === 'standard'} onChange={handleDemoToggle} />
+    </div>
+  );
+}
+
 // ─── Settings page ────────────────────────────────────────────────────────────
 
 let _customFieldCounter = 0;
 
 export function SettingsPage() {
   const { saveCustomFields } = useCustomFields();
-  const [activeSection, setActiveSection] = useState<SettingsSection>('custom-fields-form');
+  const search = useSearch({ strict: false }) as { section?: SettingsSection };
+  const [activeSection, setActiveSection] = useState<SettingsSection>(search.section ?? 'custom-fields-form');
   const [customFieldsOpen, setCustomFieldsOpen] = useState(true);
 
   // Committed (saved) state
@@ -1505,6 +2188,7 @@ export function SettingsPage() {
 
   const breadcrumbMap: Record<SettingsSection, string[]> = {
     'business-info':       ['Settings', 'Business Information'],
+    'subscription':        ['Settings', 'Subscription'],
     'receiving-accounts':  ['Settings', 'Receiving Accounts'],
     'bir-invoicing':       ['Settings', 'BIR Invoicing Registration'],
     'template-library':    ['Settings', 'Template Library'],
@@ -1518,6 +2202,7 @@ export function SettingsPage() {
 
   const placeholderLabels: Record<SettingsSection, string> = {
     'business-info':       'Business Information',
+    'subscription':        'Subscription',
     'receiving-accounts':  'Receiving Accounts',
     'bir-invoicing':       'BIR Invoicing Registration',
     'template-library':    'Template Library',
@@ -1549,6 +2234,9 @@ export function SettingsPage() {
     }
     if (activeSection === 'customer-payment-portal') {
       return <CustomerPaymentPortalSettings />;
+    }
+    if (activeSection === 'subscription') {
+      return <SubscriptionSettings />;
     }
     return <PlaceholderContent label={placeholderLabels[activeSection]} />;
   }
@@ -1615,6 +2303,7 @@ export function SettingsPage() {
             <SecNavItem label="Customer Payment Portal" active={activeSection === 'customer-payment-portal'} onClick={() => setActiveSection('customer-payment-portal')} />
             <SecNavItem label="Disbursements"      active={activeSection === 'disbursements'}      onClick={() => setActiveSection('disbursements')} />
             <SecNavItem label="Users"              active={activeSection === 'users'}              onClick={() => setActiveSection('users')} />
+            <SecNavItem label="Subscription"       active={activeSection === 'subscription'}       onClick={() => setActiveSection('subscription')} />
             <SecNavItem label="Developer Settings" active={activeSection === 'developer-settings'} onClick={() => setActiveSection('developer-settings')} />
           </nav>
 
