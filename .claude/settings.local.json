@@ -1,7 +1,41 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell(npm install)",
+      "PowerShell(git fetch origin --quiet)",
+      "PowerShell(gh pr list --head feature/customer-notes --state all)",
+      "PowerShell(git fetch origin feature/customer-payments --quiet)",
+      "PowerShell(git ls-tree --name-only origin/feature/customer-payments src/components/)",
+      "PowerShell(git ls-tree --name-only origin/feature/customer-payments src/)",
+      "PowerShell(git worktree add \"$env:LOCALAPPDATA\\\\Temp\\\\claude\\\\cp-build-test\" origin/feature/customer-payments --detach)",
+      "PowerShell(Set-Location \"$env:LOCALAPPDATA\\\\Temp\\\\claude\\\\cp-build-test\"; npm install --no-audit --no-fund)",
+      "PowerShell(Set-Location \"$env:LOCALAPPDATA\\\\Temp\\\\claude\\\\cp-build-test\"; npx vite build)",
+      "PowerShell(git worktree remove \"$env:LOCALAPPDATA\\\\Temp\\\\claude\\\\cp-build-test\" --force)",
+      "Bash(ls -la src)",
+      "Bash(ls -la app)",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\Patrick\\\\Documents\\\\Claude Code\\\\mochi-vibe-code\\\\assets\")",
+      "PowerShell(git -C \"C:\\\\Users\\\\Patrick\\\\Documents\\\\Claude Code\\\\mochi-vibe-code\" status --short)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npx eslint *)",
+      "Bash(ls -la \"/c/Users/Patrick/Videos/2026-07-15 21-35-59.mp4\" 2>&1)",
+      "Bash(python3 -c \"import cv2\")",
+      "Bash(python -c \"import cv2\")",
+      "PowerShell(Get-Command ffmpeg -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command ffprobe -ErrorAction SilentlyContinue)",
+      "PowerShell(python -c \"import PIL; print\\('PIL ok'\\)\" 2>&1)",
+      "Bash(/c/Python39/python -m pip install --quiet opencv-python-headless)",
+      "Bash(/c/Python39/python -c \"import cv2; print\\(cv2.__version__\\)\")",
+      "Bash(/c/Python39/python -m pip install --quiet imageio-ffmpeg)",
+      "Bash(/c/Python39/python -c \"import imageio_ffmpeg; print\\(imageio_ffmpeg.get_ffmpeg_exe\\(\\)\\)\")",
+      "Bash(mkdir -p /c/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick-Documents-Claude-Code-mochi-vibe-code/13914150-c18d-4edd-aecb-17d32a2ecd82/scratchpad/frames)",
+      "Bash(/c/Python39/lib/site-packages/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe -i '/c/Users/Patrick/Videos/2026-07-15 21-35-59.mp4')",
+      "Bash(/c/Python39/lib/site-packages/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe -y -i '/c/Users/Patrick/Videos/2026-07-15 21-35-59.mp4' -vf fps=8,scale=480:-1 /c/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick-Documents-Claude-Code-mochi-vibe-code/13914150-c18d-4edd-aecb-17d32a2ecd82/scratchpad/frames/frame_%03d.png)",
+      "Bash(git stash *)",
+      "Bash(git add *)"
     ]
   }
 }
