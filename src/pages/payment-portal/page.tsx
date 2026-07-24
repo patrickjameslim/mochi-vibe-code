@@ -2740,88 +2740,12 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
 
 // ─── PayMongo Redirect Modal ──────────────────────────────────────────────────
 
-function PayMongoRedirectModal({ method, selectedCount, subtotal, gatewayFee, total, onContinue, onCancel }: {
-  method: PaymentMethod;
-  selectedCount: number;
-  subtotal: number;
-  gatewayFee: number;
-  total: number;
-  onContinue: () => void;
-  onCancel: () => void;
-}) {
-  const [redirecting, setRedirecting] = useState(false);
-
-  function handleContinue() {
-    setRedirecting(true);
-    window.setTimeout(() => { onContinue(); }, 1200);
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md flex flex-col gap-5">
-        {/* Headline */}
-        <div className="text-center flex flex-col items-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
-            <ShieldCheck size={26} className="text-violet-600" weight="duotone" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">Redirecting to secure payment</h2>
-            <p className="text-sm text-slate-500 mt-1">
-              You'll be redirected to PayMongo, our secure external payment provider, to complete your {methodLabel(method)} payment.
-            </p>
-          </div>
-        </div>
-
-        {/* Payment Summary Card */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col gap-2.5">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Number of bills selected</span>
-            <span className="font-semibold text-slate-800">{selectedCount}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Subtotal</span>
-            <span className="font-semibold text-slate-800">{fmt(subtotal)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Gateway fee (3.5% + ₱15)</span>
-            <span className="font-semibold text-slate-800">{fmt(gatewayFee)}</span>
-          </div>
-          <div className="border-t border-slate-200 pt-2.5 flex justify-between">
-            <span className="text-sm font-bold text-slate-700">Total amount due</span>
-            <span className="text-base font-bold text-violet-700">{fmt(total)}</span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={handleContinue}
-            disabled={redirecting}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {redirecting ? <><Spinner size={16} className="animate-spin" /> Redirecting…</> : <>Continue to Payment <ArrowSquareOut size={16} /></>}
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={redirecting}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-60 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-
-        <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
-          <Lock size={12} /> Secured by PayMongo
-        </p>
-      </div>
-    </div>
-  );
-}
-
 // ─── Step 3: Success Page ─────────────────────────────────────────────────────
 
-function Step3({ selected, total, method, onBackToPortal, step = 3 }: {
+function Step3({ selected, subtotal, gatewayFee, total, method, onBackToPortal, step = 3 }: {
   selected: Set<string>;
+  subtotal: number;
+  gatewayFee: number;
   total: number;
   method: PaymentMethod;
   onBackToPortal: () => void;
@@ -2864,7 +2788,19 @@ function Step3({ selected, total, method, onBackToPortal, step = 3 }: {
             <span className="text-slate-500">Number of bills paid</span>
             <span className="font-semibold text-slate-800">{selected.size}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          {method !== 'upload' && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Subtotal</span>
+                <span className="font-medium text-slate-800">{fmt(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Gateway fee (3.5% + ₱15)</span>
+                <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between text-sm border-t border-slate-100 pt-3">
             <span className="text-slate-500">Total amount paid</span>
             <span className="font-bold text-violet-700">{fmt(total)}</span>
           </div>
@@ -3177,9 +3113,10 @@ function PayMongoCardForm({ form, onChange }: { form: CardForm; onChange: (k: ke
   );
 }
 
-function PayMongoCheckout({ method, selectedBills, gatewayFee, total, onPay, onBack }: {
+function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, onPay, onBack }: {
   method: PaymentMethod;
   selectedBills: Bill[];
+  subtotal: number;
   gatewayFee: number;
   total: number;
   onPay: () => void;
@@ -3317,11 +3254,11 @@ function PayMongoCheckout({ method, selectedBills, gatewayFee, total, onPay, onB
             <div className="mt-5 pt-5 border-t border-dashed border-slate-200 flex flex-col gap-1.5">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Subtotal</span>
-                <span className="text-slate-500">{fmt(total)}</span>
+                <span className="text-slate-500">{fmt(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Fees</span>
-                <span className="text-slate-500">Free</span>
+                <span className="text-slate-500">Gateway fee (3.5% + ₱15)</span>
+                <span className="text-slate-500">{fmt(gatewayFee)}</span>
               </div>
             </div>
             <div className="mt-5 pt-5 border-t border-dashed border-slate-200 flex justify-between">
@@ -3702,7 +3639,7 @@ export default function CustomerPaymentPortalPage() {
   const [step, setStep] = useState<Step>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [method, setMethod] = useState<PaymentMethod>('card');
-  const [gatewayStage, setGatewayStage] = useState<'idle' | 'modal' | 'checkout'>('idle');
+  const [gatewayStage, setGatewayStage] = useState<'idle' | 'checkout'>('idle');
   const [showStep1Error, setShowStep1Error] = useState(false);
   const [portalView, setPortalView] = useState<'flow' | 'settings'>('flow');
   const [showPinSuccessBanner, setShowPinSuccessBanner] = useState(false);
@@ -3791,7 +3728,7 @@ export default function CustomerPaymentPortalPage() {
             selected={selected}
             method={method}
             setMethod={setMethod}
-            onSubmitRedirect={() => setGatewayStage('modal')}
+            onSubmitRedirect={() => setGatewayStage('checkout')}
             onUploadSuccess={() => setStep(3)}
             onPrevious={() => setStep(1)}
             showUpload={previewShowUpload}
@@ -3799,7 +3736,7 @@ export default function CustomerPaymentPortalPage() {
             step={step}
           />
         )}
-        {!locked && portalView === 'flow' && step === 3 && <Step3 selected={selected} total={total} method={method} onBackToPortal={handleBackToPortal} step={step} />}
+        {!locked && portalView === 'flow' && step === 3 && <Step3 selected={selected} subtotal={subtotal} gatewayFee={gatewayFee} total={total} method={method} onBackToPortal={handleBackToPortal} step={step} />}
       </div>
 
       {/* First-time: mandatory Set Up PIN (cannot be dismissed) — legacy flow, no longer reachable via demo toolbar */}
@@ -3808,22 +3745,11 @@ export default function CustomerPaymentPortalPage() {
       {/* Email + OTP authentication */}
       {isLogin && <PinAuthModal currentPin={currentPin} onSuccess={() => setAppState('portal')} />}
 
-      {gatewayStage === 'modal' && (
-        <PayMongoRedirectModal
-          method={method}
-          selectedCount={selected.size}
-          subtotal={subtotal}
-          gatewayFee={gatewayFee}
-          total={total}
-          onContinue={() => setGatewayStage('checkout')}
-          onCancel={() => setGatewayStage('idle')}
-        />
-      )}
-
       {gatewayStage === 'checkout' && (
         <PayMongoCheckout
           method={method}
           selectedBills={selectedBills}
+          subtotal={subtotal}
           gatewayFee={gatewayFee}
           total={total}
           onPay={() => { setGatewayStage('idle'); setStep(3); }}
