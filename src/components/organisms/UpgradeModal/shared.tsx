@@ -71,13 +71,6 @@ export function formatExpiry(raw: string) {
   return digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
 }
 
-export function formatTin(raw: string) {
-  const digits = raw.replace(/\D/g, '').slice(0, 14);
-  return [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 9), digits.slice(9, 14)]
-    .filter(Boolean)
-    .join('-');
-}
-
 export function addCycle(date: Date, cycle: BillingCycle) {
   const next = new Date(date);
   if (cycle === 'monthly') next.setMonth(next.getMonth() + 1);

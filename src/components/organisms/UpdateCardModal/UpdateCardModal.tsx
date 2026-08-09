@@ -51,8 +51,8 @@ interface UpdateCardModalProps {
   open: boolean;
   cycle: BillingCycle;
   nextBillingDate: Date;
-  email: string;
   billingAddress: BillingAddress;
+  simulateFailure: boolean;
   onClose: () => void;
   onUpdated: (billingAddress: BillingAddress) => void;
 }
@@ -61,8 +61,8 @@ export function UpdateCardModal({
   open,
   cycle,
   nextBillingDate,
-  email,
   billingAddress,
+  simulateFailure,
   onClose,
   onUpdated,
 }: UpdateCardModalProps) {
@@ -85,7 +85,6 @@ export function UpdateCardModal({
   }
 
   function handleClose() {
-    setForm(emptyForm(billingAddress));
     setStage('form');
     setChargeError(null);
     setFieldErrors({});
@@ -100,7 +99,9 @@ export function UpdateCardModal({
     setProcessing(true);
     window.setTimeout(() => {
       setProcessing(false);
-      const charge = simulateCharge(form.cardNumber);
+      const charge = simulateFailure
+        ? { ok: false as const, message: 'Your card was declined by your bank. Contact your bank or use a different card.' }
+        : simulateCharge(form.cardNumber);
       if (!charge.ok) {
         setChargeError(charge.message);
         setForm(prev => ({ ...prev, cardNumber: '', expiry: '', cvv: '', nameOnCard: '' }));
@@ -113,20 +114,13 @@ export function UpdateCardModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4" onClick={handleClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         {stage === 'success' ? (
           <ResultScreen
             variant="success"
             title="Your card has been updated."
             subtitle={`Next billing date: ${formatDate(nextBillingDate)}.`}
-            footerNote={
-              email ? (
-                <>
-                  A confirmation email has been sent to <span className="font-medium text-slate-700">{email}</span>.
-                </>
-              ) : undefined
-            }
             primaryLabel="Done"
             onPrimaryAction={handleClose}
           />

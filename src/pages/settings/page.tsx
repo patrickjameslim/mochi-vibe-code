@@ -30,6 +30,7 @@ import {
   FilePdf,
   MagnifyingGlass,
   Minus,
+  Percent,
   Plus,
   Receipt,
   Square,
@@ -54,6 +55,7 @@ import { TextareaInput as Textarea } from '#/components/atoms/TextareaInput';
 import { Label } from '#/components/atoms/Label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '#/components/atoms/Card';
 import { Badge } from '#/components/atoms/Badge';
+import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
 import { Progress } from '#/components/atoms/Progress';
 import {
   DropdownMenu,
@@ -62,6 +64,7 @@ import {
   DropdownMenuItem,
 } from '#/components/atoms/DropdownMenu';
 import { Paginate, usePaginate, usePaginateStateLocal } from '#/components/molecules/Paginate';
+import { SuccessBanner } from '#/components/molecules/SuccessBanner';
 import {
   Select,
   SelectTrigger,
@@ -1423,7 +1426,16 @@ type BillingCycle = 'monthly' | 'annual';
 
 const MONTHLY_PRICE = 1899;
 const ANNUAL_PRICE = 18990;
-const ANNUAL_EFFECTIVE_MONTHLY = (ANNUAL_PRICE / 12).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const ANNUAL_EFFECTIVE_MONTHLY = ANNUAL_PRICE / 12;
+
+const TRIAL_DAYS = 30;
+// Prototype-only: no real trial-start timestamp exists yet, so mock one a few days in the past.
+const TRIAL_START_DATE = new Date(Date.now() - 12 * 24 * 60 * 60 * 1000);
+
+function daysLeftInTrial(startDate: Date, totalDays: number) {
+  const elapsedDays = Math.floor((Date.now() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.max(0, totalDays - elapsedDays);
+}
 
 function peso(amount: number) {
   return `PHP ${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1443,11 +1455,27 @@ function addCycle(date: Date, cycle: BillingCycle) {
 /** Prototype-only: lets stakeholders flip between the trial and subscribed views without running the full upgrade flow. */
 function DemoPlanToggle({ subscribed, onChange }: { subscribed: boolean; onChange: (next: boolean) => void }) {
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2.5 bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-md pl-3.5 pr-2.5 py-2 text-xs text-slate-400">
+    <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-md pl-3.5 pr-2.5 py-2 text-xs text-slate-400">
       <span className="font-medium tracking-wide uppercase">Preview</span>
       <span className={cn('font-medium', !subscribed ? 'text-slate-700' : 'text-slate-300')}>Trial</span>
       <Switch checked={subscribed} onCheckedChange={onChange} checkedBg="primary" />
       <span className={cn('font-medium', subscribed ? 'text-slate-700' : 'text-slate-300')}>Standard</span>
+    </div>
+  );
+}
+
+/** Prototype-only: forces the next payment attempt (upgrade or card update) to fail, so the decline experience can be demoed without a specific test card number. */
+function DemoPaymentOutcomeToggle({ simulateFailure, onChange }: { simulateFailure: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-md pl-3.5 pr-2.5 py-2 text-xs text-slate-400">
+      <span className="font-medium tracking-wide uppercase">Payments</span>
+      <span className={cn('font-medium', !simulateFailure ? 'text-slate-700' : 'text-slate-300')}>Success</span>
+      <Switch
+        checked={simulateFailure}
+        onCheckedChange={onChange}
+        className="data-[state=checked]:bg-red-500"
+      />
+      <span className={cn('font-medium', simulateFailure ? 'text-red-600' : 'text-slate-300')}>Failed</span>
     </div>
   );
 }
@@ -1471,13 +1499,18 @@ function BillingCycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange
           cycle === 'annual' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50',
         )}
       >
-        Annually
-        <span className={cn(
-          'text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
-          cycle === 'annual' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700',
-        )}>
-          2 months free
-        </span>
+        Annual
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn(
+              'w-5 h-5 rounded-full flex items-center justify-center shrink-0',
+              cycle === 'annual' ? 'bg-violet-200' : 'bg-green-100',
+            )}>
+              <Percent size={11} weight="bold" className={cycle === 'annual' ? 'text-violet-700' : 'text-green-600'} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>2 months free with annual billing</TooltipContent>
+        </Tooltip>
       </button>
     </div>
   );
@@ -1486,86 +1519,104 @@ function BillingCycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange
 function PlanCard({
   highlighted,
   badgeLabel,
+  stripBadge,
   name,
   price,
   priceSuffix,
+  originalPrice,
+  billingNote,
   savingsNote,
-  bestFor,
+  savingsTone = 'emerald',
   featuresHeading,
   features,
   ctaLabel,
   ctaHref,
   ctaOnClick,
   ctaDisabled,
+  ctaVariant = 'primary',
 }: {
   highlighted?: boolean;
   badgeLabel?: string;
+  stripBadge?: boolean;
   name: string;
   price: string;
   priceSuffix: string;
+  originalPrice?: string;
+  billingNote?: string;
   savingsNote?: string;
-  bestFor: string;
+  savingsTone?: 'emerald' | 'yellow';
   featuresHeading: string;
   features: string[];
   ctaLabel: string;
   ctaHref?: string;
   ctaOnClick?: () => void;
   ctaDisabled?: boolean;
+  ctaVariant?: 'primary' | 'outline';
 }) {
   const ctaClass = cn(
     'w-full inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
     ctaDisabled
       ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-      : highlighted
-        ? 'bg-white text-violet-700 hover:bg-violet-50'
+      : ctaVariant === 'outline'
+        ? 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
         : 'bg-violet-600 text-white hover:bg-violet-700',
   );
 
   return (
     <div className={cn(
-      'flex flex-col rounded-2xl border overflow-hidden',
-      highlighted ? 'bg-violet-600 border-violet-600' : 'bg-white border-slate-200',
+      'flex flex-col rounded-2xl border bg-white overflow-hidden',
+      highlighted ? 'border-violet-200' : 'border-slate-200',
     )}>
+      {stripBadge && badgeLabel && (
+        <div className={cn(
+          'px-4 py-2 text-center text-xs font-semibold border-b',
+          highlighted ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200',
+        )}>
+          {badgeLabel}
+        </div>
+      )}
+
       <div className="p-6 flex flex-col gap-4 flex-1">
-        <div className="h-6">
-          {badgeLabel && (
-            <span className={cn(
-              'inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold',
-              highlighted ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600',
-            )}>
+        {!stripBadge && badgeLabel && (
+          <div className="h-6">
+            <span className="inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 text-slate-600">
               {badgeLabel}
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-900">{name}</h3>
+          {savingsNote && (
+            <span className={cn(
+              'text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+              savingsTone === 'yellow' ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700',
+            )}>
+              {savingsNote}
             </span>
           )}
         </div>
 
-        <h3 className={cn('text-lg font-bold', highlighted ? 'text-white' : 'text-slate-900')}>{name}</h3>
-
         <div>
-          <p className={cn('text-3xl font-extrabold', highlighted ? 'text-white' : 'text-slate-900')}>{price}</p>
-          <p className={cn('text-sm mt-0.5', highlighted ? 'text-violet-100' : 'text-slate-500')}>{priceSuffix}</p>
-          {savingsNote && (
-            <p className={cn('text-xs mt-1.5 font-medium', highlighted ? 'text-emerald-200' : 'text-emerald-600')}>
-              {savingsNote}
-            </p>
+          <p className="text-3xl font-extrabold text-slate-900">{price}</p>
+          <p className="text-sm mt-0.5 text-slate-500">{priceSuffix}</p>
+          {originalPrice && (
+            <p className="text-sm text-slate-400 line-through mt-1">{originalPrice}</p>
+          )}
+          {billingNote && (
+            <p className="text-xs mt-1.5 text-slate-500">{billingNote}</p>
           )}
         </div>
 
-        <div className={cn('border-t', highlighted ? 'border-white/20' : 'border-slate-100')} />
-
-        <div>
-          <p className={cn('text-sm font-semibold mb-1.5', highlighted ? 'text-white' : 'text-slate-800')}>This plan is best for:</p>
-          <p className={cn('text-sm leading-relaxed', highlighted ? 'text-violet-100' : 'text-slate-500')}>{bestFor}</p>
-        </div>
-
-        <div className={cn('border-t', highlighted ? 'border-white/20' : 'border-slate-100')} />
+        <div className="border-t border-slate-100" />
 
         <div className="flex flex-col gap-2.5">
-          <p className={cn('text-sm font-semibold', highlighted ? 'text-white' : 'text-slate-800')}>{featuresHeading}</p>
+          <p className="text-sm font-semibold text-slate-800">{featuresHeading}</p>
           <ul className="flex flex-col gap-2">
             {features.map(item => (
               <li key={item} className="flex items-start gap-2">
-                <Check size={14} weight="bold" className={cn('shrink-0 mt-0.5', highlighted ? 'text-white' : 'text-violet-500')} />
-                <span className={cn('text-sm', highlighted ? 'text-violet-50' : 'text-slate-600')}>{item}</span>
+                <Check size={14} weight="bold" className="shrink-0 mt-0.5 text-violet-500" />
+                <span className="text-sm text-slate-600">{item}</span>
               </li>
             ))}
           </ul>
@@ -1616,7 +1667,7 @@ function MetricCard({
           <span className="text-2xl font-extrabold text-slate-900">{used.toLocaleString('en-PH')}</span>
           <span className="text-sm text-slate-400">/ {limit.toLocaleString('en-PH')} {unit}</span>
         </div>
-        <Progress value={pct} color={nearLimit ? 'danger' : 'success'} className="mt-3" />
+        <Progress value={pct} color={nearLimit ? 'danger' : 'violet'} className="mt-3" />
         <p className={cn('text-xs mt-1.5', nearLimit ? 'text-red-500 font-medium' : 'text-slate-400')}>
           {limit - used} {unit} left this cycle
         </p>
@@ -1641,7 +1692,7 @@ function CurrentPlanPanel({
       <div>
         <div className="flex items-center gap-2.5">
           <h2 className="text-lg font-bold text-slate-900">Standard</h2>
-          <Badge colorScheme="emerald" className="border-emerald-700">Active</Badge>
+          <Badge colorScheme="violet" className="border-violet-700">Active</Badge>
         </div>
         <p className="text-sm text-slate-500 mt-1">
           {cycle === 'monthly' ? 'Billed monthly' : 'Billed annually'}
@@ -1649,7 +1700,7 @@ function CurrentPlanPanel({
         </p>
       </div>
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={onUpdateCardClick}>
+        <Button colorScheme="primary" size="sm" className="gap-1.5" onClick={onUpdateCardClick}>
           <CreditCard size={14} />
           Update payment information
         </Button>
@@ -1702,7 +1753,6 @@ function CancelSubscriptionModal({
   }
 
   function handleKeepPlan() {
-    reset();
     onKeepPlan();
   }
 
@@ -1713,8 +1763,8 @@ function CancelSubscriptionModal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4" onClick={handleKeepPlan}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-semibold text-slate-900">Cancel your subscription?</h2>
           <button onClick={handleKeepPlan} className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -1724,8 +1774,7 @@ function CancelSubscriptionModal({
 
         <div className="px-6 py-5 flex-1 overflow-y-auto flex flex-col gap-5">
           <p className="text-sm text-slate-500 leading-relaxed">
-            You'll lose access to Standard features and your invoice/customer limit will drop back to the free trial's.
-            This can't be undone from here.
+            By cancelling your subscription, you'll lose access to Standard features, and your invoice and customer limits will revert to the free trial plan.
           </p>
 
           <div className="flex flex-col gap-2.5">
@@ -1829,13 +1878,14 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
             <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Invoice</th>
             <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Billing date</th>
             <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Plan</th>
+            <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Amount</th>
             <th className="w-12" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {pageRows.length === 0 && (
             <tr>
-              <td colSpan={4} className="px-5 py-10 text-center text-sm text-slate-400">
+              <td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">
                 No billing history yet.
               </td>
             </tr>
@@ -1849,11 +1899,10 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
                 </div>
               </td>
               <td className="px-5 py-3 text-slate-500">{formatDate(row.billingDate)}</td>
-              <td className="px-5 py-3">
-                <Badge colorScheme="violet" className="border-violet-700 leading-none py-1">
-                  Standard {cycle === 'monthly' ? 'Monthly' : 'Annual'}
-                </Badge>
+              <td className="px-5 py-3 text-slate-500">
+                Standard {cycle === 'monthly' ? 'Monthly' : 'Annual'}
               </td>
+              <td className="px-5 py-3 text-slate-700 font-medium">{peso(row.amount)}</td>
               <td className="px-2 py-3">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-500 hover:bg-slate-100 transition-colors outline-none">
@@ -1899,15 +1948,15 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
 function SubscribedOverview({
   cycle,
   nextBillingDate,
-  email,
   billingAddress,
+  simulatePaymentFailure,
   onCancelSubscription,
   onCardUpdated,
 }: {
   cycle: BillingCycle;
   nextBillingDate: Date | null;
-  email: string;
   billingAddress: BillingAddress;
+  simulatePaymentFailure: boolean;
   onCancelSubscription: () => void;
   onCardUpdated: (billingAddress: BillingAddress) => void;
 }) {
@@ -1942,8 +1991,8 @@ function SubscribedOverview({
           open={showUpdateCard}
           cycle={cycle}
           nextBillingDate={nextBillingDate}
-          email={email}
           billingAddress={billingAddress}
+          simulateFailure={simulatePaymentFailure}
           onClose={() => setShowUpdateCard(false)}
           onUpdated={onCardUpdated}
         />
@@ -1966,8 +2015,10 @@ function SubscriptionSettings() {
   const [currentPlan, setCurrentPlan] = useState<'trial' | 'standard'>('trial');
   const [nextBillingDate, setNextBillingDate] = useState<Date | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [subscriberEmail, setSubscriberEmail] = useState('');
   const [billingAddress, setBillingAddress] = useState<BillingAddress>(EMPTY_BILLING_ADDRESS);
+  const [simulatePaymentFailure, setSimulatePaymentFailure] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+  const trialDaysLeft = daysLeftInTrial(TRIAL_START_DATE, TRIAL_DAYS);
 
   function handleDemoToggle(subscribed: boolean) {
     if (subscribed) {
@@ -1979,27 +2030,38 @@ function SubscriptionSettings() {
     }
   }
 
-  return (
-    <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">Subscription</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {currentPlan === 'standard'
-            ? 'Manage your plan, usage, and billing history.'
-            : 'Compare plans and choose the billing cycle that works best for you.'}
-        </p>
-      </div>
+  function handleCancelSubscription() {
+    setCurrentPlan('trial');
+    setNextBillingDate(null);
+    setBanner('Your subscription has been cancelled successfully.');
+  }
 
-      {currentPlan === 'standard' ? (
-        <SubscribedOverview
-          cycle={cycle}
-          nextBillingDate={nextBillingDate}
-          email={subscriberEmail}
-          billingAddress={billingAddress}
-          onCancelSubscription={() => { setCurrentPlan('trial'); setNextBillingDate(null); }}
-          onCardUpdated={setBillingAddress}
-        />
-      ) : (
+  return (
+    <div className="flex flex-col h-full">
+      {banner && (
+        <SuccessBanner message={banner} onDismiss={() => setBanner(null)} />
+      )}
+
+      <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-6 w-full">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Subscription</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {currentPlan === 'standard'
+              ? 'Manage your plan, usage, and billing history.'
+              : 'Compare plans and choose the billing cycle that works best for you.'}
+          </p>
+        </div>
+
+        {currentPlan === 'standard' ? (
+          <SubscribedOverview
+            cycle={cycle}
+            nextBillingDate={nextBillingDate}
+            billingAddress={billingAddress}
+            simulatePaymentFailure={simulatePaymentFailure}
+            onCancelSubscription={handleCancelSubscription}
+            onCardUpdated={setBillingAddress}
+          />
+        ) : (
         <>
           <div className="flex items-center justify-center">
             <BillingCycleToggle cycle={cycle} onChange={setCycle} />
@@ -2007,11 +2069,11 @@ function SubscriptionSettings() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
             <PlanCard
+              stripBadge
               badgeLabel="Current Plan"
               name="Trial"
               price="Free"
-              priceSuffix="for 30 days"
-              bestFor="Startups who want to give Mochi a whirl and see what an accounts receivable platform can do for their business — for free!"
+              priceSuffix={`${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left`}
               featuresHeading="Free trial includes:"
               features={[
                 'Up to 5 user accounts',
@@ -2028,12 +2090,14 @@ function SubscriptionSettings() {
 
             <PlanCard
               highlighted
+              stripBadge
               badgeLabel="Most Popular"
               name="Standard"
-              price={cycle === 'monthly' ? peso(MONTHLY_PRICE) : peso(ANNUAL_PRICE)}
-              priceSuffix={cycle === 'monthly' ? 'per month' : 'per year'}
-              savingsNote={cycle === 'annual' ? `≈ PHP ${ANNUAL_EFFECTIVE_MONTHLY}/mo — 2 months free` : undefined}
-              bestFor="Businesses with a small team handling multiple customers with varying due dates who need help with invoicing — for the price of half an invoice!"
+              price={cycle === 'monthly' ? peso(MONTHLY_PRICE) : peso(ANNUAL_EFFECTIVE_MONTHLY)}
+              priceSuffix="per month"
+              originalPrice={cycle === 'annual' ? `${peso(MONTHLY_PRICE)}/mo` : undefined}
+              billingNote={cycle === 'annual' ? `${peso(ANNUAL_PRICE)} billed annually` : undefined}
+              savingsNote={cycle === 'annual' ? '2 months free' : undefined}
               featuresHeading="Everything in trial plus:"
               features={['Up to 1,000 invoices and customers per month']}
               ctaLabel="Upgrade to Standard"
@@ -2041,11 +2105,9 @@ function SubscriptionSettings() {
             />
 
             <PlanCard
-              badgeLabel="Coming soon"
               name="Premium"
               price="Contact us"
               priceSuffix="at contactus@mochi.ph"
-              bestFor="Businesses who want to integrate their existing systems and accounting platforms and may need extra security layers without breaking the bank."
               featuresHeading="Everything in standard plus:"
               features={[
                 'As many user accounts as you want',
@@ -2055,24 +2117,29 @@ function SubscriptionSettings() {
               ]}
               ctaLabel="Contact us"
               ctaHref="mailto:contactus@mochi.ph"
+              ctaVariant="outline"
             />
           </div>
         </>
       )}
+      </div>
 
       <UpgradeModal
         open={upgradeOpen}
         cycle={cycle}
+        simulateFailure={simulatePaymentFailure}
         onClose={() => setUpgradeOpen(false)}
         onSubscribed={(details) => {
           setCurrentPlan('standard');
           setNextBillingDate(details.nextBillingDate);
-          setSubscriberEmail(details.email);
           setBillingAddress(details.billingAddress);
         }}
       />
 
-      <DemoPlanToggle subscribed={currentPlan === 'standard'} onChange={handleDemoToggle} />
+      <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2.5">
+        <DemoPaymentOutcomeToggle simulateFailure={simulatePaymentFailure} onChange={setSimulatePaymentFailure} />
+        <DemoPlanToggle subscribed={currentPlan === 'standard'} onChange={handleDemoToggle} />
+      </div>
     </div>
   );
 }
