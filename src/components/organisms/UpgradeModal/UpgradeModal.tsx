@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { X, CreditCard, WarningCircle, CaretDown } from '@phosphor-icons/react';
 import { Checkbox } from '#/components/atoms/Checkbox';
-import { Switch } from '#/components/atoms/Switch';
 import { Button } from '#/components/atoms/Button';
 import { cn } from '#/components/utils';
 import {
@@ -15,7 +14,6 @@ import {
   formatCardNumber,
   formatDate,
   formatExpiry,
-  formatTin,
   inputCls,
   labelCls,
   peso,
@@ -30,26 +28,18 @@ const MONTHLY_PRICE = 1899;
 const ANNUAL_PRICE = 18990;
 
 interface FormState extends BillingAddress {
-  isBusiness: boolean;
-  businessName: string;
-  tin: string;
   cardNumber: string;
   expiry: string;
   cvv: string;
   nameOnCard: string;
-  email: string;
   agreedToTerms: boolean;
 }
 
 const EMPTY_FORM: FormState = {
-  isBusiness: false,
-  businessName: '',
-  tin: '',
   cardNumber: '',
   expiry: '',
   cvv: '',
   nameOnCard: '',
-  email: '',
   addressLine1: '',
   addressLine2: '',
   city: '',
@@ -64,8 +54,9 @@ type Stage = 'form' | 'confirm' | 'success' | 'error';
 interface UpgradeModalProps {
   open: boolean;
   cycle: BillingCycle;
+  simulateFailure: boolean;
   onClose: () => void;
-  onSubscribed: (details: { nextBillingDate: Date; email: string; billingAddress: BillingAddress }) => void;
+  onSubscribed: (details: { nextBillingDate: Date; billingAddress: BillingAddress }) => void;
 }
 
 type FieldErrors = Partial<Record<keyof FormState, string>>;
@@ -73,15 +64,10 @@ type FieldErrors = Partial<Record<keyof FormState, string>>;
 function validate(form: FormState): FieldErrors {
   const errors: FieldErrors = {};
 
-  if (form.isBusiness) {
-    if (!form.businessName.trim()) errors.businessName = 'Enter your registered business name.';
-    if (form.tin.replace(/\D/g, '').length !== 14) errors.tin = 'Enter a complete TIN in the format XXX-XXX-XXX-XXXXX.';
-  }
   if (form.cardNumber.replace(/\D/g, '').length < 12) errors.cardNumber = 'Enter a valid card number.';
   if (!/^\d{2}\/\d{2}$/.test(form.expiry)) errors.expiry = 'Enter the expiration date as MM/YY.';
   if (form.cvv.length < 3) errors.cvv = 'Enter a valid CVV.';
   if (!form.nameOnCard.trim()) errors.nameOnCard = 'Enter the name on the card.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Enter a valid email address.';
   if (!form.addressLine1.trim()) errors.addressLine1 = 'Enter your address.';
   if (!form.city.trim()) errors.city = 'Enter your city.';
   if (!form.country.trim()) errors.country = 'Select a country.';
@@ -91,14 +77,13 @@ function validate(form: FormState): FieldErrors {
   return errors;
 }
 
-export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModalProps) {
+export function UpgradeModal({ open, cycle, simulateFailure, onClose, onSubscribed }: UpgradeModalProps) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [stage, setStage] = useState<Stage>('form');
   const [chargeError, setChargeError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ amount: number; nextBillingDate: Date } | null>(null);
-  const [simulateFailure, setSimulateFailure] = useState(false);
 
   if (!open) return null;
 
@@ -116,12 +101,10 @@ export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModa
   }
 
   function handleClose() {
-    setForm(EMPTY_FORM);
     setStage('form');
     setChargeError(null);
     setFieldErrors({});
     setResult(null);
-    setSimulateFailure(false);
     onClose();
   }
 
@@ -159,7 +142,7 @@ export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModa
       };
       setResult({ amount, nextBillingDate });
       setStage('success');
-      onSubscribed({ nextBillingDate, email: form.email, billingAddress });
+      onSubscribed({ nextBillingDate, billingAddress });
     }, 1000);
   }
 
@@ -168,8 +151,8 @@ export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModa
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4" onClick={handleClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         {stage === 'success' && result ? (
           <ResultScreen
             variant="success"
@@ -180,11 +163,6 @@ export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModa
               { label: 'Amount Charged', value: peso(result.amount), emphasize: true },
               { label: 'Next Billing Date', value: formatDate(result.nextBillingDate) },
             ]}
-            footerNote={
-              <>
-                A receipt has been sent to <span className="font-medium text-slate-700">{form.email}</span>.
-              </>
-            }
             primaryLabel="Done"
             onPrimaryAction={handleClose}
           />
@@ -215,39 +193,6 @@ export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModa
                   <p className="text-sm text-red-700 leading-relaxed">{chargeError}</p>
                 </div>
               )}
-
-              {/* Business / organization */}
-              <div className="flex flex-col gap-3">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <Checkbox checked={form.isBusiness} onCheckedChange={v => set('isBusiness', v === true)} />
-                  <span className="text-sm font-medium text-slate-700">I am a business or organization.</span>
-                </label>
-                {form.isBusiness && (
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <label className={labelCls}>Registered Business Name <span className="text-red-500">*</span></label>
-                      <input
-                        value={form.businessName}
-                        onChange={e => set('businessName', e.target.value)}
-                        placeholder="Business or organization name"
-                        className={fieldCls(fieldErrors.businessName)}
-                      />
-                      <FieldError message={fieldErrors.businessName} />
-                    </div>
-                    <div>
-                      <label className={labelCls}>TIN <span className="text-red-500">*</span></label>
-                      <input
-                        value={form.tin}
-                        onChange={e => set('tin', formatTin(e.target.value))}
-                        inputMode="numeric"
-                        placeholder="XXX-XXX-XXX-XXXXX"
-                        className={fieldCls(fieldErrors.tin)}
-                      />
-                      <FieldError message={fieldErrors.tin} />
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Charge summary */}
               <div className="flex flex-col gap-3">
@@ -316,19 +261,6 @@ export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModa
                   />
                   <FieldError message={fieldErrors.nameOnCard} />
                 </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className={labelCls}>E-mail Address <span className="text-red-500">*</span></label>
-                <input
-                  value={form.email}
-                  onChange={e => set('email', e.target.value)}
-                  type="email"
-                  placeholder="name@example.net"
-                  className={fieldCls(fieldErrors.email)}
-                />
-                <FieldError message={fieldErrors.email} />
               </div>
 
               {/* Billing address */}
@@ -407,15 +339,6 @@ export function UpgradeModal({ open, cycle, onClose, onSubscribed }: UpgradeModa
                   </span>
                 </label>
                 <FieldError message={fieldErrors.agreedToTerms} />
-              </div>
-
-              {/* Demo-only payment failure simulator */}
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Simulate failed payment?</p>
-                  <p className="text-xs text-slate-400 mt-0.5">This is for demo purposes only.</p>
-                </div>
-                <Switch checked={simulateFailure} onCheckedChange={setSimulateFailure} />
               </div>
             </div>
 
