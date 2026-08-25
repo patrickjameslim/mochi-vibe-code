@@ -34,9 +34,12 @@ import {
   Image as ImageIcon,
   WarningCircle,
   X,
+  Percent,
+  CurrencyDollar,
 } from '@phosphor-icons/react';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
 import { Switch } from '#/components/atoms/Switch';
+import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
 import { Button } from '#/components/atoms/Button';
 import { Input } from '#/components/atoms/Input';
 import { TextareaInput as Textarea } from '#/components/atoms/TextareaInput';
@@ -50,6 +53,8 @@ import {
   SelectItem,
 } from '#/components/atoms/Select';
 import { cn } from '#/components/utils';
+import { getPenaltySettings, setPenaltySettings, type PenaltyCalcType, type RepeatUnit } from '#/data/penaltySettings';
+import { formatPeso } from '#/data/bills';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,6 +73,7 @@ type SettingsSection =
   | 'custom-fields-form'
   | 'custom-fields-bills'
   | 'customer-payment-portal'
+  | 'late-payment-penalties'
   | 'disbursements'
   | 'users'
   | 'developer-settings';
@@ -1363,6 +1369,388 @@ function CustomerPaymentPortalSettings() {
   );
 }
 
+// ─── Shared option metadata (icon/label/desc) for the Calculation Type
+// picker — identical choice, reused by both the One-time and Recurring
+// rule cards below. ──
+const PENALTY_TYPE_OPTIONS: { id: PenaltyCalcType; icon: React.ReactNode; label: string; desc: string }[] = [
+  { id: 'percentage', icon: <Percent size={18} />, label: 'Percentage', desc: 'Calculate the penalty as a percentage of the overdue balance.' },
+  { id: 'fixed', icon: <CurrencyDollar size={18} />, label: 'Fixed Amount', desc: 'Charge the same penalty amount regardless of the overdue balance.' },
+];
+
+// ─── A concrete, minimal example of what compounding actually does — a
+// single "before" and "after" step, deliberately generic (not tied to any
+// real bill) and only shown when compounding is switched on, so it stays a
+// lightweight aid rather than a permanent fixture of the page. Only needs
+// Compounding's OWN period (not Repeat Every at all) — compounding is a
+// self-contained concept ("the next penalty uses the updated balance"),
+// so the example holds regardless of whether the rule it's attached to
+// even has a separate repeat schedule (a one-time bill doesn't). ──
+function CompoundingExample({
+  type,
+  value,
+  compoundEvery,
+  compoundUnit,
+}: {
+  type: PenaltyCalcType;
+  value: number;
+  compoundEvery: number;
+  compoundUnit: RepeatUnit;
+}) {
+  const sampleInvoice = 24000;
+  const compoundLabel = compoundEvery === 1 ? compoundUnit.replace(/s$/, '').toLowerCase() : compoundUnit.toLowerCase();
+
+  const firstCharge = type === 'percentage' ? sampleInvoice * (value / 100) : value;
+  const updatedBalance = sampleInvoice + firstCharge;
+  const nextCharge = type === 'percentage' ? updatedBalance * (value / 100) : value;
+
+  return (
+    <div className="rounded-lg bg-white border border-violet-100 px-3 py-3 mt-4">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Info size={13} className="text-violet-400" />
+        <p className="text-xs font-semibold text-slate-700">How compounding works</p>
+      </div>
+      <p className="text-xs text-slate-500 leading-relaxed mb-3">
+        {type === 'percentage'
+          ? 'When compounding is enabled, each new percentage-based penalty is calculated using the updated balance, including previously added penalties.'
+          : 'With a fixed penalty, the same penalty amount is added each time. Compounding does not increase the fixed charge itself.'}
+      </p>
+      <div className="rounded-lg bg-slate-50 px-3 py-2.5 space-y-2.5">
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Example</p>
+          <div>
+            <p className="text-xs text-slate-500">Starting balance</p>
+            <p className="text-xs font-mono text-slate-700">{formatPeso(sampleInvoice)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">First penalty — {type === 'percentage' ? `${value}%` : formatPeso(value)}</p>
+            <p className="text-xs font-mono text-slate-700">
+              {type === 'percentage'
+                ? `${formatPeso(sampleInvoice)} × ${value}% = ${formatPeso(firstCharge)} penalty`
+                : `${formatPeso(sampleInvoice)} + ${formatPeso(value)} = ${formatPeso(updatedBalance)}`}
+            </p>
+          </div>
+          {type === 'percentage' && (
+            <div>
+              <p className="text-xs text-slate-500">Updated balance</p>
+              <p className="text-xs font-mono text-slate-700">
+                {formatPeso(sampleInvoice)} + {formatPeso(firstCharge)} = {formatPeso(updatedBalance)}
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="space-y-2 pt-1.5 border-t border-slate-200">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+            After {compoundEvery} {compoundLabel}
+          </p>
+          <div>
+            <p className="text-xs text-slate-500">Next penalty — {type === 'percentage' ? `${value}%` : formatPeso(value)}</p>
+            <p className="text-xs font-mono text-slate-700">
+              {type === 'percentage'
+                ? `${formatPeso(updatedBalance)} × ${value}% = ${formatPeso(nextCharge)} penalty`
+                : `${formatPeso(updatedBalance)} + ${formatPeso(value)} = ${formatPeso(updatedBalance + nextCharge)}`}
+            </p>
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+        The penalty continues to be applied according to your penalty schedule, while compounding updates the
+        balance used for future calculations.
+      </p>
+    </div>
+  );
+}
+
+// ─── The single penalty rule card — applies to every bill regardless of
+// its own type (one-time or recurring). "Recurring" is never a separate
+// penalty configuration here, only a bill category, so there's no
+// "Repeat Every" concept anymore: Compounding is the only cadence a rule
+// can have. With it off, the charge applies exactly once, when the bill
+// becomes overdue; with it on, its own Compound Every period drives
+// recalculation for as long as the bill stays unpaid. ──
+function PenaltyRuleCard({
+  title,
+  description,
+  enabled,
+  onEnabledChange,
+  type,
+  onTypeChange,
+  value,
+  onValueChange,
+  compounding,
+}: {
+  title: string;
+  description: string;
+  enabled: boolean;
+  onEnabledChange: (v: boolean) => void;
+  type: PenaltyCalcType;
+  onTypeChange: (v: PenaltyCalcType) => void;
+  value: number;
+  onValueChange: (v: number) => void;
+  compounding: {
+    enabled: boolean;
+    onEnabledChange: (v: boolean) => void;
+    every: number;
+    onEveryChange: (v: number) => void;
+    unit: RepeatUnit;
+    onUnitChange: (v: RepeatUnit) => void;
+  };
+}) {
+  const amountHelper =
+    type === 'percentage'
+      ? 'The percentage of the overdue balance charged each time this rule applies.'
+      : 'The fixed amount charged each time this rule applies.';
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl px-6 py-6 flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[15px] font-semibold text-slate-900">{title}</h2>
+          <p className="text-[13px] text-slate-500 mt-1.5 leading-relaxed">{description}</p>
+        </div>
+        <Switch checked={enabled} onCheckedChange={onEnabledChange} checkedBg="primary" />
+      </div>
+
+      {enabled && (
+        <div className="flex flex-col gap-4">
+          {/* Calculation Type — the two cards are self-explanatory on
+              their own (icon + label + one-line description each), so no
+              "Calculation Type" heading sits above them. */}
+          <div className="grid grid-cols-2 gap-3">
+            {PENALTY_TYPE_OPTIONS.map(({ id, icon, label, desc }) => {
+              const selected = type === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => onTypeChange(id)}
+                  className={cn(
+                    'flex items-start gap-3 rounded-xl border p-4 text-left transition-all',
+                    selected
+                      ? 'border-violet-300 bg-violet-50/60 ring-1 ring-violet-300'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                      selected ? 'bg-violet-100 text-violet-600' : 'bg-slate-100 text-slate-500',
+                    )}
+                  >
+                    {icon}
+                  </div>
+                  <div className="flex-1 min-w-0 pt-0.5">
+                    <p className={cn('text-sm font-semibold', selected ? 'text-violet-700' : 'text-slate-800')}>
+                      {label}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{desc}</p>
+                  </div>
+                  {selected && (
+                    <CheckCircle size={16} weight="fill" className="text-violet-500 shrink-0 mt-0.5" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Charge — the only decision alongside Penalty Type; there's no
+              "Repeat Every" anymore, since Compounding below is the only
+              cadence a rule can have. */}
+          <div className="flex flex-col gap-2.5 max-w-40">
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs font-medium text-slate-900">Charge</label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info size={13} className="text-slate-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>{amountHelper}</TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="relative w-40">
+              {type === 'fixed' && (
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">₱</span>
+              )}
+              <input
+                type="number"
+                min={0}
+                step={type === 'percentage' ? 0.1 : 1}
+                value={value}
+                onChange={(e) => onValueChange(Math.max(0, Number(e.target.value)))}
+                className={cn(
+                  'w-full border border-slate-200 rounded-lg py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 transition-colors',
+                  type === 'fixed' ? 'pl-7 pr-3' : 'pl-3 pr-7',
+                )}
+              />
+              {type === 'percentage' && (
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+              )}
+            </div>
+          </div>
+
+          {/* Compounding — the only cadence a rule can have now, applying
+              to every bill this rule covers, regardless of that bill's own
+              type. The subtext directly explains what happens in each
+              state: OFF means the charge only ever applies once; ON means
+              its own Compound Every period drives re-application for as
+              long as the bill stays unpaid. Everything that appears once
+              Compounding is switched on (Compound Every, the worked
+              example) is otherwise unchanged. */}
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="pr-4">
+                <p className="text-sm font-semibold text-slate-800">Compounding</p>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  {compounding.enabled
+                    ? 'Penalty is applied again at the selected interval while the bill remains unpaid.'
+                    : 'Penalty is applied once when the bill becomes overdue.'}
+                </p>
+              </div>
+              <Switch checked={compounding.enabled} onCheckedChange={compounding.onEnabledChange} checkedBg="primary" />
+            </div>
+            {compounding.enabled && (
+              <>
+                <div className="flex flex-col gap-2.5 mt-4 pt-4 border-t border-slate-100">
+                  <label className="text-xs font-medium text-slate-900">Compound every</label>
+                  <div className="flex items-end gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-slate-600 sr-only">Compound every</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={compounding.every}
+                        onChange={(e) => compounding.onEveryChange(Math.max(1, Number(e.target.value)))}
+                        className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 transition-colors"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-slate-600 sr-only">Unit</label>
+                      <Select value={compounding.unit} onValueChange={(v) => compounding.onUnitChange(v as RepeatUnit)}>
+                        <SelectTrigger size="md" className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Days">Days</SelectItem>
+                          <SelectItem value="Weeks">Weeks</SelectItem>
+                          <SelectItem value="Months">Months</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                <CompoundingExample type={type} value={value} compoundEvery={compounding.every} compoundUnit={compounding.unit} />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LatePaymentPenaltiesSettings() {
+  const [saved, setSaved] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  // Initial state comes from the last SAVED configuration (getPenaltySettings
+  // reads localStorage, falling back to the shared defaults) — this page is
+  // the only writer of that shared config, via handleSave below, so every
+  // bill-facing surface reading it can never see an in-progress edit, only
+  // what was actually saved here.
+  const saved0 = getPenaltySettings();
+
+  // A single unified rule applies to every bill, regardless of that bill's
+  // own type — "Recurring" is a BILL CATEGORY (matching the Bill data
+  // model's own `type` field), never a separate penalty configuration.
+  // Compounding is the only cadence this rule can have: off means the
+  // charge applies exactly once, on means its own Compound Every period
+  // drives recalculation, for as long as the bill stays unpaid.
+  const [penaltyEnabled, setPenaltyEnabled] = useState(saved0.penalty.enabled);
+  const [penaltyType, setPenaltyType] = useState<PenaltyCalcType>(saved0.penalty.type);
+  const [penaltyValue, setPenaltyValue] = useState(saved0.penalty.value);
+  const [penaltyCompounding, setPenaltyCompounding] = useState(saved0.penalty.compounding);
+  const [penaltyCompoundEvery, setPenaltyCompoundEvery] = useState(saved0.penalty.compoundEvery);
+  const [penaltyCompoundUnit, setPenaltyCompoundUnit] = useState<RepeatUnit>(saved0.penalty.compoundUnit);
+
+  function handleSave() {
+    setPenaltySettings({
+      penalty: {
+        enabled: penaltyEnabled,
+        type: penaltyType,
+        value: penaltyValue,
+        compounding: penaltyCompounding,
+        compoundEvery: penaltyCompoundEvery,
+        compoundUnit: penaltyCompoundUnit,
+      },
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  }
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden relative">
+
+      {/* ── Sticky toolbar ── */}
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
+        <div />
+        <div />
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="md" onClick={() => {}} className="text-slate-800">
+            Discard changes
+          </Button>
+          <Button colorScheme="primary" size="md" onClick={handleSave}>
+            {saved ? '✓ Saved' : 'Save changes'}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-8 py-10 flex flex-col gap-8">
+
+          {/* Page header — a short, single-line description that uses the
+              full available width instead of being squeezed into a narrow
+              column, so it reads as one spacious line rather than wrapping
+              across several. */}
+          <div className="flex flex-col gap-2">
+            <h1 className="text-[22px] font-semibold text-slate-900 tracking-tight">Overdue Payment Penalties</h1>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Automate penalties for overdue bills across all bill types, including one-time and recurring bills.
+              Changes apply to future penalty calculations; existing accrued penalties won’t be affected.
+            </p>
+          </div>
+
+          <PenaltyRuleCard
+            title="Overdue Penalties"
+            description="Automatically apply penalties to overdue bills, whether they’re one-time or recurring."
+            enabled={penaltyEnabled}
+            onEnabledChange={setPenaltyEnabled}
+            type={penaltyType}
+            onTypeChange={setPenaltyType}
+            value={penaltyValue}
+            onValueChange={setPenaltyValue}
+            compounding={{
+              enabled: penaltyCompounding,
+              onEnabledChange: setPenaltyCompounding,
+              every: penaltyCompoundEvery,
+              onEveryChange: setPenaltyCompoundEvery,
+              unit: penaltyCompoundUnit,
+              onUnitChange: setPenaltyCompoundUnit,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Save confirmation toast — bottom-left, auto-dismisses */}
+      {showToast && (
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl shadow-lg px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle size={18} weight="fill" className="text-emerald-500 shrink-0" />
+          Overdue Payment Penalties updated successfully
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PlaceholderContent({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 text-center py-32">
@@ -1403,6 +1791,15 @@ export function SettingsPage() {
   const { saveCustomFields } = useCustomFields();
   const [activeSection, setActiveSection] = useState<SettingsSection>('custom-fields-form');
   const [customFieldsOpen, setCustomFieldsOpen] = useState(true);
+
+  // Deep-link support — other pages (e.g. the Bill Info page's "Manage
+  // penalty" action) link here with ?section=late-payment-penalties to
+  // land directly on a specific settings section instead of the default.
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section) setActiveSection(section as SettingsSection);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Committed (saved) state
   const [savedSections, setSavedSections] = useState<FieldSection[]>(SYSTEM_SECTIONS);
@@ -1511,6 +1908,7 @@ export function SettingsPage() {
     'custom-fields-form':  ['Settings', 'Custom Fields', 'Customer'],
     'custom-fields-bills': ['Settings', 'Custom Fields', 'Bills'],
     'customer-payment-portal': ['Settings', 'Customer Payment Portal'],
+    'late-payment-penalties': ['Settings', 'Overdue Payment Penalties'],
     'disbursements':       ['Settings', 'Disbursements'],
     'users':               ['Settings', 'Users'],
     'developer-settings':  ['Settings', 'Developer Settings'],
@@ -1524,6 +1922,7 @@ export function SettingsPage() {
     'custom-fields-form':  'Customer',
     'custom-fields-bills': 'Bills',
     'customer-payment-portal': 'Customer Payment Portal',
+    'late-payment-penalties': 'Overdue Payment Penalties',
     'disbursements':       'Disbursements',
     'users':               'Users',
     'developer-settings':  'Developer Settings',
@@ -1549,6 +1948,9 @@ export function SettingsPage() {
     }
     if (activeSection === 'customer-payment-portal') {
       return <CustomerPaymentPortalSettings />;
+    }
+    if (activeSection === 'late-payment-penalties') {
+      return <LatePaymentPenaltiesSettings />;
     }
     return <PlaceholderContent label={placeholderLabels[activeSection]} />;
   }
@@ -1613,6 +2015,7 @@ export function SettingsPage() {
             )}
 
             <SecNavItem label="Customer Payment Portal" active={activeSection === 'customer-payment-portal'} onClick={() => setActiveSection('customer-payment-portal')} />
+            <SecNavItem label="Overdue Payment Penalties" active={activeSection === 'late-payment-penalties'} onClick={() => setActiveSection('late-payment-penalties')} />
             <SecNavItem label="Disbursements"      active={activeSection === 'disbursements'}      onClick={() => setActiveSection('disbursements')} />
             <SecNavItem label="Users"              active={activeSection === 'users'}              onClick={() => setActiveSection('users')} />
             <SecNavItem label="Developer Settings" active={activeSection === 'developer-settings'} onClick={() => setActiveSection('developer-settings')} />
@@ -1620,10 +2023,10 @@ export function SettingsPage() {
 
           {/* Main content */}
           <main className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
-            <div className={['flex-1', activeSection === 'customer-payment-portal' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
+            <div className={['flex-1', activeSection === 'customer-payment-portal' || activeSection === 'late-payment-penalties' ? 'flex overflow-hidden' : 'overflow-y-auto'].join(' ')}>
               {renderContent()}
             </div>
-            {hasPendingChanges && activeSection !== 'customer-payment-portal' && (
+            {hasPendingChanges && activeSection !== 'customer-payment-portal' && activeSection !== 'late-payment-penalties' && (
               <SaveBar onSave={handleSave} onDiscard={handleDiscard} />
             )}
           </main>

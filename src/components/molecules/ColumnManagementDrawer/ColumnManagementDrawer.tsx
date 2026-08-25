@@ -137,7 +137,7 @@ function SortableItem({
         <DotsSixVertical size={16} weight="bold" />
       </button>
 
-      <Switch checked={col.visible} onChange={onToggle} />
+      <Switch checked={col.visible} onChange={onToggle} checkedBg="primary" />
 
       <span className={['flex-1 text-sm select-none transition-colors', col.visible ? 'text-slate-800 font-medium' : 'text-slate-400'].join(' ')}>
         {col.label}
@@ -163,7 +163,7 @@ function PinnedItem({
       {/* Placeholder for drag handle alignment */}
       <span className="w-4 flex-shrink-0" />
 
-      <Switch checked={col.visible} onChange={onToggle} />
+      <Switch checked={col.visible} onChange={onToggle} checkedBg="primary" />
 
       <span className={['flex-1 text-sm select-none', col.visible ? 'text-slate-800 font-medium' : 'text-slate-400'].join(' ')}>
         {col.label}

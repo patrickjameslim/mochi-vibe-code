@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import {
   ArrowsDownUp,
   Funnel,
@@ -9,9 +10,10 @@ import {
   Archive,
   FileText,
   Link as LinkIcon,
-  Tag,
+  BellSimple,
   Prohibit,
   UsersThree,
+  Percent,
 } from '@phosphor-icons/react';
 import {
   DropdownMenu,
@@ -20,9 +22,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '#/components/atoms/DropdownMenu';
-import { Bill, BillStatus, BillType, formatPeso } from '#/data/bills';
+import { Bill, BillStatus, formatPeso } from '#/data/bills';
 import { ColumnManagementDrawer, ColumnDef } from '#/components/molecules/ColumnManagementDrawer';
 import { ColumnsButton } from '#/components/molecules/ColumnsButton';
+import { Button } from '#/components/atoms/Button';
 import { FilterDrawer, 
   FilterSectionDef,
   FilterValue,
@@ -41,45 +44,42 @@ import { DataTable, DataTableTabDef } from '#/components/molecules/DataTable';
 const DEFAULT_BILLS_COLS: ColumnDef[] = [
   { id: 'status',          label: 'Status',            visible: true,  pin: 'none' },
   { id: 'billID',          label: 'Bill ID',            visible: true,  pin: 'none' },
-  { id: 'billName',        label: 'Bill name',          visible: true,  pin: 'none' },
   { id: 'amount',          label: 'Amount',             visible: true,  pin: 'none' },
-  { id: 'billDate',        label: 'Bill date',          visible: true,  pin: 'none' },
+  { id: 'billDate',        label: 'Issue date',         visible: true,  pin: 'none' },
   { id: 'dueDate',         label: 'Due date',           visible: true,  pin: 'none' },
   { id: 'customer',        label: 'Customer',           visible: true,  pin: 'none' },
   { id: 'daysOutstanding', label: 'Days outstanding',   visible: true,  pin: 'none' },
-  { id: 'link',            label: 'Link',               visible: true,  pin: 'none' },
-  { id: 'billingType',     label: 'Billing type',       visible: true,  pin: 'none' },
-  { id: 'lastUpdatedAt',   label: 'Last updated at',    visible: true,  pin: 'none' },
+  { id: 'link',            label: 'Payment link',       visible: true,  pin: 'none' },
   { id: 'paymentDate',     label: 'Payment date',       visible: true,  pin: 'none' },
   { id: 'paymentMethod',   label: 'Payment method',     visible: true,  pin: 'none' },
-  { id: 'tags',            label: 'Tags',               visible: true,  pin: 'none' },
-  { id: 'quickActions',    label: 'Quick actions',      visible: true,  pin: 'none' },
+  { id: 'referenceNo',     label: 'Reference No.',      visible: true,  pin: 'none' },
+  { id: 'quickActions',    label: 'Quick actions',      visible: true,  pin: 'right' },
 ];
 
 const COL_WIDTH: Record<string, number> = {
-  status: 110, billID: 110, billName: 170, amount: 120, billDate: 110,
+  status: 110, billID: 110, amount: 120, billDate: 110,
   dueDate: 110, customer: 155, daysOutstanding: 145, link: 150,
-  billingType: 120, lastUpdatedAt: 145, paymentDate: 120,
-  paymentMethod: 140, tags: 140, quickActions: 110,
+  paymentDate: 120, paymentMethod: 140, quickActions: 130, referenceNo: 190,
 };
+
+// The elevated-shadow effect for the pinned Quick actions + kebab region is a
+// dedicated overlay rendered by DataTable via `pinnedShadowRight` (box-shadow
+// doesn't bleed past a <td>/<th>'s own boundary, so it can't be done on the
+// cell itself). The checkbox column is a UI utility, not a "pinned column" in
+// the user's sense, so it intentionally doesn't get this treatment. No divider
+// border is used anywhere here — the shadow alone communicates the pinned edge.
 
 // ─── Status & type config ─────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<BillStatus, { label: string; className: string; dotColor?: string }> = {
-  draft:     { label: 'Draft',     className: 'bg-slate-100 text-slate-800' },
-  sent:      { label: 'Sent',      className: 'bg-violet-100 text-violet-800',  dotColor: '#6D41E8' },
-  scheduled: { label: 'Scheduled', className: 'bg-[#CDEFC3] text-[#14532D]' },
-  verifying: { label: 'Verifying', className: 'bg-amber-100 text-amber-900',    dotColor: '#D97706' },
-  paid:      { label: 'Paid',      className: 'bg-green-100 text-[#14532D]',    dotColor: '#16A34A' },
-  overdue:   { label: 'Overdue',   className: 'bg-red-100 text-red-900',        dotColor: '#DC2626' },
-  void:      { label: 'Void',      className: 'bg-slate-100 text-slate-400' },
-  archived:  { label: 'Archived',  className: 'bg-slate-100 text-slate-500' },
-};
-
-const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
-  'one-time':    { label: 'One-time',    className: 'bg-violet-50 text-violet-700 border border-violet-200' },
-  'recurring':   { label: 'Recurring',   className: 'bg-blue-50 text-blue-700 border border-blue-200' },
-  'installment': { label: 'Installment', className: 'bg-orange-50 text-orange-700 border border-orange-200' },
+const STATUS_CFG: Record<BillStatus, { label: string; className: string }> = {
+  draft:     { label: 'Draft',     className: 'bg-slate-50 text-slate-600 border-slate-300' },
+  sent:      { label: 'Sent',      className: 'bg-violet-50 text-violet-700 border-violet-300' },
+  scheduled: { label: 'Scheduled', className: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
+  verifying: { label: 'Verifying', className: 'bg-amber-50 text-amber-700 border-amber-300' },
+  paid:      { label: 'Paid',      className: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
+  overdue:   { label: 'Overdue',   className: 'bg-red-50 text-red-700 border-red-300' },
+  void:      { label: 'Void',      className: 'bg-slate-50 text-slate-400 border-slate-300' },
+  archived:  { label: 'Archived',  className: 'bg-slate-50 text-slate-400 border-slate-300' },
 };
 
 // ─── Filter tabs ──────────────────────────────────────────────────────────────
@@ -88,26 +88,27 @@ type Filter = 'all' | BillStatus;
 
 const FILTER_TABS: { value: Filter; label: string }[] = [
   { value: 'all',       label: 'All' },
-  { value: 'overdue',   label: 'Overdue' },
   { value: 'draft',     label: 'Draft' },
+  { value: 'overdue',   label: 'Overdue' },
+  { value: 'paid',      label: 'Paid' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'sent',      label: 'Sent' },
   { value: 'verifying', label: 'Verifying' },
-  { value: 'paid',      label: 'Paid' },
   { value: 'void',      label: 'Void' },
   { value: 'archived',  label: 'Archived' },
 ];
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
-type SortKey = 'id' | 'title' | 'amount' | 'billDate' | 'dueDate' | 'daysOutstanding' | 'lastUpdatedAt';
+type SortKey = 'id' | 'amount' | 'billDate' | 'dueDate' | 'daysOutstanding' | 'lastUpdatedAt' | 'customer';
 
 const COL_SORT_KEY: Partial<Record<string, SortKey>> = {
-  billID: 'id', billName: 'title', amount: 'amount', billDate: 'billDate',
-  dueDate: 'dueDate', daysOutstanding: 'daysOutstanding', lastUpdatedAt: 'lastUpdatedAt',
+  billID: 'id', amount: 'amount', billDate: 'billDate',
+  dueDate: 'dueDate', daysOutstanding: 'daysOutstanding', lastUpdatedAt: 'lastUpdatedAt', customer: 'customer',
 };
 
 // ─── Pin indicator ────────────────────────────────────────────────────────────
+// A small violet bar marking a column header as pinned/frozen.
 
 function PinIndicator() {
   return <span className="inline-block w-1 h-3 rounded-sm bg-violet-400 mr-1 opacity-70 shrink-0" />;
@@ -123,6 +124,7 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateBill }: Props) {
+  const navigate = useNavigate();
   const [bills, setBills]       = useState<Bill[]>(initialBills);
   const [filter, setFilter]     = useState<Filter>('all');
   const [search, setSearch]     = useState('');
@@ -186,9 +188,9 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
     if      (sortKey === 'amount')          cmp = a.amount - b.amount;
     else if (sortKey === 'daysOutstanding') cmp = a.daysOutstanding - b.daysOutstanding;
     else if (sortKey === 'id')              cmp = a.id.localeCompare(b.id);
-    else if (sortKey === 'title')           cmp = a.title.localeCompare(b.title);
     else if (sortKey === 'billDate')        cmp = new Date(a.billDate).getTime() - new Date(b.billDate).getTime();
     else if (sortKey === 'dueDate')         cmp = new Date(a.dueDate).getTime()  - new Date(b.dueDate).getTime();
+    else if (sortKey === 'customer')        cmp = a.customerName.localeCompare(b.customerName);
     return sortAsc ? cmp : -cmp;
   });
 
@@ -224,7 +226,13 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
     setTimeout(() => setCopiedLink(null), 1500);
   }
 
-  const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned } = useStickyColumns(columnConfig, COL_WIDTH);
+  const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned, rightPinnedTotalWidth } =
+    useStickyColumns(columnConfig, COL_WIDTH);
+
+  // Only the right side has a real pinned column (Quick actions) — the
+  // checkbox is a UI utility, not a "pinned column" in the user's sense, so it
+  // doesn't get the elevation-shadow treatment.
+  const pinnedShadowRight = rightPinnedTotalWidth;
 
   const activeColChanges = columnConfig.filter((c) => !c.visible || c.pin !== 'none').length;
 
@@ -258,7 +266,7 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
         ],
       },
       { id: 'amount',          label: 'Amount',           type: 'numberRange', prefix: '₱' },
-      { id: 'billDate',        label: 'Bill date',        type: 'dateRange' },
+      { id: 'billDate',        label: 'Issue date',       type: 'dateRange' },
       { id: 'dueDate',         label: 'Due date',         type: 'dateRange' },
       { id: 'daysOutstanding', label: 'Days outstanding', type: 'numberRange' },
       { id: 'paymentDate',     label: 'Payment date',     type: 'dateRange' },
@@ -281,7 +289,10 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
 
   // ─── Headers ─────────────────────────────────────────────────────────────────
   const headers = visibleCols.map((col) => {
-    const style = colHeaderStyle(col.id);
+    const baseHeaderStyle = colHeaderStyle(col.id);
+    const style = col.id === 'quickActions'
+      ? { ...baseHeaderStyle, zIndex: 3 }
+      : baseHeaderStyle;
     const isPinned = !!style.position;
     return (
       <SortTh
@@ -293,7 +304,9 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
         align={col.id === 'amount' ? 'right' : 'left'}
         style={style}
       >
-        {isPinned && <PinIndicator />}{col.label}
+        <span className="inline-flex items-center">
+          {isPinned && <PinIndicator />}{col.label}
+        </span>
       </SortTh>
     );
   });
@@ -303,7 +316,6 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
     const isSel = selected.has(bill.id);
     const rowBg = isSel ? '#f5f3ff' : '#ffffff';
     const status = STATUS_CFG[bill.status];
-    const type   = TYPE_CFG[bill.type];
 
     return (
       <tr
@@ -312,7 +324,7 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
       >
         <td
           className="sticky left-0 z-[2] px-3 py-2.5"
-          style={{ backgroundColor: rowBg, ...(!hasLeftPinned ? { borderRight: '1px solid #d1d5db' } : {}) }}
+          style={{ backgroundColor: rowBg }}
         >
           <input
             type="checkbox"
@@ -329,31 +341,25 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
             case 'status':
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
-                    {status.dotColor && (
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: status.dotColor }} />
-                    )}
+                  <span className={`inline-flex items-center justify-center w-[88px] rounded-full border py-1 text-xs font-semibold ${status.className}`}>
                     {status.label}
                   </span>
                 </td>
               );
             case 'billID':
               return (
-                <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap text-sm text-slate-600">
-                  <Highlight text={bill.id} query={q} />
-                </td>
-              );
-            case 'billName':
-              return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  <button className="text-violet-600 hover:text-violet-800 hover:underline font-medium text-sm text-left transition-colors">
-                    <Highlight text={bill.title} query={q} />
+                  <button
+                    onClick={() => navigate({ to: '/billings/$id/info', params: { id: bill.id } })}
+                    className="text-violet-600 hover:text-violet-800 hover:underline font-medium text-sm text-left transition-colors"
+                  >
+                    <Highlight text={bill.id} query={q} />
                   </button>
                 </td>
               );
             case 'amount':
               return (
-                <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium text-slate-700 tabular-nums font-mono">
+                <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium text-slate-700 tabular-nums">
                   {formatPeso(bill.amount)}
                 </td>
               );
@@ -397,7 +403,7 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-slate-600">{bill.link}</span>
+                    <span className="text-sm text-violet-600">{bill.link}</span>
                     <button
                       onClick={() => copyLink(bill.link)}
                       className="text-slate-400 hover:text-violet-500 transition-colors"
@@ -408,20 +414,6 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
                         : <CopySimple size={12} />}
                     </button>
                   </div>
-                </td>
-              );
-            case 'billingType':
-              return (
-                <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${type.className}`}>
-                    {type.label}
-                  </span>
-                </td>
-              );
-            case 'lastUpdatedAt':
-              return (
-                <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap text-sm text-slate-600">
-                  {bill.lastUpdatedAt}
                 </td>
               );
             case 'paymentDate':
@@ -436,42 +428,68 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
                   {bill.paymentMethod ?? <span className="text-slate-400">N/A</span>}
                 </td>
               );
-            case 'tags':
+            case 'referenceNo':
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  {bill.tags && bill.tags.length > 0 ? (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {bill.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200"
-                        >
-                          <Tag size={9} />
-                          {tag}
-                        </span>
-                      ))}
+                  {bill.referenceNo ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-violet-600">{bill.referenceNo}</span>
+                      <button
+                        onClick={() => copyLink(bill.referenceNo!)}
+                        className="text-slate-400 hover:text-violet-500 transition-colors"
+                        title="Copy reference no."
+                      >
+                        {copiedLink === bill.referenceNo
+                          ? <LinkIcon size={12} className="text-emerald-500" />
+                          : <CopySimple size={12} />}
+                      </button>
                     </div>
                   ) : (
-                    <span className="text-slate-400 text-sm">—</span>
+                    <span className="text-sm text-slate-400">N/A</span>
                   )}
                 </td>
               );
             case 'quickActions':
               return (
-                <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      title="Send"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-                    >
-                      <PaperPlaneTilt size={14} />
-                    </button>
-                    <button
-                      title="Mark as paid"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
-                    >
-                      <CheckCircle size={14} />
-                    </button>
+                <td
+                  key={col.id}
+                  style={{ ...style, backgroundColor: '#ffffff', zIndex: 2 }}
+                  className="px-3 py-2.5 whitespace-nowrap"
+                >
+                  <div className="flex items-center justify-end gap-2">
+                    {bill.status === 'overdue' && (
+                      <Button
+                        variant="outline"
+                        colorScheme="secondary"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Manage penalty"
+                        onClick={() => navigate({ to: '/billings/$id/view', params: { id: bill.id } })}
+                      >
+                        <Percent size={16} />
+                      </Button>
+                    )}
+                    {bill.status === 'overdue' && (
+                      <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send reminder">
+                        <BellSimple size={16} />
+                      </Button>
+                    )}
+                    {(bill.status === 'overdue' || bill.status === 'verifying') && (
+                      <Button
+                        variant="outline"
+                        colorScheme="secondary"
+                        size="icon"
+                        className="h-8 w-8"
+                        title={bill.status === 'verifying' ? 'Confirm payment' : 'Mark as paid'}
+                      >
+                        <CheckCircle size={16} />
+                      </Button>
+                    )}
+                    {bill.status !== 'overdue' && bill.status !== 'verifying' && (
+                      <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="View details">
+                        <FileText size={16} />
+                      </Button>
+                    )}
                   </div>
                 </td>
               );
@@ -525,18 +543,19 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
         tabs={tabs}
         activeTab={filter}
         onTabChange={(v) => handleFilterChange(v as Filter)}
+        tabVariant="pill"
         search={search}
         onSearch={(v) => { setSearch(v); setCurrentPage(1); }}
-        searchPlaceholder="Search by bill ID or customer"
+        searchPlaceholder="Enter a billing ID or customer"
         toolbarEnd={
           <>
             <button
               onClick={() => setFilterDrawerOpen(true)}
               className={[
-                'relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                'relative inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border text-sm transition-colors',
                 activeFilterCount > 0
                   ? 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
               ].join(' ')}
             >
               <Funnel size={14} />
@@ -547,7 +566,7 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
                 </span>
               )}
             </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+            <button className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 transition-colors">
               <ArrowsDownUp size={14} />
               Last updated at
             </button>
@@ -559,6 +578,7 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
         onToggleAll={toggleAll}
         hasLeftPinned={hasLeftPinned}
         headers={headers}
+        pinnedShadowRight={pinnedShadowRight}
         rows={rows}
         isEmpty={paginated.length === 0}
         emptyIcon={<FileText size={22} />}
