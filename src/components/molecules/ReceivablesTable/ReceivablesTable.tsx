@@ -13,11 +13,10 @@ import {
   Tag,
   Prohibit,
   UsersThree,
-  Check,
-  EnvelopeSimple,
   BellSimple,
-  Receipt,
   Percent,
+  PencilSimple,
+  ChatCircle,
 } from '@phosphor-icons/react';
 import {
   DropdownMenu,
@@ -26,9 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '#/components/atoms/DropdownMenu';
-import { Badge, type BadgeVariants } from '#/components/atoms/Badge';
-import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
-import { cn } from '#/components/utils';
+import { Button } from '#/components/atoms/Button';
 import { Bill, BillStatus, BillType, formatPeso } from '#/data/bills';
 import { ColumnManagementDrawer, ColumnDef } from '#/components/molecules/ColumnManagementDrawer';
 import { ColumnsButton } from '#/components/molecules/ColumnsButton';
@@ -76,29 +73,18 @@ const COL_WIDTH: Record<string, number> = {
 
 // ─── Status & type config ─────────────────────────────────────────────────────
 
-// Quick-action icon buttons share the mochi-labs Button look (filled primary
-// for the positive action, outline for secondary actions).
-const QUICK_ACTION_BASE =
-  'inline-flex items-center justify-center h-8 w-8 rounded-md transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]';
-const QUICK_ACTION_PRIMARY = `${QUICK_ACTION_BASE} bg-primary text-primary-foreground hover:bg-primary-600`;
-const QUICK_ACTION_OUTLINE = `${QUICK_ACTION_BASE} bg-white border text-secondary-foreground hover:bg-secondary/70 hover:border-secondary-600/80`;
-
-type BadgeColorScheme = NonNullable<BadgeVariants['colorScheme']>;
-
-// Neutral statuses have no Badge colorScheme token, so they use a slate
-// className following the same structure as the colored statuses
-// (light bg / dark text / matching border).
-const NEUTRAL_STATUS_CLASS = 'bg-slate-100 text-slate-700 border-slate-300';
-
-const STATUS_CFG: Record<BillStatus, { label: string; colorScheme?: BadgeColorScheme; className?: string }> = {
-  draft:     { label: 'Draft',     className: NEUTRAL_STATUS_CLASS },
-  sent:      { label: 'Sent',      colorScheme: 'blue' },
-  scheduled: { label: 'Scheduled', colorScheme: 'yellow' },
-  verifying: { label: 'Verifying', colorScheme: 'amber' },
-  paid:      { label: 'Paid',      colorScheme: 'emerald' },
-  overdue:   { label: 'Overdue',   colorScheme: 'red' },
-  void:      { label: 'Void',      colorScheme: 'violet' },
-  archived:  { label: 'Archived',  className: NEUTRAL_STATUS_CLASS },
+// Kept in sync with RECURRING_BILL_STATUS_CFG (src/data/recurringBilling.ts)
+// for every status the two tables share, so a "Verifying"/"Overdue"/etc. pill
+// looks identical whether it's shown here or on the Recurring Billing table.
+const STATUS_CFG: Record<BillStatus, { label: string; className: string }> = {
+  draft:     { label: 'Draft',     className: 'bg-slate-50 text-slate-600 border-slate-300' },
+  sent:      { label: 'Sent',      className: 'bg-violet-50 text-violet-700 border-violet-300' },
+  scheduled: { label: 'Scheduled', className: 'bg-amber-50 text-amber-700 border-amber-300' },
+  verifying: { label: 'Verifying', className: 'bg-amber-50 text-amber-700 border-amber-300' },
+  paid:      { label: 'Paid',      className: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
+  overdue:   { label: 'Overdue',   className: 'bg-red-50 text-red-700 border-red-300' },
+  void:      { label: 'Void',      className: 'bg-slate-50 text-slate-400 border-slate-300' },
+  archived:  { label: 'Archived',  className: 'bg-slate-50 text-slate-400 border-slate-300' },
 };
 
 const TYPE_CFG: Record<BillType, { label: string; className: string }> = {
@@ -113,12 +99,12 @@ type Filter = 'all' | BillStatus;
 
 const FILTER_TABS: { value: Filter; label: string }[] = [
   { value: 'all',       label: 'All' },
-  { value: 'overdue',   label: 'Overdue' },
   { value: 'draft',     label: 'Draft' },
+  { value: 'overdue',   label: 'Overdue' },
+  { value: 'paid',      label: 'Paid' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'sent',      label: 'Sent' },
   { value: 'verifying', label: 'Verifying' },
-  { value: 'paid',      label: 'Paid' },
   { value: 'void',      label: 'Void' },
   { value: 'archived',  label: 'Archived' },
 ];
@@ -324,6 +310,107 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
     );
   });
 
+  // Mirrors RecurringBillsTable's quickActionsFor (same icon choices, same
+  // Button styling, same green-tinted treatment for the confirm/positive
+  // action) so the two bill tables read as one consistent design — the only
+  // addition is "Manage penalty" on Overdue, since that's a real, dedicated
+  // page (Manage Penalty) that only one-time/installment bills have; a
+  // recurring bill manages its penalty inline on its own Bill Info page
+  // instead, so its table never needed the extra icon.
+  function quickActionsFor(bill: Bill) {
+    switch (bill.status) {
+      case 'sent':
+        return (
+          <>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send reminder">
+              <BellSimple size={16} />
+            </Button>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
+              <CopySimple size={16} />
+            </Button>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="View details">
+              <FileText size={16} />
+            </Button>
+          </>
+        );
+      case 'verifying':
+        return (
+          <>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Reject payment">
+              <Prohibit size={16} />
+            </Button>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
+              <CopySimple size={16} />
+            </Button>
+            <Button
+              size="icon"
+              className="h-8 w-8 !bg-emerald-50 hover:!bg-emerald-100 !border-emerald-200 !text-emerald-700 shadow-none border"
+              title="Confirm payment"
+            >
+              <CheckCircle size={16} />
+            </Button>
+          </>
+        );
+      case 'scheduled':
+        return (
+          <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Edit bill">
+            <PencilSimple size={16} />
+          </Button>
+        );
+      case 'paid':
+        return (
+          <>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
+              <CopySimple size={16} />
+            </Button>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send receipt">
+              <ChatCircle size={16} />
+            </Button>
+          </>
+        );
+      case 'overdue':
+        return (
+          <>
+            <Button
+              variant="outline"
+              colorScheme="secondary"
+              size="icon"
+              className="h-8 w-8"
+              title="Manage penalty"
+              onClick={() => navigate({ to: '/billings/$id/view', params: { id: bill.id } })}
+            >
+              <Percent size={16} />
+            </Button>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send reminder">
+              <BellSimple size={16} />
+            </Button>
+            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
+              <CopySimple size={16} />
+            </Button>
+            <Button
+              size="icon"
+              className="h-8 w-8 !bg-emerald-50 hover:!bg-emerald-100 !border-emerald-200 !text-emerald-700 shadow-none border"
+              title="Mark as paid"
+            >
+              <CheckCircle size={16} />
+            </Button>
+          </>
+        );
+      case 'draft':
+        return (
+          <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Edit bill">
+            <PencilSimple size={16} />
+          </Button>
+        );
+      default:
+        return (
+          <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="View details">
+            <FileText size={16} />
+          </Button>
+        );
+    }
+  }
+
   // ─── Rows ─────────────────────────────────────────────────────────────────────
   const rows = paginated.map((bill) => {
     const isSel = selected.has(bill.id);
@@ -355,9 +442,9 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
             case 'status':
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  <Badge colorScheme={status.colorScheme} className={cn('min-w-20', status.className)}>
+                  <span className={`inline-flex items-center justify-center w-[88px] rounded-full border py-1 text-xs font-semibold ${status.className}`}>
                     {status.label}
-                  </Badge>
+                  </span>
                 </td>
               );
             case 'billID':
@@ -482,75 +569,7 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
             case 'quickActions':
               return (
                 <td key={col.id} style={style} className="px-3 py-2.5 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5">
-                    {bill.status === 'verifying' && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button aria-label="Mark as paid" className={QUICK_ACTION_PRIMARY}>
-                            <Check size={14} weight="bold" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Mark as paid</TooltipContent>
-                      </Tooltip>
-                    )}
-
-                    {(bill.status === 'sent' || bill.status === 'scheduled') && (
-                      <>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button aria-label="Send" className={QUICK_ACTION_OUTLINE}>
-                              <EnvelopeSimple size={14} />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Send</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button aria-label="Send payment reminder" className={QUICK_ACTION_OUTLINE}>
-                              <BellSimple size={14} />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Send payment reminder</TooltipContent>
-                        </Tooltip>
-                      </>
-                    )}
-
-                    {bill.status === 'paid' && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button aria-label="Resend receipt" className={QUICK_ACTION_OUTLINE}>
-                            <Receipt size={14} />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Resend receipt</TooltipContent>
-                      </Tooltip>
-                    )}
-
-                    {bill.status === 'overdue' && (
-                      <>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              aria-label="Manage penalty"
-                              className={QUICK_ACTION_OUTLINE}
-                              onClick={() => navigate({ to: '/billings/$id/view', params: { id: bill.id } })}
-                            >
-                              <Percent size={14} />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Manage penalty</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button aria-label="Send payment reminder" className={QUICK_ACTION_OUTLINE}>
-                              <BellSimple size={14} />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Send payment reminder</TooltipContent>
-                        </Tooltip>
-                      </>
-                    )}
-                  </div>
+                  <div className="flex items-center justify-end gap-2">{quickActionsFor(bill)}</div>
                 </td>
               );
             default:
