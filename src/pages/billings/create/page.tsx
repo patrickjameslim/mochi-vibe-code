@@ -67,17 +67,33 @@ export function CreateBillingPage() {
   const navigate = useNavigate();
   const { customers: contextCustomers } = useCustomers();
 
-  // Try to get customerId from URL search params
+  // Try to get customerId / group params from URL search params
   const searchParams = new URLSearchParams(window.location.search);
   const customerIdFromSearch = searchParams.get('customerId');
+  const groupNameFromSearch = searchParams.get('groupName') ?? '';
+  const customerIdsFromSearch = searchParams.get('customerIds');
+
   const initialCustomer: Customer | null = customerIdFromSearch
     ? contextCustomers.find(c => c.id === customerIdFromSearch) ?? null
     : null;
 
+  const initialGroupCustomers: Customer[] = customerIdsFromSearch
+    ? customerIdsFromSearch.split(',').flatMap(id => {
+        const c = contextCustomers.find(x => x.id === id.trim());
+        return c ? [c] : [];
+      })
+    : [];
+
   const [activeView, setActiveView] = useState<'build' | 'preview'>('build');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>(CUSTOMERS);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(initialCustomer);
+  const [selectedCustomers, setSelectedCustomers] = useState<Customer[]>(() => {
+    if (initialGroupCustomers.length > 0) return initialGroupCustomers;
+    if (initialCustomer) return [initialCustomer];
+    return [];
+  });
+  const groupBillingName = groupNameFromSearch;
+  const cameFromGroup = initialGroupCustomers.length > 0;
   const [tipDismissed, setTipDismissed] = useState(false);
   const [billingType, setBillingType] = useState<BillingType>('one-time');
   const [billDate, setBillDate] = useState('');
@@ -156,7 +172,11 @@ export function CreateBillingPage() {
         <header className="shrink-0 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate({ to: '/billings' })}
+              onClick={() => customerIdFromSearch
+                ? navigate({ to: '/customers/$id/view', params: { id: customerIdFromSearch } })
+                : cameFromGroup
+                ? navigate({ to: '/customers' })
+                : navigate({ to: '/billings' })}
               className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
             >
               <ArrowLeft size={14} weight="bold" />
@@ -316,47 +336,77 @@ export function CreateBillingPage() {
                 </div>
 
                 {/* To */}
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">To</p>
-                    {selectedCustomer && (
+                <div className="relative">
+                  <div className="absolute inset-0 p-5 flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">To</p>
+                      {selectedCustomers.length >= 1 && (
+                        <button
+                          onClick={() => setPickerOpen(true)}
+                          className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
+                        >
+                          + Add
+                        </button>
+                      )}
+                    </div>
+
+                    {selectedCustomers.length > 1 ? (
+                      /* ── Multi-customer: avatar stack + scrollable list ── */
+                      <div className="flex flex-col flex-1 min-h-0">
+                        <p className="text-sm font-semibold text-slate-800 mb-3">
+                          {selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''} selected
+                        </p>
+                        <div className="flex-1 overflow-y-auto min-h-0 space-y-1.5 pr-1">
+                          {selectedCustomers.map((c) => (
+                            <div key={c.id} className="group/row flex items-center gap-2">
+                              <div
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold shrink-0"
+                                style={{ backgroundColor: c.avatarColor, fontSize: 8 }}
+                              >
+                                {c.avatarInitials}
+                              </div>
+                              <span className="text-xs text-slate-600 truncate flex-1">{c.name}</span>
+                              <button
+                                onClick={() => setSelectedCustomers((prev) => prev.filter((x) => x.id !== c.id))}
+                                className="opacity-0 group-hover/row:opacity-100 shrink-0 w-4 h-4 flex items-center justify-center rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-opacity"
+                              >
+                                <X size={10} weight="bold" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : selectedCustomers.length === 1 ? (
+                      /* ── Single customer: detailed view ── */
+                      <div className="flex items-start gap-2">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-white text-xs font-bold"
+                          style={{ backgroundColor: selectedCustomers[0].avatarColor }}
+                        >
+                          {selectedCustomers[0].avatarInitials}
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => navigate({ to: '/customers/$id/view', params: { id: selectedCustomers[0].id } })}
+                            className="text-sm font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors text-left"
+                          >
+                            {selectedCustomers[0].name}
+                          </button>
+                          <p className="text-xs text-slate-500 mt-0.5">{selectedCustomers[0].email}</p>
+                          <p className="text-xs text-slate-500 mt-1 leading-relaxed">{selectedCustomers[0].address}</p>
+                        </div>
+                      </div>
+                    ) : (
                       <button
                         onClick={() => setPickerOpen(true)}
-                        className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-400 hover:border-violet-400 hover:text-violet-600 transition-colors"
                       >
-                        Change
+                        <Plus size={12} weight="bold" />
+                        Select a customer
                       </button>
                     )}
                   </div>
-                  {selectedCustomer ? (
-                    <div className="flex items-start gap-2">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-white text-xs font-bold"
-                        style={{ backgroundColor: selectedCustomer.avatarColor }}
-                      >
-                        {selectedCustomer.avatarInitials}
-                      </div>
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => navigate({ to: '/customers/$id/view', params: { id: selectedCustomer.id } })}
-                          className="text-sm font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors text-left"
-                        >
-                          {selectedCustomer.name}
-                        </button>
-                        <p className="text-xs text-slate-500 mt-0.5">{selectedCustomer.email}</p>
-                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{selectedCustomer.address}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setPickerOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-400 hover:border-violet-400 hover:text-violet-600 transition-colors"
-                    >
-                      <Plus size={12} weight="bold" />
-                      Select a customer
-                    </button>
-                  )}
                 </div>
 
                 {/* Billing meta */}
@@ -638,7 +688,11 @@ export function CreateBillingPage() {
 
         {/* ── Sticky footer ── */}
         <div className="shrink-0 bg-white border-t border-slate-200 px-8 py-3 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate({ to: '/billings' })}>Cancel</Button>
+          <Button variant="outline" className="text-violet-700" onClick={() => customerIdFromSearch
+            ? navigate({ to: '/customers/$id/view', params: { id: customerIdFromSearch } })
+            : cameFromGroup
+            ? navigate({ to: '/customers' })
+            : navigate({ to: '/billings' })}>Cancel</Button>
           <Button variant="outline">Save as draft</Button>
           <Button colorScheme="primary">Send now</Button>
         </div>
@@ -649,8 +703,15 @@ export function CreateBillingPage() {
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         customers={customers}
+        preselectedIds={selectedCustomers.map((c) => c.id)}
         onSelect={(c) => {
-          setSelectedCustomer(c);
+          setSelectedCustomers((prev) =>
+            prev.some((x) => x.id === c.id) ? prev : [...prev, c]
+          );
+          setPickerOpen(false);
+        }}
+        onSelectMultiple={(newCustomers) => {
+          setSelectedCustomers(newCustomers);
           setPickerOpen(false);
         }}
         onNewCustomer={(c) => setCustomers((prev) => [c, ...prev])}

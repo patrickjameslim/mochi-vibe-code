@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { MagnifyingGlass, X, User, Buildings } from '@phosphor-icons/react';
+import { useState, useMemo, useEffect } from 'react';
+import { MagnifyingGlass, X, User, Buildings, Check } from '@phosphor-icons/react';
 import { Sheet, SheetContent } from '#/components/atoms/Sheet';
 import { Input } from '#/components/atoms/Input';
 import { Button } from '#/components/atoms/Button';
@@ -32,8 +32,10 @@ interface SelectCustomerDrawerProps {
   open: boolean;
   onClose: () => void;
   onSelect: (customer: Customer) => void;
+  onSelectMultiple?: (customers: Customer[]) => void;
   onNewCustomer?: (customer: Customer) => void;
   customers: Customer[];
+  preselectedIds?: string[];
 }
 
 type Tab = 'select' | 'create';
@@ -46,13 +48,22 @@ export function SelectCustomerDrawer({
   open,
   onClose,
   onSelect,
+  onSelectMultiple,
   onNewCustomer,
   customers,
+  preselectedIds,
 }: SelectCustomerDrawerProps) {
   const [tab, setTab] = useState<Tab>('select');
   const [search, setSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [showAllGroups, setShowAllGroups] = useState(false);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (open) {
+      setPendingIds(new Set(preselectedIds ?? []));
+    }
+  }, [open]);
 
   // New customer form state
   const [newType, setNewType] = useState<CustomerType>('Individual');
@@ -95,8 +106,28 @@ export function SelectCustomerDrawer({
     setSearch('');
     setActiveGroup(null);
     setShowAllGroups(false);
+    setPendingIds(new Set());
     resetForm();
     onClose();
+  }
+
+  function handleConfirm() {
+    const selected = customers.filter((c) => pendingIds.has(c.id));
+    if (onSelectMultiple) {
+      onSelectMultiple(selected);
+    } else if (selected.length === 1) {
+      onSelect(selected[0]);
+    }
+    handleClose();
+  }
+
+  function togglePending(id: string) {
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   function handleTabChange(next: Tab) {
@@ -144,80 +175,118 @@ export function SelectCustomerDrawer({
       </div>
 
       {tab === 'select' ? (
-        <div className="flex-1 overflow-y-auto p-4">
-          {/* Search */}
-          <div className="relative mb-3">
-            <MagnifyingGlass
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-            />
-            <Input
-              placeholder="Search by name, email, or ID…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4">
+            {/* Search */}
+            <div className="relative mb-3">
+              <MagnifyingGlass
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+              <Input
+                placeholder="Search by name, email, or ID…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            {/* Group filter pills */}
+            {groups.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                <FilterPill
+                  label="All"
+                  active={!activeGroup}
+                  onClick={() => setActiveGroup(null)}
+                />
+                {(showAllGroups ? groups : groups.slice(0, GROUP_PILL_LIMIT)).map((g) => (
+                  <FilterPill
+                    key={g}
+                    label={g}
+                    active={activeGroup === g}
+                    onClick={() => setActiveGroup(activeGroup === g ? null : g)}
+                  />
+                ))}
+                {groups.length > GROUP_PILL_LIMIT && (
+                  <button
+                    onClick={() => setShowAllGroups((v) => !v)}
+                    className="rounded-full px-2.5 py-1 text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    {showAllGroups ? 'Show less' : `+${groups.length - GROUP_PILL_LIMIT} more`}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Select / deselect all */}
+            {filtered.length > 0 && (
+              <div className="flex items-center justify-end gap-3 mb-2">
+                <button
+                  onClick={() => setPendingIds((prev) => {
+                    const next = new Set(prev);
+                    filtered.forEach((c) => next.add(c.id));
+                    return next;
+                  })}
+                  className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
+                >
+                  Select all
+                </button>
+                <button
+                  onClick={() => setPendingIds((prev) => {
+                    const next = new Set(prev);
+                    filtered.forEach((c) => next.delete(c.id));
+                    return next;
+                  })}
+                  className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
+                >
+                  Deselect all
+                </button>
+              </div>
+            )}
+
+            {/* Customer list or empty state */}
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <p className="text-sm text-slate-500">
+                  No customers found
+                  {search && (
+                    <>
+                      {' '}for{' '}
+                      <span className="font-medium text-slate-700">&ldquo;{search}&rdquo;</span>
+                    </>
+                  )}
+                </p>
+                <p className="text-xs text-slate-400">
+                  Try the{' '}
+                  <button
+                    onClick={() => handleTabChange('create')}
+                    className="text-violet-600 underline underline-offset-2 hover:text-violet-700"
+                  >
+                    New customer
+                  </button>
+                  {' '}tab to add one.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filtered.map((c) => (
+                  <CustomerRow
+                    key={c.id}
+                    customer={c}
+                    selected={pendingIds.has(c.id)}
+                    onSelect={() => togglePending(c.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Group filter pills */}
-          {groups.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              <FilterPill
-                label="All"
-                active={!activeGroup}
-                onClick={() => setActiveGroup(null)}
-              />
-              {(showAllGroups ? groups : groups.slice(0, GROUP_PILL_LIMIT)).map((g) => (
-                <FilterPill
-                  key={g}
-                  label={g}
-                  active={activeGroup === g}
-                  onClick={() => setActiveGroup(activeGroup === g ? null : g)}
-                />
-              ))}
-              {groups.length > GROUP_PILL_LIMIT && (
-                <button
-                  onClick={() => setShowAllGroups((v) => !v)}
-                  className="rounded-full px-2.5 py-1 text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
-                >
-                  {showAllGroups ? 'Show less' : `+${groups.length - GROUP_PILL_LIMIT} more`}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Customer list or empty state */}
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <p className="text-sm text-slate-500">
-                No customers found
-                {search && (
-                  <>
-                    {' '}for{' '}
-                    <span className="font-medium text-slate-700">&ldquo;{search}&rdquo;</span>
-                  </>
-                )}
-              </p>
-              <p className="text-xs text-slate-400">
-                Try the{' '}
-                <button
-                  onClick={() => handleTabChange('create')}
-                  className="text-violet-600 underline underline-offset-2 hover:text-violet-700"
-                >
-                  New customer
-                </button>
-                {' '}tab to add one.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filtered.map((c) => (
-                <CustomerRow
-                  key={c.id}
-                  customer={c}
-                  onSelect={() => { onSelect(c); handleClose(); }}
-                />
-              ))}
+          {/* Confirm footer */}
+          {pendingIds.size > 0 && (
+            <div className="shrink-0 border-t border-slate-200 px-4 py-3">
+              <Button colorScheme="primary" className="w-full" onClick={handleConfirm}>
+                Confirm {pendingIds.size} customer{pendingIds.size !== 1 ? 's' : ''}
+              </Button>
             </div>
           )}
         </div>
@@ -306,7 +375,7 @@ export function SelectCustomerDrawer({
 
             {/* CTAs */}
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={() => handleTabChange('select')} className="flex-1">
+              <Button variant="outline" onClick={() => handleTabChange('select')} className="flex-1 text-violet-700">
                 Cancel
               </Button>
               <Button colorScheme="primary" onClick={handleCreateCustomer} className="flex-1">
@@ -374,37 +443,82 @@ function FilterPill({
 function CustomerRow({
   customer,
   onSelect,
+  selected = false,
 }: {
   customer: Customer;
   onSelect: () => void;
+  selected?: boolean;
 }) {
+  const primaryContact =
+    customer.type === 'Organization'
+      ? (customer.contacts?.find((c) => c.isPrimary) ?? customer.contacts?.[0] ?? null)
+      : null;
+
   return (
-    <button
-      onClick={onSelect}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50"
+    <div
+      className={[
+        'rounded-lg overflow-hidden text-sm transition-colors',
+        selected ? 'bg-violet-50' : 'hover:bg-slate-50',
+      ].join(' ')}
     >
-      <span
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-        style={{ backgroundColor: customer.avatarColor }}
+      {/* Main row */}
+      <button
+        onClick={onSelect}
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left"
       >
-        {customer.avatarInitials}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-slate-800">{customer.name}</p>
-        {customer.email && (
-          <p className="truncate text-xs text-slate-500">{customer.email}</p>
-        )}
-      </div>
-      <span
-        className={[
+        <span className={[
+          'shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
+          selected ? 'border-violet-600 bg-violet-600' : 'border-slate-300 bg-white',
+        ].join(' ')}>
+          {selected && <Check size={9} weight="bold" className="text-white" />}
+        </span>
+        <span
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+          style={{ backgroundColor: customer.avatarColor }}
+        >
+          {customer.avatarInitials}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-slate-800">{customer.name}</p>
+          {customer.email && (
+            <p className="truncate text-xs text-slate-500">{customer.email}</p>
+          )}
+        </div>
+        <span className={[
           'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium',
           customer.type === 'Organization'
             ? 'bg-blue-50 text-blue-600'
             : 'bg-emerald-50 text-emerald-600',
-        ].join(' ')}
-      >
-        {customer.type}
-      </span>
-    </button>
+        ].join(' ')}>
+          {customer.type}
+        </span>
+      </button>
+
+      {/* Primary contact — expands when an Org customer is selected */}
+      {primaryContact && (
+        <div
+          className={[
+            'overflow-hidden transition-all duration-200 ease-in-out',
+            selected ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0',
+          ].join(' ')}
+        >
+          <div className="border-t border-slate-200" />
+          <div className="flex items-center gap-2.5 px-3 py-2.5">
+            <span className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
+              {primaryContact.name.split(' ').filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-slate-700 truncate">{primaryContact.name}</p>
+              <p className="text-[11px] text-slate-400 truncate">
+                {primaryContact.email || primaryContact.phone || ''}
+              </p>
+            </div>
+            <span className="shrink-0 text-[10px] font-medium text-violet-600 bg-violet-50 rounded-full px-2 py-0.5 border border-violet-200">
+              Primary contact
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

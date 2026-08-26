@@ -125,7 +125,10 @@ export function DashboardPage() {
                   <h2 className="text-xl font-bold text-slate-900">Get the best out of Mochi, for the best price!</h2>
                   <p className="text-sm text-slate-500">Upgrade and supercharge your business at its full power by upgrading Mochi to the Pro version today!</p>
                 </div>
-                <Button className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
+                <Button
+                  className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                  onClick={() => navigate({ to: '/settings', search: { section: 'subscription' } })}
+                >
                   Upgrade now
                 </Button>
               </CardContent>
@@ -218,7 +221,7 @@ export function DashboardPage() {
                       {INVOICES.map((inv) => (
                         <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
-                            <Badge colorScheme={inv.status === 'OVERDUE' ? 'red' : inv.status === 'SENT' ? 'primary' : 'secondary'} className="rounded-md font-bold px-2">
+                            <Badge colorScheme={inv.status === 'OVERDUE' ? 'red' : inv.status === 'SENT' ? 'blue' : 'amber'} className="rounded-md font-bold px-2">
                               {inv.status}
                             </Badge>
                           </td>
@@ -265,8 +268,8 @@ export function DashboardPage() {
                             <Badge
                               colorScheme={
                                 order.payStatus === 'OVERDUE' ? 'red' :
-                                order.payStatus === 'SENT' ? 'primary' :
-                                order.payStatus === 'FULLY PAID' ? 'emerald' : 'secondary'
+                                order.payStatus === 'SENT' ? 'blue' :
+                                order.payStatus === 'FULLY PAID' ? 'emerald' : 'amber'
                               }
                               className="rounded-md font-bold px-2"
                             >

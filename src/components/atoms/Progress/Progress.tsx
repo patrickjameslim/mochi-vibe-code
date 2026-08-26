@@ -8,6 +8,7 @@ const progressVariants = cva('h-full w-full flex-1 transition-all', {
     color: {
       success: 'bg-success',
       danger: 'bg-destructive',
+      violet: 'bg-violet-600',
     },
   },
   defaultVariants: {

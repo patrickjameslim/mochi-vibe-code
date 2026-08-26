@@ -3,8 +3,8 @@ import { AnimatePresence, HTMLMotionProps, motion } from 'motion/react'
 import * as React from 'react'
 
 import { Button, ButtonVariantProps } from '../../atoms'
-import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
-import { Tooltip, TooltipContent, TooltipTrigger } from '../../components'
+import { useCopyToClipboard } from '../../utils/useCopyToClipboard'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../atoms'
 
 /**
  * Based on the community-driven shadcn/ui resource for a copy button

@@ -26,3 +26,7 @@ dist-ssr
 # TanStack Router generated
 .tanstack
 src/routeTree.gen.ts
+
+# Local planning docs and reference assets (not part of the project)
+/docs/
+/assets/

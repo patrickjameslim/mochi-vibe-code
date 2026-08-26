@@ -27,12 +27,13 @@ import { Button } from '#/components/atoms/Button';
 import { Input } from '#/components/atoms/Input';
 import { TextareaInput as Textarea } from '#/components/atoms/TextareaInput';
 import { Badge } from '#/components/atoms/Badge';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '#/components/atoms/Card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '#/components/atoms/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '#/components/molecules/Tabs';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '#/components/atoms/Select';
 import { Separator } from '#/components/atoms/Separator';
 import { formatPHPhone } from '#/utils/phoneFormat';
-import { Customer, SupportingDocFile } from '#/data/customers';
+import { Customer, SupportingDocFile, CustomerContact } from '#/data/customers';
+import { ProfileAvatar } from '#/components/molecules/ProfileAvatar';
 import { getBillsByCustomer } from '#/data/bills';
 import { ReceivablesTable } from '#/components/molecules/ReceivablesTable';
 import { CustomerReportsTab } from '#/pages/reports/components/CustomerReportsTab';
@@ -71,6 +72,60 @@ function FieldValue({ children }: { children: React.ReactNode }) {
     <p className="text-sm text-slate-800">
       {empty ? <span className="text-slate-400 italic">—</span> : children}
     </p>
+  );
+}
+
+function ContactForm({
+  draft,
+  onChange,
+  onSave,
+  onCancel,
+}: {
+  draft: { id?: string; name: string; email: string; phone: string };
+  onChange: (d: typeof draft) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="py-3 first:pt-0 space-y-2 border-b border-slate-100 last:border-0">
+      <input
+        autoFocus
+        type="text"
+        placeholder="Full name *"
+        value={draft.name}
+        onChange={(e) => onChange({ ...draft, name: e.target.value })}
+        className="w-full text-sm border border-slate-200 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400"
+      />
+      <input
+        type="email"
+        placeholder="Email"
+        value={draft.email}
+        onChange={(e) => onChange({ ...draft, email: e.target.value })}
+        className="w-full text-sm border border-slate-200 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400"
+      />
+      <input
+        type="tel"
+        placeholder="Phone"
+        value={draft.phone}
+        onChange={(e) => onChange({ ...draft, phone: e.target.value })}
+        className="w-full text-sm border border-slate-200 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400"
+      />
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={onSave}
+          disabled={!draft.name.trim()}
+          className="text-xs font-medium px-3 py-1.5 rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+        >
+          {draft.id ? 'Save changes' : 'Add contact'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="text-xs font-medium px-3 py-1.5 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -128,6 +183,11 @@ export function CustomerEditPage() {
   const [editedGroups, setEditedGroups] = useState<string[]>(groups);
   const [groupsDrawerOpen, setGroupsDrawerOpen] = useState(false);
 
+  // Contacts (Organizations only)
+  const [contacts, setContacts] = useState<CustomerContact[]>(customer?.contacts ?? []);
+  const [contactDraft, setContactDraft] = useState<{ id?: string; name: string; email: string; phone: string } | null>(null);
+  const [contactError, setContactError] = useState<string | null>(null);
+
   // Reset all fields when cancelling edit
   function cancelEdit() {
     if (!customer) return;
@@ -154,8 +214,11 @@ export function CustomerEditPage() {
           }))
     );
     setEditedGroups(groups);
+    setContacts(customer.contacts ?? []);
+    setContactDraft(null);
+    setContactError(null);
     setEditMode(false);
-    navigate({ to: '/customers' });
+    navigate({ to: '/customers/$id/view', params: { id } });
   }
 
   function handleSave() {
@@ -175,10 +238,14 @@ export function CustomerEditPage() {
       avatarUrl: avatarUrl ?? undefined,
       supportingDocumentFiles: docs,
       supportingDocuments: docs.map((d) => d.name),
+      contacts,
     };
     setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
-    setPendingBanner(`${updated.name} has been updated successfully.`);
-    navigate({ to: '/customers' });
+    navigate({
+      to: '/customers/$id/view',
+      params: { id },
+      state: (prev: Record<string, unknown>) => ({ ...prev, successBanner: `${updated.name} has been updated successfully.` }),
+    });
   }
 
   function handleImageUpload(file: File) {
@@ -273,19 +340,19 @@ export function CustomerEditPage() {
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-          className="flex-1 flex flex-col overflow-hidden"
+          className="flex-1 flex flex-col overflow-hidden gap-0"
         >
           {/* Tab nav row */}
-          <div className="shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
-            <TabsList className="gap-0 bg-transparent p-0 h-auto rounded-none">
-              <TabsTrigger value="General">General</TabsTrigger>
-              <TabsTrigger value="Receivables">Receivables</TabsTrigger>
-              <TabsTrigger value="Reports">Reports</TabsTrigger>
+          <div className="shrink-0 bg-white border-b border-slate-200 px-6 flex items-stretch justify-between">
+            <TabsList variant="line" className="gap-0 h-auto border-b-0">
+              <TabsTrigger value="General" className="px-4">General</TabsTrigger>
+              <TabsTrigger value="Receivables" className="px-4">Receivables</TabsTrigger>
+              <TabsTrigger value="Reports" className="px-4">Reports</TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2 py-2">
+            <div className="flex items-center gap-2 py-2 self-center">
               {editMode ? (
                 <>
-                  <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
+                  <Button variant="outline" className="text-violet-700" onClick={cancelEdit}>Cancel</Button>
                   <Button colorScheme="primary" onClick={handleSave}>Save changes</Button>
                 </>
               ) : (
@@ -301,13 +368,10 @@ export function CustomerEditPage() {
           <TabsContent value="General" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
             <div className="max-w-6xl mx-auto space-y-4">
 
-              {/* Two-column layout */}
-              <div className="grid grid-cols-3 gap-4 items-start">
-
-                {/* ── Left: Customer Information (2/3) ── */}
-                <Card className="col-span-2">
-                  <CardHeader className="flex flex-row items-center justify-between py-4">
-                    <CardTitle>Customer information</CardTitle>
+              {/* Customer Information */}
+              <Card className="py-0 gap-0">
+                  <CardHeader className="flex flex-row items-center justify-between pt-6 pb-4">
+                    <CardTitle className="text-base">Customer information</CardTitle>
                     {/* Type badge / toggle */}
                     {editMode ? (
                       <div className="flex items-center gap-1 rounded-lg border border-slate-200 overflow-hidden">
@@ -347,7 +411,7 @@ export function CustomerEditPage() {
                     )}
                   </CardHeader>
 
-                  <CardContent className="py-5">
+                  <CardContent className="pt-0 pb-6">
                     {/* Avatar + name / email / phone */}
                     <div className="flex items-start gap-4 mb-6">
                       {/* Avatar */}
@@ -594,53 +658,14 @@ export function CustomerEditPage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-
-                {/* ── Right: Billing Summary (1/3) ── */}
-                <div className="col-span-1 space-y-4">
-                  <Card>
-                    <CardHeader className="px-5 py-4">
-                      <CardTitle>Billing summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 py-4 space-y-3">
-                      {[
-                        { label: 'Total amount due',  value: '₱ 0.00' },
-                        { label: 'Total overdue',     value: '₱ 0.00' },
-                        { label: 'Open invoices',     value: '0' },
-                        { label: 'Paid invoices',     value: '0' },
-                        { label: 'Avg. days to pay',  value: '—' },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex items-center justify-between">
-                          <span className="text-xs text-slate-500">{label}</span>
-                          <span className="text-sm font-medium text-slate-800">{value}</span>
-                        </div>
-                      ))}
-                    </CardContent>
-                    <CardFooter className="flex items-center justify-between gap-3 pt-2">
-                      <button
-                        onClick={() => setActiveTab('Receivables')}
-                        className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
-                      >
-                        View all receivables →
-                      </button>
-                      <Button
-                        size="sm"
-                        onClick={() => navigate({ to: '/billings/create', search: { customerId: id } })}
-                        className="gap-1.5 text-xs h-7 px-3"
-                      >
-                        + Create bill
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </div>
-              </div>
+              </Card>
 
               {/* ── Notes ── */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Notes</CardTitle>
+              <Card className="py-0 gap-0">
+                <CardHeader className="pt-6 pb-4">
+                  <CardTitle className="text-base">Notes</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pb-6">
                   {editMode ? (
                     <Textarea
                       value={notes}
@@ -657,12 +682,12 @@ export function CustomerEditPage() {
               </Card>
 
               {/* ── Supporting Documents ── */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Supporting documents</CardTitle>
+              <Card className="py-0 gap-0">
+                <CardHeader className="pt-6 pb-4">
+                  <CardTitle className="text-base">Supporting documents</CardTitle>
                   <CardDescription>Maximum file size: 25 MB</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pb-6">
                   {/* Drop zone — only in edit mode */}
                   {editMode && (
                     <div
@@ -728,24 +753,141 @@ export function CustomerEditPage() {
                 </CardContent>
               </Card>
 
-              {/* ── Contacts ── */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between py-4">
-                  <CardTitle>Contacts</CardTitle>
-                  {editMode && (
-                    <button className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors font-medium">
-                      + Add contact
-                    </button>
-                  )}
-                </CardHeader>
-                <CardContent className="py-12 flex flex-col items-center justify-center text-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
-                    <User size={20} className="text-slate-300" />
-                  </div>
-                  <p className="text-sm font-medium text-slate-500">No contacts yet</p>
-                  <p className="text-xs text-slate-400">Contacts associated with this customer will appear here.</p>
-                </CardContent>
-              </Card>
+              {/* ── Contacts (Organizations only) ── */}
+              {customerType === 'Organization' && (
+                <Card className="py-0 gap-0">
+                  <CardHeader className="flex flex-row items-center justify-between pt-6 pb-4">
+                    <CardTitle className="text-base">Contacts</CardTitle>
+                    {editMode && !contactDraft && (
+                      <button
+                        onClick={() => setContactDraft({ name: '', email: '', phone: '' })}
+                        className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors font-medium"
+                      >
+                        + Add contact
+                      </button>
+                    )}
+                  </CardHeader>
+                  <CardContent className="pb-6">
+                    {/* Contact list */}
+                    {contacts.length > 0 && (
+                      <div className="divide-y divide-slate-100 mb-4">
+                        {contacts.map((contact) => (
+                          contactDraft?.id === contact.id ? (
+                            /* Inline edit form */
+                            <ContactForm
+                              key={contact.id}
+                              draft={contactDraft}
+                              onChange={setContactDraft}
+                              onSave={() => {
+                                if (!contactDraft.name.trim()) return;
+                                setContacts(prev => prev.map(c =>
+                                  c.id === contactDraft.id
+                                    ? { ...c, name: contactDraft.name.trim(), email: contactDraft.email.trim(), phone: contactDraft.phone.trim() }
+                                    : c
+                                ));
+                                setContactDraft(null);
+                              }}
+                              onCancel={() => setContactDraft(null)}
+                            />
+                          ) : (
+                            <div key={contact.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0 group">
+                              <ProfileAvatar name={contact.name} size="sm" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-slate-800">{contact.name}</span>
+                                  {contact.isPrimary && (
+                                    <Badge className="bg-violet-50 text-violet-700 border-violet-200 border text-xs px-2 py-0 rounded-full font-medium">
+                                      Primary
+                                    </Badge>
+                                  )}
+                                </div>
+                                {contact.email && <p className="text-xs text-slate-500 mt-0.5">{contact.email}</p>}
+                                {contact.phone && <p className="text-xs text-slate-500 mt-0.5">{contact.phone}</p>}
+                              </div>
+                              {editMode && (
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                  {!contact.isPrimary && (
+                                    <button
+                                      onClick={() => setContacts(prev => prev.map(c => ({ ...c, isPrimary: c.id === contact.id })))}
+                                      className="text-xs text-slate-400 hover:text-violet-600 px-2 py-1 rounded hover:bg-violet-50 transition-colors"
+                                    >
+                                      Set primary
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => setContactDraft({ id: contact.id, name: contact.name, email: contact.email ?? '', phone: contact.phone ?? '' })}
+                                    className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                  >
+                                    <PencilSimple size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (contacts.length === 1) {
+                                        setContactError('At least one contact is required for an organization.');
+                                        return;
+                                      }
+                                      setContactError(null);
+                                      setContacts(prev => {
+                                        const next = prev.filter(c => c.id !== contact.id);
+                                        if (contact.isPrimary && next.length > 0) next[0] = { ...next[0], isPrimary: true };
+                                        return next;
+                                      });
+                                    }}
+                                    className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                  >
+                                    <X size={13} weight="bold" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add contact inline form */}
+                    {contactDraft && !contactDraft.id && (
+                      <ContactForm
+                        draft={contactDraft}
+                        onChange={setContactDraft}
+                        onSave={() => {
+                          if (!contactDraft.name.trim()) return;
+                          const isFirst = contacts.length === 0;
+                          setContacts(prev => [...prev, {
+                            id: `c-${Date.now()}`,
+                            name: contactDraft.name.trim(),
+                            email: contactDraft.email.trim() || undefined,
+                            phone: contactDraft.phone.trim() || undefined,
+                            isPrimary: isFirst,
+                          }]);
+                          setContactDraft(null);
+                          setContactError(null);
+                        }}
+                        onCancel={() => setContactDraft(null)}
+                      />
+                    )}
+
+                    {/* Validation error */}
+                    {contactError && (
+                      <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-600 text-xs">
+                        <X size={12} weight="bold" className="shrink-0" />
+                        {contactError}
+                      </div>
+                    )}
+
+                    {/* Empty state */}
+                    {contacts.length === 0 && !contactDraft && (
+                      <div className="py-10 flex flex-col items-center justify-center text-center gap-2">
+                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-1">
+                          <UsersThree size={20} className="text-slate-300" />
+                        </div>
+                        <p className="text-sm font-medium text-slate-500">No contacts yet</p>
+                        <p className="text-xs text-slate-400">Contacts associated with this customer will appear here.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
             </div>
           </TabsContent>
