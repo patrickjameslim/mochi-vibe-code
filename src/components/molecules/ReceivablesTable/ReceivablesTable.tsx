@@ -15,8 +15,6 @@ import {
   UsersThree,
   BellSimple,
   Percent,
-  PencilSimple,
-  ChatCircle,
 } from '@phosphor-icons/react';
 import {
   DropdownMenu,
@@ -310,105 +308,49 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
     );
   });
 
-  // Mirrors RecurringBillsTable's quickActionsFor (same icon choices, same
-  // Button styling, same green-tinted treatment for the confirm/positive
-  // action) so the two bill tables read as one consistent design — the only
-  // addition is "Manage penalty" on Overdue, since that's a real, dedicated
-  // page (Manage Penalty) that only one-time/installment bills have; a
-  // recurring bill manages its penalty inline on its own Bill Info page
-  // instead, so its table never needed the extra icon.
+  // The one-time/installment Bills table only ever needed three distinct
+  // quick actions: manage an Overdue bill's penalty, confirm/mark a
+  // Verifying or Overdue bill as paid, and otherwise just view details —
+  // unlike Recurring Billing, which has more granular per-status actions
+  // (edit/duplicate/reject/etc.) on its own table.
   function quickActionsFor(bill: Bill) {
-    switch (bill.status) {
-      case 'sent':
-        return (
-          <>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send reminder">
-              <BellSimple size={16} />
-            </Button>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
-              <CopySimple size={16} />
-            </Button>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="View details">
-              <FileText size={16} />
-            </Button>
-          </>
-        );
-      case 'verifying':
-        return (
-          <>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Reject payment">
-              <Prohibit size={16} />
-            </Button>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
-              <CopySimple size={16} />
-            </Button>
-            <Button
-              size="icon"
-              className="h-8 w-8 !bg-emerald-50 hover:!bg-emerald-100 !border-emerald-200 !text-emerald-700 shadow-none border"
-              title="Confirm payment"
-            >
-              <CheckCircle size={16} />
-            </Button>
-          </>
-        );
-      case 'scheduled':
-        return (
-          <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Edit bill">
-            <PencilSimple size={16} />
+    return (
+      <>
+        {bill.status === 'overdue' && (
+          <Button
+            variant="outline"
+            colorScheme="secondary"
+            size="icon"
+            className="h-8 w-8"
+            title="Manage penalty"
+            onClick={() => navigate({ to: '/billings/$id/view', params: { id: bill.id } })}
+          >
+            <Percent size={16} />
           </Button>
-        );
-      case 'paid':
-        return (
-          <>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
-              <CopySimple size={16} />
-            </Button>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send receipt">
-              <ChatCircle size={16} />
-            </Button>
-          </>
-        );
-      case 'overdue':
-        return (
-          <>
-            <Button
-              variant="outline"
-              colorScheme="secondary"
-              size="icon"
-              className="h-8 w-8"
-              title="Manage penalty"
-              onClick={() => navigate({ to: '/billings/$id/view', params: { id: bill.id } })}
-            >
-              <Percent size={16} />
-            </Button>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send reminder">
-              <BellSimple size={16} />
-            </Button>
-            <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Duplicate">
-              <CopySimple size={16} />
-            </Button>
-            <Button
-              size="icon"
-              className="h-8 w-8 !bg-emerald-50 hover:!bg-emerald-100 !border-emerald-200 !text-emerald-700 shadow-none border"
-              title="Mark as paid"
-            >
-              <CheckCircle size={16} />
-            </Button>
-          </>
-        );
-      case 'draft':
-        return (
-          <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Edit bill">
-            <PencilSimple size={16} />
+        )}
+        {bill.status === 'overdue' && (
+          <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="Send reminder">
+            <BellSimple size={16} />
           </Button>
-        );
-      default:
-        return (
+        )}
+        {(bill.status === 'overdue' || bill.status === 'verifying') && (
+          <Button
+            variant="outline"
+            colorScheme="secondary"
+            size="icon"
+            className="h-8 w-8"
+            title={bill.status === 'verifying' ? 'Confirm payment' : 'Mark as paid'}
+          >
+            <CheckCircle size={16} />
+          </Button>
+        )}
+        {bill.status !== 'overdue' && bill.status !== 'verifying' && (
           <Button variant="outline" colorScheme="secondary" size="icon" className="h-8 w-8" title="View details">
             <FileText size={16} />
           </Button>
-        );
-    }
+        )}
+      </>
+    );
   }
 
   // ─── Rows ─────────────────────────────────────────────────────────────────────
