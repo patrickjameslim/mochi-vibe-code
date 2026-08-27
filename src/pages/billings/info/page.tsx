@@ -966,7 +966,7 @@ export function BillInfoPage() {
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="text-base font-semibold text-slate-900">Waive Penalty</DialogTitle>
             <p className="text-sm text-black leading-relaxed">
-              Choose the amount of penalty to waive. This action cannot be undone.
+              Enter the amount you want to waive from the remaining penalty. Once confirmed, this action cannot be undone.
             </p>
           </DialogHeader>
           <div className="p-4 space-y-3">
