@@ -1079,7 +1079,7 @@ export function BillDetailsPage() {
               </div>
               <label className="flex items-center gap-2 mt-0.5 w-fit cursor-pointer select-none">
                 <Checkbox
-                  className="size-5 border-slate-400"
+                  className="border-slate-400"
                   checked={waiveAmountNum > 0 && waiveAmountNum === currentPenalty}
                   onCheckedChange={(checked) => {
                     if (checked) handleWaiveFullAmount();
