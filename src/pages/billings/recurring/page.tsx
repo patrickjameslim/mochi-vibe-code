@@ -1,18 +1,22 @@
-import React from 'react';
+import { useState } from 'react';
 import { CaretRight, CaretDown, BellSimple, Plus } from '@phosphor-icons/react';
 import { useNavigate } from '@tanstack/react-router';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
-import { ReceivablesTable } from '#/components/molecules/ReceivablesTable';
-import { BILLS } from '#/data/bills';
+import { RecurringCyclesTable } from '#/components/molecules/RecurringCyclesTable';
+import { RecurringBillsTable } from '#/components/molecules/RecurringBillsTable';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from '#/components/atoms/DropdownMenu';
+import { cn } from '#/components/utils';
 
-export function BillingsListPage() {
+type PageTab = 'cycles' | 'bills';
+
+export function RecurringBillingPage() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<PageTab>('cycles');
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -26,7 +30,7 @@ export function BillingsListPage() {
             <CaretRight size={12} />
             <span className="text-slate-900 font-medium">Billing</span>
             <CaretRight size={12} />
-            <span className="text-slate-900 font-medium">Manage bills</span>
+            <span className="text-slate-900 font-medium">Recurring billing</span>
           </nav>
           <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
             <BellSimple size={16} />
@@ -36,7 +40,7 @@ export function BillingsListPage() {
         {/* ── Content ── */}
         <main className="flex-1 overflow-y-auto px-6 py-5">
           <div className="flex items-center justify-between mb-5">
-            <h1 className="text-[28px] font-bold tracking-tight text-slate-900">Bills</h1>
+            <h1 className="text-[28px] font-bold tracking-tight text-slate-900">Recurring billing</h1>
             <div className="flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors outline-none">
@@ -49,21 +53,50 @@ export function BillingsListPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
               <button className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                Bulk create bill(s)
+                Import data
               </button>
               <button
                 onClick={() => navigate({ to: '/billings/create' })}
                 className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
               >
                 <Plus size={15} weight="bold" />
-                Create a new bill
+                Create a new cycle
               </button>
             </div>
           </div>
-          <ReceivablesTable
-            bills={BILLS}
-            onCreateBill={() => navigate({ to: '/billings/create' })}
-          />
+
+          {/* ── Page-level tabs — Recurring cycles / Recurring bills. These
+               switch the entire table (different columns, different data),
+               not a filter within one table, so it's a plain tab bar
+               above the DataTable rather than DataTable's own tab prop. ── */}
+          <div className="border-b border-slate-200 mb-5">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setActiveTab('cycles')}
+                className={cn(
+                  'px-1 pb-3 -mb-px text-sm font-medium border-b-2 transition-colors mr-6',
+                  activeTab === 'cycles'
+                    ? 'border-violet-600 text-violet-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700',
+                )}
+              >
+                Recurring cycles
+              </button>
+              <button
+                onClick={() => setActiveTab('bills')}
+                className={cn(
+                  'px-1 pb-3 -mb-px text-sm font-medium border-b-2 transition-colors',
+                  activeTab === 'bills'
+                    ? 'border-violet-600 text-violet-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700',
+                )}
+              >
+                Recurring bills
+              </button>
+            </div>
+          </div>
+
+          {activeTab === 'cycles' ? <RecurringCyclesTable /> : <RecurringBillsTable />}
         </main>
       </div>
     </div>

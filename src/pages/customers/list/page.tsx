@@ -492,7 +492,8 @@ export function CustomersListPage() {
   }
 
   // ─── Compute visible ordered columns + sticky offsets ────────────────────────
-  const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned } = useStickyColumns(columnConfig, COL_WIDTH);
+  const { visibleCols, colHeaderStyle, colCellStyle, hasLeftPinned, rightPinnedTotalWidth } =
+    useStickyColumns(columnConfig, COL_WIDTH);
 
   // Count active pins/hidden for button badge
   const activeColChanges = columnConfig.filter((c) => !c.visible || c.pin !== 'none').length;
@@ -552,7 +553,6 @@ export function CustomersListPage() {
       groups={customerGroups[customer.id] ?? [customer.group]}
       visibleCols={visibleCols}
       colStyle={colCellStyle}
-      checkboxSeparator={!hasLeftPinned}
       isExpanded={expandedRows.has(customer.id)}
       isSelected={selected.has(customer.id)}
       isArchived={archivedCustomers.has(customer.id)}
@@ -666,6 +666,7 @@ export function CustomersListPage() {
               someChecked={someChecked}
               onToggleAll={toggleAll}
               hasLeftPinned={hasLeftPinned}
+              pinnedShadowRight={activeTab === 'Customer groups' ? undefined : rightPinnedTotalWidth}
               headers={headers}
               rows={rows}
               customContent={
@@ -1075,7 +1076,6 @@ function CustomerRow({
   groups,
   visibleCols,
   colStyle,
-  checkboxSeparator,
   isSelected,
   isExpanded,
   isArchived,
@@ -1094,7 +1094,6 @@ function CustomerRow({
   groups: string[];
   visibleCols: ColumnDef[];
   colStyle: (id: string) => CSSProperties;
-  checkboxSeparator: boolean;
   isSelected: boolean;
   isExpanded: boolean;
   isArchived: boolean;
@@ -1249,7 +1248,7 @@ function CustomerRow({
   return (
     <tr className={['transition-colors hover:bg-slate-50', isSelected ? 'bg-violet-50' : ''].join(' ')}>
       {/* Checkbox — always first, frozen left */}
-      <td className="sticky left-0 z-[2] px-3 py-2.5" style={{ backgroundColor: rowBg, ...(checkboxSeparator ? { borderRight: '1px solid #d1d5db' } : {}) }}>
+      <td className="sticky left-0 z-[2] px-3 py-2.5" style={{ backgroundColor: rowBg }}>
         <input
           type="checkbox"
           checked={isSelected}

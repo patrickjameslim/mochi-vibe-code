@@ -20,7 +20,7 @@ export function SortTh({
   style,
 }: SortThProps) {
   const isActive = !!colSortKey && activeSortKey === colSortKey;
-  const thClass = `px-3 py-2.5 text-sm font-semibold text-slate-500 whitespace-nowrap select-none tracking-[0.06em] bg-slate-50 ${align === 'right' ? 'text-right' : 'text-left'}`;
+  const thClass = `px-3 py-2.5 text-sm font-medium text-slate-500 whitespace-nowrap select-none tracking-[0.06em] bg-white ${align === 'right' ? 'text-right' : 'text-left'}`;
 
   if (!colSortKey) {
     return <th style={style} className={thClass}>{children}</th>;

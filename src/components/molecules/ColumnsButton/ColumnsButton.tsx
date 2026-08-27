@@ -10,10 +10,10 @@ export function ColumnsButton({ onClick, activeChanges = 0 }: ColumnsButtonProps
     <button
       onClick={onClick}
       className={[
-        'relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+        'relative inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border text-sm transition-colors',
         activeChanges > 0
           ? 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'
-          : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
       ].join(' ')}
     >
       <Columns size={14} />

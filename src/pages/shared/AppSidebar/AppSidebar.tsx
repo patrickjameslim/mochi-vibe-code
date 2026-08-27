@@ -15,6 +15,7 @@ import {
   ListBullets,
   AppWindow,
   Wallet,
+  ArrowsClockwise,
 } from '@phosphor-icons/react';
 import mochiLogo from '#/assets/mochi-logo.svg';
 import { useNavigate, useLocation } from '@tanstack/react-router';
@@ -212,9 +213,15 @@ export function AppSidebar() {
           <div className="space-y-0.5">
             <SubNavItem
               icon={<ListBullets size={12} />}
-              label="Manage bills"
+              label="Billing"
               active={pathname === '/billings'}
               onClick={() => navigate({ to: '/billings' })}
+            />
+            <SubNavItem
+              icon={<ArrowsClockwise size={12} />}
+              label="Recurring billing"
+              active={pathname === '/billings/recurring'}
+              onClick={() => navigate({ to: '/billings/recurring' })}
             />
             <SubNavItem
               icon={<Plus size={12} weight="bold" />}

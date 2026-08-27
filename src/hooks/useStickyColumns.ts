@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { ColumnDef } from '../components/ColumnManagementDrawer';
 
-const CHECKBOX_W = 40;
-const KEBAB_W    = 44;
+export const CHECKBOX_W = 40;
+export const KEBAB_W    = 44;
 
 export function useStickyColumns(columnConfig: ColumnDef[], colWidths: Record<string, number>) {
   return useMemo(() => {
@@ -27,20 +27,23 @@ export function useStickyColumns(columnConfig: ColumnDef[], colWidths: Record<st
       rightCursor += colWidths[rightPinned[i].id] ?? 130;
     }
 
-    const lastLeftId   = leftPinned.length > 0 ? leftPinned[leftPinned.length - 1].id : null;
-    const firstRightId = rightPinned.length > 0 ? rightPinned[0].id : null;
-    const SEP_R = { borderRight: '1px solid #d1d5db' };
-    const SEP_L = { borderLeft:  '1px solid #d1d5db' };
+    // Total width of each pinned region (checkbox/kebab + any user-pinned columns),
+    // for consumers that render a full-panel elevation shadow over the pinned area.
+    const leftPinnedTotalWidth  = leftCursor;
+    const rightPinnedTotalWidth = rightCursor;
 
+    // No divider border here — pinned columns are communicated by the
+    // elevation-shadow panel (see pinnedShadowLeft/pinnedShadowRight in
+    // DataTable), not a hard border line.
     function colHeaderStyle(id: string): CSSProperties {
-      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 2, backgroundColor: '#f8fafc', ...(id === lastLeftId   ? SEP_R : {}) };
-      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 2, backgroundColor: '#f8fafc', ...(id === firstRightId ? SEP_L : {}) };
+      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 2, backgroundColor: '#ffffff' };
+      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 2, backgroundColor: '#ffffff' };
       return {};
     }
 
     function colCellStyle(id: string): CSSProperties {
-      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 1, ...(id === lastLeftId   ? SEP_R : {}) };
-      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 1, ...(id === firstRightId ? SEP_L : {}) };
+      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 1 };
+      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 1 };
       return {};
     }
 
@@ -50,6 +53,8 @@ export function useStickyColumns(columnConfig: ColumnDef[], colWidths: Record<st
       colCellStyle,
       hasLeftPinned:  leftPinned.length > 0,
       hasRightPinned: rightPinned.length > 0,
+      leftPinnedTotalWidth,
+      rightPinnedTotalWidth,
     };
   }, [columnConfig, colWidths]);
 }

@@ -28,32 +28,30 @@ interface InputProps
   extends Omit<React.ComponentProps<'input'>, 'size'>,
     VariantProps<typeof inputVariants> {}
 
-const Input = ({
-  className,
-  size,
-  variant,
-  readOnly,
-  ...props
-}: InputProps) => {
-  const ctx = useInputGroupContext()
-  const appliedVariant = ctx ? 'unstyled' : variant
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, size, variant, readOnly, ...props }, ref) => {
+    const ctx = useInputGroupContext()
+    const appliedVariant = ctx ? 'unstyled' : variant
 
-  return (
-    <input
-      className={cn(
-        inputVariants({ size: size ?? ctx?.size, variant: appliedVariant }),
-        'file:text-foreground dark:bg-input/30 file:h-full file:inline-flex file:border-0 file:bg-transparent file:text-sm file:font-medium file:pr-2',
-        'focus-visible:border-ring focus-visible:ring-ring focus-visible:ring-[0.5px]',
-        'aria-invalid:ring-destructive dark:aria-invalid:ring-destructive aria-invalid:border-destructive aria-invalid:focus-visible:ring-[0.5px]',
-        'group-focus-within/input:focus:ring-0 group-focus-within/input:focus:shadow-none group-focus-within/input:focus:border-transparent',
-        'group-has-[[data-slot=input-left-element]]/input:pl-0',
-        'group-has-[[data-slot=input-right-element]]/input:pr-0',
-        className
-      )}
-      readOnly={readOnly}
-      {...props}
-    />
-  )
-}
+    return (
+      <input
+        ref={ref}
+        className={cn(
+          inputVariants({ size: size ?? ctx?.size, variant: appliedVariant }),
+          'file:text-foreground dark:bg-input/30 file:h-full file:inline-flex file:border-0 file:bg-transparent file:text-sm file:font-medium file:pr-2',
+          'focus-visible:border-ring focus-visible:ring-ring focus-visible:ring-[0.5px]',
+          'aria-invalid:ring-destructive dark:aria-invalid:ring-destructive aria-invalid:border-destructive aria-invalid:focus-visible:ring-[0.5px]',
+          'group-focus-within/input:focus:ring-0 group-focus-within/input:focus:shadow-none group-focus-within/input:focus:border-transparent',
+          'group-has-[[data-slot=input-left-element]]/input:pl-0',
+          'group-has-[[data-slot=input-right-element]]/input:pr-0',
+          className
+        )}
+        readOnly={readOnly}
+        {...props}
+      />
+    )
+  }
+)
+Input.displayName = 'Input'
 
 export { Input, type InputProps }
