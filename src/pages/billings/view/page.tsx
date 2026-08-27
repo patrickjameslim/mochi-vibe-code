@@ -1061,19 +1061,7 @@ export function BillDetailsPage() {
               <p className="text-lg font-semibold text-slate-900 mt-1 tabular-nums">{formatPeso(currentPenalty)}</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-600">Amount to waive</label>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 cursor-pointer select-none">
-                  <Checkbox
-                    checked={waiveAmountNum > 0 && waiveAmountNum === currentPenalty}
-                    onCheckedChange={(checked) => {
-                      if (checked) handleWaiveFullAmount();
-                      else { setWaiveAmount(''); setWaiveErrors((prev) => ({ ...prev, amount: false })); }
-                    }}
-                  />
-                  Waive full penalty
-                </label>
-              </div>
+              <label className="text-xs font-semibold text-slate-600">Amount to waive</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₱</span>
                 <input
@@ -1089,6 +1077,23 @@ export function BillDetailsPage() {
                   ].join(' ')}
                 />
               </div>
+              <label
+                className={[
+                  'flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer select-none transition-colors',
+                  waiveAmountNum > 0 && waiveAmountNum === currentPenalty
+                    ? 'border-violet-300 bg-violet-50/60'
+                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                <Checkbox
+                  checked={waiveAmountNum > 0 && waiveAmountNum === currentPenalty}
+                  onCheckedChange={(checked) => {
+                    if (checked) handleWaiveFullAmount();
+                    else { setWaiveAmount(''); setWaiveErrors((prev) => ({ ...prev, amount: false })); }
+                  }}
+                />
+                <span className="text-xs font-medium text-slate-700">Full amount</span>
+              </label>
               <p className={waiveErrors.amount ? 'text-xs text-red-500' : 'text-xs text-slate-400'}>
                 Enter an amount between ₱0.01 and {formatPeso(currentPenalty)}.
               </p>
