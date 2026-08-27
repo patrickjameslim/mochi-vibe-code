@@ -66,7 +66,6 @@ type AuditKind =
   | 'automatic'
   | 'waived-full'
   | 'waived-partial'
-  | 'reduced'
   | 'overdue'
   | 'sent'
   | 'created'
@@ -101,29 +100,25 @@ function describeAuditEntry(entry: AuditEntry): { title: string; sentence: strin
   if (/^Full penalty waived$/i.test(action)) {
     const d = detail.match(/^(₱[\d,.]+)\s*—\s*(.*)$/);
     return {
-      title: 'Penalty Waived',
+      title: 'Fully Waived',
       kind: 'waived-full',
-      sentence: d ? `${actor} waived the full penalty of ${d[1]}.` : `${actor} waived the full penalty.`,
+      sentence: d ? `${actor} waived the full remaining penalty of ${d[1]}.` : `${actor} waived the full remaining penalty.`,
       reason: d?.[2],
     };
   }
 
-  if (/^Partial penalty waiver applied$/i.test(action)) {
+  // "Penalty reduced" is a legacy action string from before Waive Penalty
+  // and Reduce Penalty were merged into one flow — every waiver, whether
+  // it's the first against an untouched penalty or a further one against
+  // whatever's left, is "waived" terminology now. Recognized here purely
+  // so any pre-existing audit entry still displays sensibly, never pushed
+  // by this app anymore (see confirmWaive).
+  if (/^(Partial penalty waiver applied|Penalty reduced)$/i.test(action)) {
     const d = detail.match(/^(₱[\d,.]+)\s*—\s*(.*)$/);
     return {
-      title: 'Penalty Partially Waived',
+      title: 'Partially Waived',
       kind: 'waived-partial',
       sentence: d ? `${actor} waived ${d[1]} of the penalty.` : `${actor} waived part of the penalty.`,
-      reason: d?.[2],
-    };
-  }
-
-  if (/^Penalty reduced$/i.test(action)) {
-    const d = detail.match(/^(₱[\d,.]+)\s*—\s*(.*)$/);
-    return {
-      title: 'Penalty Reduced',
-      kind: 'reduced',
-      sentence: d ? `${actor} reduced the remaining penalty by ${d[1]}.` : `${actor} reduced the remaining penalty.`,
       reason: d?.[2],
     };
   }
@@ -156,7 +151,6 @@ const AUDIT_VISUAL: Record<AuditKind, { Icon: Icon; circleClass: string; iconCla
   automatic: { Icon: CalendarBlank, circleClass: 'bg-violet-100', iconClass: 'text-violet-600' },
   'waived-full': { Icon: CheckCircle, circleClass: 'bg-emerald-500', iconClass: 'text-white', badge: MANUAL_BADGE },
   'waived-partial': { Icon: CheckCircle, circleClass: 'bg-emerald-500', iconClass: 'text-white', badge: MANUAL_BADGE },
-  reduced: { Icon: CheckCircle, circleClass: 'bg-emerald-500', iconClass: 'text-white', badge: MANUAL_BADGE },
   overdue: { Icon: Warning, circleClass: 'bg-red-50', iconClass: 'text-red-500' },
   sent: { Icon: PaperPlaneTilt, circleClass: 'bg-slate-100', iconClass: 'text-slate-400', badge: MANUAL_BADGE },
   created: { Icon: FileText, circleClass: 'bg-slate-100', iconClass: 'text-slate-400', badge: MANUAL_BADGE },
@@ -171,7 +165,7 @@ type AuditRow = { type: 'single'; entry: AuditEntry } | { type: 'group'; entries
 type AuditFilter = 'all' | 'penalty' | 'waiver' | 'activity';
 function auditFilterBucket(kind: AuditKind): AuditFilter {
   if (kind === 'automatic') return 'penalty';
-  if (kind === 'waived-full' || kind === 'waived-partial' || kind === 'reduced') return 'waiver';
+  if (kind === 'waived-full' || kind === 'waived-partial') return 'waiver';
   return 'activity';
 }
 
@@ -415,12 +409,11 @@ export function BillDetailsPage() {
     const remaining = remainingAfterWaive;
     setWaivedTotal((prev) => prev + amount);
 
-    if (isWaived) {
-      // Already had a prior waiver — this is a further waiver against
-      // whatever was left, regardless of whether it zeroes it out.
-      pushAudit('Penalty reduced', `₱${amount.toFixed(2)} — ${waiveReason}`);
-      showToast(`${formatPeso(amount)} was waived from the remaining penalty. ${formatPeso(remaining)} penalty remains.`);
-    } else if (remaining === 0) {
+    // The audit terminology reflects the OUTCOME of this action, not
+    // whether it's the first waiver or a further one — fully waived
+    // whenever it clears the remaining penalty to ₱0, partially waived
+    // whenever something is still left, either way.
+    if (remaining === 0) {
       pushAudit('Full penalty waived', `₱${amount.toFixed(2)} — ${waiveReason}`);
       showToast(`Penalty waived in full — outstanding balance now ${formatPeso(bill.amount)}`);
     } else {

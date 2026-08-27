@@ -337,12 +337,11 @@ export function BillInfoPage() {
     setWaivedTotal((prev) => prev + amount);
     setWaiverReason(waiveReason);
 
-    if (isWaived) {
-      // Already had a prior waiver — this is a further waiver against
-      // whatever was left, regardless of whether it zeroes it out.
-      pushAudit('Penalty reduced', `₱${amount.toFixed(2)} — ${waiveReason}`);
-      showPenaltyToast(`${formatPeso(amount)} was waived from the remaining penalty. ${formatPeso(remaining)} penalty remains.`);
-    } else if (remaining === 0) {
+    // The audit terminology reflects the OUTCOME of this action, not
+    // whether it's the first waiver or a further one — fully waived
+    // whenever it clears the remaining penalty to ₱0, partially waived
+    // whenever something is still left, either way.
+    if (remaining === 0) {
       pushAudit('Full penalty waived', `₱${amount.toFixed(2)} — ${waiveReason}`);
       showPenaltyToast(`Penalty waived in full — outstanding balance now ${formatPeso(bill.amount)}`);
     } else {
