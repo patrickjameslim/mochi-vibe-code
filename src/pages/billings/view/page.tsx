@@ -1052,7 +1052,7 @@ export function BillDetailsPage() {
           <DialogHeader className="border-b border-slate-200 p-4">
             <DialogTitle className="text-base font-semibold text-slate-900">Waive Penalty</DialogTitle>
             <p className="text-sm text-black leading-relaxed">
-              Waive all or part of the remaining penalty. This action is final and cannot be undone.
+              Choose the amount of penalty to waive. This action cannot be undone.
             </p>
           </DialogHeader>
           <div className="p-4 space-y-3">
@@ -1077,15 +1077,9 @@ export function BillDetailsPage() {
                   ].join(' ')}
                 />
               </div>
-              <label
-                className={[
-                  'flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer select-none transition-colors',
-                  waiveAmountNum > 0 && waiveAmountNum === currentPenalty
-                    ? 'border-violet-300 bg-violet-50/60'
-                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
-                ].join(' ')}
-              >
+              <label className="flex items-center gap-2 mt-0.5 w-fit cursor-pointer select-none">
                 <Checkbox
+                  className="size-5 border-slate-400"
                   checked={waiveAmountNum > 0 && waiveAmountNum === currentPenalty}
                   onCheckedChange={(checked) => {
                     if (checked) handleWaiveFullAmount();
@@ -1094,9 +1088,9 @@ export function BillDetailsPage() {
                 />
                 <span className="text-xs font-medium text-slate-700">Full amount</span>
               </label>
-              <p className={waiveErrors.amount ? 'text-xs text-red-500' : 'text-xs text-slate-400'}>
-                Enter an amount between ₱0.01 and {formatPeso(currentPenalty)}.
-              </p>
+              {waiveErrors.amount && (
+                <p className="text-xs text-red-500">Enter an amount between ₱0.01 and {formatPeso(currentPenalty)}.</p>
+              )}
             </div>
             <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
               <span className="text-xs font-semibold text-slate-600">Remaining penalty</span>
@@ -1132,7 +1126,7 @@ export function BillDetailsPage() {
           <DialogFooter className="flex-row justify-end gap-2 border-t border-slate-200 p-4">
             <Button variant="outline" size="md" onClick={() => setWaiveOpen(false)}>Cancel</Button>
             <Button colorScheme="primary" size="md" onClick={confirmWaive} disabled={isWaiveConfirmDisabled}>
-              Confirm waiver
+              Confirm
             </Button>
           </DialogFooter>
         </DialogContent>
