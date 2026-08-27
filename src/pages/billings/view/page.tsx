@@ -18,6 +18,7 @@ import {
 import { useNavigate, useParams, useLocation } from '@tanstack/react-router';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
 import { Button } from '#/components/atoms/Button';
+import { Checkbox } from '#/components/atoms/Checkbox';
 import { Badge } from '#/components/atoms/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '#/components/atoms/Card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '#/components/atoms/Dialog';
@@ -274,8 +275,8 @@ export function BillDetailsPage() {
   // product decision, the configured penalty rule (Settings → Overdue
   // Payment Penalties) is always the source of truth for what accrues
   // automatically. If the accrued amount is too high, the only lever a
-  // user has is Waive Penalty / Reduce Penalty below, which reduce what's
-  // OWED without ever touching the underlying calculation itself.
+  // user has is Waive Penalty below, which reduces what's OWED without
+  // ever touching the underlying calculation itself.
   const [waivedTotal, setWaivedTotal] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -352,30 +353,21 @@ export function BillDetailsPage() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  // ── Waive dialog ──
+  // ── Waive Penalty dialog — one unified flow for lowering the remaining
+  // penalty, whether this is the FIRST waiver against an untouched penalty
+  // or a further one against whatever's already left. Every waiver (full
+  // or partial) is final: there's no "undo" or "edit" of a past waiver,
+  // only additional waivers going forward, applied repeatedly as long as
+  // some penalty still remains — each one its own final action, logged as
+  // its own audit entry. Whether a given waiver counts as "fully" or
+  // "partially" waived is decided purely by the amount entered, never by
+  // an explicit up-front choice — see confirmWaive below. ──
   const [waiveOpen, setWaiveOpen] = useState(false);
-  const [waiveType, setWaiveType] = useState<'full' | 'partial'>('full');
   const [waiveAmount, setWaiveAmount] = useState('');
   const [waiveReason, setWaiveReason] = useState('');
   const [waiveErrors, setWaiveErrors] = useState({ amount: false, reason: false });
-  // Presentational-only: true the moment a partial waiver's typed amount
-  // reaches the full penalty, so the UI can nudge toward "Waive Entire
-  // Penalty" in real time rather than waiting for a submit-time error.
-  const isFullAmountEnteredAsPartial =
-    waiveType === 'partial' && waiveAmount.trim() !== '' && (Number(waiveAmount) || 0) >= currentPenalty;
-  // Presentational-only: mirrors confirmWaive's own partial-amount validity
-  // rule (strictly 0 < amount < currentPenalty) so the preview and the
-  // Confirm button can gate on the exact same definition of "valid" without
-  // waiting for a submit attempt.
-  const isPartialAmountValid =
-    waiveType === 'partial' && waiveAmount.trim() !== '' && (Number(waiveAmount) || 0) > 0 && (Number(waiveAmount) || 0) < currentPenalty;
-  // Presentational-only: gates the Confirm button using the same validity
-  // conditions confirmWaive already enforces — a non-blank reason always,
-  // plus a valid amount when the "partial" option is selected.
-  const isWaiveConfirmDisabled = waiveReason.trim() === '' || (waiveType === 'partial' && !isPartialAmountValid);
 
   function openWaive() {
-    setWaiveType('full');
     setWaiveAmount('');
     setWaiveReason('');
     setWaiveErrors({ amount: false, reason: false });
@@ -393,87 +385,49 @@ export function BillDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function confirmWaive() {
-    const reasonInvalid = waiveReason.trim() === '';
-
-    if (waiveType === 'full') {
-      if (reasonInvalid) {
-        setWaiveErrors({ amount: false, reason: true });
-        return;
-      }
-      const amount = currentPenalty;
-      setWaivedTotal((prev) => prev + amount);
-      pushAudit('Full penalty waived', `₱${amount.toFixed(2)} — ${waiveReason}`);
-      showToast(`Penalty waived in full — outstanding balance now ${formatPeso(bill.amount)}`);
-      setWaiveOpen(false);
-      return;
-    }
-
-    const amount = Number(waiveAmount) || 0;
-    // A partial waiver must never fully zero out the penalty — that's what
-    // "Waive Entire Penalty" is for — so the valid range is strictly
-    // 0 < amount < currentPenalty (not <=), per explicit product rule.
-    const amountInvalid = amount <= 0 || amount >= currentPenalty;
-    if (amountInvalid || reasonInvalid) {
-      setWaiveErrors({ amount: amountInvalid, reason: reasonInvalid });
-      return;
-    }
-    setWaivedTotal((prev) => prev + amount);
-    pushAudit('Partial penalty waiver applied', `₱${amount.toFixed(2)} — ${waiveReason}`);
-    showToast(`₱${amount.toFixed(2)} waived — outstanding balance now ${formatPeso(bill.amount + currentPenalty - amount)}`);
-    setWaiveOpen(false);
-  }
-
-  // ── Reduce Penalty dialog — the ONLY way to lower a remaining penalty
-  // further once it's already been partially waived. Per product
-  // decision, a waiver (full or partial) is final: no edit, no undo, no
-  // restoring a previously waived/reduced amount. Each reduction is its
-  // own final, irreversible action, logged as its own audit entry rather
-  // than rewriting or combining any prior waiver/reduction. ──
-  const [reduceOpen, setReduceOpen] = useState(false);
-  const [reduceAmount, setReduceAmount] = useState('');
-  const [reduceReason, setReduceReason] = useState('');
-  const [reduceErrors, setReduceErrors] = useState({ amount: false, reason: false });
-
-  function openReduce() {
-    setReduceAmount('');
-    setReduceReason('');
-    setReduceErrors({ amount: false, reason: false });
-    setReduceOpen(true);
-  }
-
-  // One-click shortcut for reducing the entire remaining penalty, without
+  // One-click shortcut for waiving the entire remaining penalty, without
   // making the user retype the exact figure shown above. It just populates
-  // the same field the confirm button already reads from — no separate flow.
-  function handleWaiveFullReduce() {
-    setReduceAmount(currentPenalty.toFixed(2));
-    setReduceErrors((prev) => ({ ...prev, amount: false }));
+  // the same field Confirm already reads from — no separate flow.
+  function handleWaiveFullAmount() {
+    setWaiveAmount(currentPenalty.toFixed(2));
+    setWaiveErrors((prev) => ({ ...prev, amount: false }));
   }
 
   // Rounding to the cent before comparing keeps "enter the exact remaining
   // amount" reliably valid even though currentPenalty and the parsed input
   // are both floats that can otherwise differ by a fraction of a centavo.
-  const reduceAmountNum = Math.round((Number(reduceAmount) || 0) * 100) / 100;
-  const isReduceAmountValid = reduceAmount.trim() !== '' && reduceAmountNum > 0 && reduceAmountNum <= currentPenalty;
-  const remainingAfterReduce = Math.max(0, Math.round((currentPenalty - reduceAmountNum) * 100) / 100);
-  const isReduceConfirmDisabled = !isReduceAmountValid || reduceReason.trim() === '';
+  const waiveAmountNum = Math.round((Number(waiveAmount) || 0) * 100) / 100;
+  const isWaiveAmountValid = waiveAmount.trim() !== '' && waiveAmountNum > 0 && waiveAmountNum <= currentPenalty;
+  const remainingAfterWaive = Math.max(0, Math.round((currentPenalty - waiveAmountNum) * 100) / 100);
+  const isWaiveConfirmDisabled = !isWaiveAmountValid || waiveReason.trim() === '';
 
-  function confirmReduce() {
-    const amount = reduceAmountNum;
-    const reasonInvalid = reduceReason.trim() === '';
-    // Cannot exceed the remaining penalty — reducing all the way to ₱0 is
+  function confirmWaive() {
+    const amount = waiveAmountNum;
+    const reasonInvalid = waiveReason.trim() === '';
+    // Cannot exceed the remaining penalty — waiving all the way to ₱0 is
     // allowed (that's just how a partial waiver becomes a full one), it's
-    // only reducing MORE than what's left that isn't.
-    const amountInvalid = !isReduceAmountValid;
+    // only waiving MORE than what's left that isn't.
+    const amountInvalid = !isWaiveAmountValid;
     if (reasonInvalid || amountInvalid) {
-      setReduceErrors({ amount: amountInvalid, reason: reasonInvalid });
+      setWaiveErrors({ amount: amountInvalid, reason: reasonInvalid });
       return;
     }
+    const remaining = remainingAfterWaive;
     setWaivedTotal((prev) => prev + amount);
-    pushAudit('Penalty reduced', `₱${amount.toFixed(2)} — ${reduceReason}`);
-    const remaining = remainingAfterReduce;
-    showToast(`${formatPeso(amount)} was reduced from the remaining penalty. ${formatPeso(remaining)} penalty remains.`);
-    setReduceOpen(false);
+
+    if (isWaived) {
+      // Already had a prior waiver — this is a further waiver against
+      // whatever was left, regardless of whether it zeroes it out.
+      pushAudit('Penalty reduced', `₱${amount.toFixed(2)} — ${waiveReason}`);
+      showToast(`${formatPeso(amount)} was waived from the remaining penalty. ${formatPeso(remaining)} penalty remains.`);
+    } else if (remaining === 0) {
+      pushAudit('Full penalty waived', `₱${amount.toFixed(2)} — ${waiveReason}`);
+      showToast(`Penalty waived in full — outstanding balance now ${formatPeso(bill.amount)}`);
+    } else {
+      pushAudit('Partial penalty waiver applied', `₱${amount.toFixed(2)} — ${waiveReason}`);
+      showToast(`₱${amount.toFixed(2)} waived — outstanding balance now ${formatPeso(bill.amount + remaining)}`);
+    }
+    setWaiveOpen(false);
   }
 
   // ── Notification bell — surfaces the "penalty first applied" event ──
@@ -854,20 +808,15 @@ export function BillDetailsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     {/* No manual override of the calculated penalty exists
                         anymore — the configured rule under Settings is
-                        always the source of truth. Waiving (full or
-                        partial) is final too: once applied, this button
-                        area only ever offers Reduce Penalty going forward
-                        (to lower what still remains), never Edit/Undo. */}
-                    {!isWaived && currentPenalty > 0 && (
+                        always the source of truth. The action is always
+                        "Waive Penalty", whether against an untouched
+                        penalty or whatever's left after a prior waiver —
+                        it just disappears once nothing remains to waive;
+                        there's never an Edit/Undo. */}
+                    {currentPenalty > 0 && (
                       <Button variant="outline" size="sm" onClick={openWaive}>
                         <HandCoins size={13} />
                         Waive Penalty
-                      </Button>
-                    )}
-                    {isWaived && !isFullyWaived && (
-                      <Button variant="outline" size="sm" onClick={openReduce}>
-                        <HandCoins size={13} />
-                        Reduce Penalty
                       </Button>
                     )}
                   </div>
@@ -924,7 +873,7 @@ export function BillDetailsPage() {
                         the waiver on top of it. The "Show details" toggle
                         itself is a minor disclosure control, so it's muted
                         (slate, not violet) — violet is reserved for the
-                        real action (Reduce Penalty) below. ── */}
+                        real action (Waive Penalty) below. ── */}
                     <div className="mt-1.5 pl-3 border-l-2 border-slate-100">
                       {isWaived ? (
                         <div>
@@ -1007,9 +956,9 @@ export function BillDetailsPage() {
                           (emerald wash matching the collapsed tag color)
                           grouping an icon, heading, explanation, the reason
                           with its existing clamp/expand untouched, and the
-                          one real action (Reduce Penalty, only while some
+                          one real action (Waive Penalty, only while some
                           penalty still remains — a full waiver has nothing
-                          left to reduce) — rather than a sentence with a
+                          left to waive) — rather than a sentence with a
                           floating link. Body copy stays neutral slate;
                           violet is reserved for that one real action,
                           rendered as a real Button rather than a text link. ── */}
@@ -1046,9 +995,9 @@ export function BillDetailsPage() {
                               </div>
                             )}
                             {!isFullyWaived && (
-                              <Button variant="outline" size="xs" onClick={openReduce} className="mt-2">
+                              <Button variant="outline" size="xs" onClick={openWaive} className="mt-2">
                                 <HandCoins size={11} />
-                                Reduce Penalty
+                                Waive Penalty
                               </Button>
                             )}
                           </div>
@@ -1087,156 +1036,24 @@ export function BillDetailsPage() {
         </main>
       </div>
 
-      {/* ── Waive Penalty dialog ── */}
+      {/* ── Waive Penalty dialog — the single, unified way to lower this
+           bill's remaining penalty, whether this is the very first waiver
+           or a further one against whatever's already left. Every waiver
+           is final (no edit/undo), so the amount field always starts
+           blank, and the remaining total updates live as the user types.
+           Whether the result counts as "fully" or "partially" waived is
+           decided purely by the amount entered — the "Waive full penalty"
+           checkbox is just a shortcut that fills the field, not a
+           separate mode; its own checked state simply reflects whether
+           the current amount happens to equal the full remaining
+           penalty. ── */}
       <Dialog open={waiveOpen} onOpenChange={setWaiveOpen}>
-        <DialogContent showCloseButton={false} className="max-w-md gap-0 p-0">
-          <DialogHeader className="border-b border-slate-200 p-4">
-            <DialogTitle className="text-base font-semibold text-slate-900">Waive Penalty</DialogTitle>
-          </DialogHeader>
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {(['full', 'partial'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setWaiveType(t)}
-                  className={[
-                    'relative flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors',
-                    waiveType === t
-                      ? 'border-slate-300 bg-slate-50'
-                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
-                  ].join(' ')}
-                >
-                  {waiveType === t && (
-                    <CheckCircle weight="fill" className="absolute right-2.5 top-2.5 h-4 w-4 text-violet-500" />
-                  )}
-                  <p className="text-sm font-semibold text-slate-800 pr-5">
-                    {t === 'full' ? 'Waive Entire Penalty' : 'Waive Partial Penalty'}
-                  </p>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    {t === 'full' ? 'Remove the entire penalty from this invoice.' : 'Reduce the penalty by an amount you choose.'}
-                  </p>
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              {waiveType === 'partial' && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-600">Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₱</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={currentPenalty}
-                      value={waiveAmount}
-                      onChange={(e) => { setWaiveAmount(e.target.value); setWaiveErrors((prev) => ({ ...prev, amount: false })); }}
-                      onBlur={() => {
-                        if (waiveAmount.trim() === '') return;
-                        const parsed = Number(waiveAmount);
-                        if (Number.isNaN(parsed)) return;
-                        const clamped = Math.min(Math.max(parsed, 0), currentPenalty);
-                        if (clamped !== parsed) setWaiveAmount(clamped.toFixed(2));
-                      }}
-                      placeholder="Enter waiver amount"
-                      className={[
-                        'w-full border rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors',
-                        waiveErrors.amount ? 'border-red-300' : 'border-slate-200 focus:border-violet-400',
-                      ].join(' ')}
-                    />
-                  </div>
-                  {/* Three mutually-exclusive helper states below the field:
-                      a plain rule reminder by default; a red error only after
-                      a genuinely invalid submit attempt (empty/zero/negative);
-                      and — since typing exactly the full penalty is a very
-                      plausible near-miss, not a "wrong" value — a distinct,
-                      actionable nudge toward the correct option instead of a
-                      generic error. */}
-                  {isFullAmountEnteredAsPartial ? (
-                    <p className="text-xs text-amber-600 leading-relaxed">
-                      This amount equals the full penalty. Switch to Waive Entire Penalty to continue.{' '}
-                      <button
-                        type="button"
-                        onClick={() => setWaiveType('full')}
-                        className="font-semibold underline hover:text-amber-700"
-                      >
-                        Switch to Entire Penalty
-                      </button>
-                    </p>
-                  ) : waiveErrors.amount ? (
-                    <p className="text-xs text-red-500">Enter an amount greater than ₱0 and less than {formatPeso(currentPenalty)}.</p>
-                  ) : (
-                    <p className="text-xs text-slate-400">Enter an amount less than the full penalty.</p>
-                  )}
-                </div>
-              )}
-
-              <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">After Waiver</p>
-                {waiveType === 'full' ? (
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs font-medium text-slate-600">Outstanding Balance</span>
-                    <span className="font-mono text-sm font-bold text-slate-900">{formatPeso(bill.amount)}</span>
-                  </div>
-                ) : !isPartialAmountValid ? (
-                  <p className="text-xs text-slate-400 italic">Enter a valid waiver amount to preview the updated balance.</p>
-                ) : (
-                  <div className="space-y-0.5">
-                    <div className="flex items-baseline justify-between text-xs text-slate-500">
-                      <span>Penalty</span>
-                      <span className="font-mono">{formatPeso(currentPenalty)}</span>
-                    </div>
-                    <div className="flex items-baseline justify-between text-xs text-slate-500">
-                      <span>Waived</span>
-                      <span className="font-mono">− {formatPeso(Number(waiveAmount) || 0)}</span>
-                    </div>
-                    <div className="flex items-baseline justify-between pt-1 mt-1 border-t border-slate-200">
-                      <span className="text-xs font-medium text-slate-600">Outstanding Balance</span>
-                      <span className="font-mono text-sm font-bold text-slate-900">
-                        {formatPeso(bill.amount + (currentPenalty - (Number(waiveAmount) || 0)))}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-600">
-                Reason for Waiver <span className="text-red-400">*</span>
-              </label>
-              <p className="text-xs text-slate-400">This reason will appear in the audit log.</p>
-              <textarea
-                value={waiveReason}
-                onChange={(e) => { setWaiveReason(e.target.value); setWaiveErrors((prev) => ({ ...prev, reason: false })); }}
-                placeholder="e.g. Explain why this penalty is being waived"
-                rows={2}
-                className={[
-                  'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none',
-                  waiveErrors.reason ? 'border-red-300' : 'border-slate-200 focus:border-violet-400',
-                ].join(' ')}
-              />
-              {waiveErrors.reason && <p className="text-xs text-red-500">A reason is required.</p>}
-            </div>
-          </div>
-          <DialogFooter className="flex-row justify-end gap-2 border-t border-slate-200 p-4">
-            <Button variant="outline" size="md" onClick={() => setWaiveOpen(false)}>Cancel</Button>
-            <Button colorScheme="destructive" size="md" onClick={confirmWaive} disabled={isWaiveConfirmDisabled}>
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Reduce Penalty dialog — the only way to lower a remaining
-           penalty further after a partial waiver. Every reduction is
-           final (no edit/undo), so the amount field always starts blank,
-           and the remaining total updates live as the user types. ── */}
-      <Dialog open={reduceOpen} onOpenChange={setReduceOpen}>
         <DialogContent className="max-w-md gap-0 p-0">
           <DialogHeader className="border-b border-slate-200 p-4">
-            <DialogTitle className="text-base font-semibold text-slate-900">Reduce Penalty</DialogTitle>
-            <p className="text-sm text-black leading-relaxed">This action is final and cannot be undone.</p>
+            <DialogTitle className="text-base font-semibold text-slate-900">Waive Penalty</DialogTitle>
+            <p className="text-sm text-black leading-relaxed">
+              Waive all or part of the remaining penalty. This action is final and cannot be undone.
+            </p>
           </DialogHeader>
           <div className="p-4 space-y-3">
             <div>
@@ -1245,14 +1062,17 @@ export function BillDetailsPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-600">Amount to reduce</label>
-                <button
-                  type="button"
-                  onClick={handleWaiveFullReduce}
-                  className="text-xs font-semibold text-violet-600 underline hover:text-violet-700"
-                >
+                <label className="text-xs font-semibold text-slate-600">Amount to waive</label>
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 cursor-pointer select-none">
+                  <Checkbox
+                    checked={waiveAmountNum > 0 && waiveAmountNum === currentPenalty}
+                    onCheckedChange={(checked) => {
+                      if (checked) handleWaiveFullAmount();
+                      else { setWaiveAmount(''); setWaiveErrors((prev) => ({ ...prev, amount: false })); }
+                    }}
+                  />
                   Waive full penalty
-                </button>
+                </label>
               </div>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₱</span>
@@ -1260,23 +1080,23 @@ export function BillDetailsPage() {
                   type="number"
                   min={0.01}
                   max={currentPenalty}
-                  value={reduceAmount}
-                  onChange={(e) => { setReduceAmount(e.target.value); setReduceErrors((prev) => ({ ...prev, amount: false })); }}
+                  value={waiveAmount}
+                  onChange={(e) => { setWaiveAmount(e.target.value); setWaiveErrors((prev) => ({ ...prev, amount: false })); }}
                   placeholder="Enter amount"
                   className={[
                     'w-full border rounded-lg pl-7 pr-3 py-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors',
-                    reduceErrors.amount ? 'border-red-300' : 'border-slate-200 focus:border-violet-400',
+                    waiveErrors.amount ? 'border-red-300' : 'border-slate-200 focus:border-violet-400',
                   ].join(' ')}
                 />
               </div>
-              <p className={reduceErrors.amount ? 'text-xs text-red-500' : 'text-xs text-slate-400'}>
+              <p className={waiveErrors.amount ? 'text-xs text-red-500' : 'text-xs text-slate-400'}>
                 Enter an amount between ₱0.01 and {formatPeso(currentPenalty)}.
               </p>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
               <span className="text-xs font-semibold text-slate-600">Remaining penalty</span>
               <span className="text-sm font-semibold text-slate-900 tabular-nums">
-                {formatPeso(remainingAfterReduce)}
+                {formatPeso(remainingAfterWaive)}
               </span>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -1284,30 +1104,30 @@ export function BillDetailsPage() {
                 Reason <span className="text-red-400">*</span>
               </label>
               <textarea
-                value={reduceReason}
-                onChange={(e) => { setReduceReason(e.target.value.slice(0, 500)); setReduceErrors((prev) => ({ ...prev, reason: false })); }}
+                value={waiveReason}
+                onChange={(e) => { setWaiveReason(e.target.value.slice(0, 500)); setWaiveErrors((prev) => ({ ...prev, reason: false })); }}
                 placeholder="Enter reason..."
                 rows={3}
                 maxLength={500}
                 className={[
                   'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none',
-                  reduceErrors.reason ? 'border-red-300' : 'border-slate-200 focus:border-violet-400',
+                  waiveErrors.reason ? 'border-red-300' : 'border-slate-200 focus:border-violet-400',
                 ].join(' ')}
               />
               <div className="flex items-center justify-between">
-                {reduceErrors.reason ? (
+                {waiveErrors.reason ? (
                   <p className="text-xs text-red-500">A reason is required.</p>
                 ) : (
                   <span />
                 )}
-                <p className="text-xs text-slate-400 tabular-nums">{reduceReason.length} / 500</p>
+                <p className="text-xs text-slate-400 tabular-nums">{waiveReason.length} / 500</p>
               </div>
             </div>
           </div>
           <DialogFooter className="flex-row justify-end gap-2 border-t border-slate-200 p-4">
-            <Button variant="outline" size="md" onClick={() => setReduceOpen(false)}>Cancel</Button>
-            <Button colorScheme="primary" size="md" onClick={confirmReduce} disabled={isReduceConfirmDisabled}>
-              Confirm reduction
+            <Button variant="outline" size="md" onClick={() => setWaiveOpen(false)}>Cancel</Button>
+            <Button colorScheme="primary" size="md" onClick={confirmWaive} disabled={isWaiveConfirmDisabled}>
+              Confirm waiver
             </Button>
           </DialogFooter>
         </DialogContent>
