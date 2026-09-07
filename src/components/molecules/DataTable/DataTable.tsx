@@ -360,14 +360,14 @@ export function DataTable({
         ) : (
           <div
             ref={tableScrollRef}
-            className="overflow-x-auto relative"
+            className="overflow-x-auto overflow-y-hidden relative"
             onScroll={() => {
               if (topScrollRef.current && tableScrollRef.current)
                 topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
               positionPinnedShadows();
             }}
           >
-            <table ref={tableRef} className="w-full text-sm" style={{ borderSpacing: 0 }}>
+            <table ref={tableRef} className="w-full text-sm" style={{ borderSpacing: 0, borderCollapse: 'separate' }}>
               <thead className="bg-white border-b border-slate-200">
                 <tr>
                   <th className="sticky left-0 z-[3] w-10 px-3 py-2.5 bg-white">
@@ -409,7 +409,7 @@ export function DataTable({
                   width: pinnedShadowLeft,
                   height: pinnedShadowHeight,
                   opacity: 0,
-                  boxShadow: '10px 0 20px -6px rgba(15, 23, 42, 0.18), 2px 0 6px -2px rgba(15, 23, 42, 0.10)',
+                  boxShadow: '20px 0 32px 4px rgba(15, 23, 42, 0.16), 6px 0 12px 0px rgba(15, 23, 42, 0.10)',
                 }}
               />
             )}
@@ -422,7 +422,7 @@ export function DataTable({
                   width: pinnedShadowRight,
                   height: pinnedShadowHeight,
                   opacity: 0,
-                  boxShadow: '-10px 0 20px -6px rgba(15, 23, 42, 0.18), -2px 0 6px -2px rgba(15, 23, 42, 0.10)',
+                  boxShadow: '-20px 0 32px 4px rgba(15, 23, 42, 0.16), -6px 0 12px 0px rgba(15, 23, 42, 0.10)',
                 }}
               />
             )}

@@ -71,7 +71,7 @@ const DEFAULT_CUSTOMER_COLS: ColumnDef[] = [
   { id: 'notes',           label: 'Notes',                visible: true,  pin: 'none' },
   { id: 'lastUpdatedAt',   label: 'Last updated at',      visible: true,  pin: 'none' },
   { id: 'dateCreated',     label: 'Date created',         visible: true,  pin: 'none' },
-  { id: 'quickActions',    label: 'Quick actions',        visible: true,  pin: 'none' },
+  { id: 'quickActions',    label: 'Quick actions',        visible: true,  pin: 'right' },
 ];
 
 // ─── Sort config ──────────────────────────────────────────────────────────────
@@ -123,10 +123,10 @@ const IconButton = forwardRef<
       ref={ref}
       onClick={onClick}
       className={[
-        'inline-flex items-center justify-center w-7 h-7 rounded transition-colors',
+        'inline-flex items-center justify-center h-8 w-8 rounded-md transition-colors',
         ghost
           ? 'text-slate-500 hover:bg-slate-100'
-          : 'text-slate-500 border border-slate-200 hover:bg-slate-50',
+          : 'border bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300',
       ].join(' ')}
     >
       {children}
@@ -263,7 +263,10 @@ export function CustomersListPage() {
 
   const q = search.trim().toLowerCase();
 
-  const draftCount = customers.filter((c) => c.status === 'draft' && !archivedCustomers.has(c.id)).length;
+  const activeCustomers = customers.filter((c) => !archivedCustomers.has(c.id) && c.status !== 'draft');
+  const allCount = activeCustomers.length;
+  const individualCount = activeCustomers.filter((c) => c.type === 'Individual').length;
+  const organizationCount = activeCustomers.filter((c) => c.type === 'Organization').length;
 
   const filtered = customers.filter((c) => {
     const isArchived = archivedCustomers.has(c.id);
@@ -528,7 +531,10 @@ export function CustomersListPage() {
 
   // ─── Headers ─────────────────────────────────────────────────────────────────
   const headers = visibleCols.map((col) => {
-    const style = colHeaderStyle(col.id);
+    const baseHeaderStyle = colHeaderStyle(col.id);
+    const style = col.id === 'quickActions'
+      ? { ...baseHeaderStyle, zIndex: 3 }
+      : baseHeaderStyle;
     const isPinned = !!style.position;
     return (
       <SortTh
@@ -579,7 +585,7 @@ export function CustomersListPage() {
         <AppSidebar />
 
         {/* Main content */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-y-auto">
           {/* Top bar */}
           <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between">
             <nav className="flex items-center gap-1.5 text-sm text-slate-500">
@@ -601,16 +607,16 @@ export function CustomersListPage() {
             <div className="flex items-center justify-between mb-5">
               <h1 className="text-[28px] font-bold tracking-tight text-slate-900">Customers</h1>
               <div className="flex items-center gap-2">
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                <button className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                   Export data
                   <CaretDown size={13} />
                 </button>
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                <button className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                   Bulk create customer(s)
                 </button>
                 <button
                   onClick={() => navigate({ to: '/customers/create' })}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
+                  className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
                 >
                   <Plus size={15} weight="bold" />
                   Create a new customer
@@ -620,20 +626,15 @@ export function CustomersListPage() {
 
             {/* Card */}
             <DataTable
-              cardClass="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+              tabVariant="pill"
               tabs={[
-                { value: 'All', label: 'All' },
-                { value: 'Individual', label: 'Individual' },
-                { value: 'Organization', label: 'Organization' },
-                { value: 'Customer groups', label: 'Customer groups' },
-              ]}
-              rightTabs={[
-                { value: 'Draft', label: 'Draft', count: draftCount },
-                { value: 'Archived', label: 'Archived', count: archivedCustomers.size },
+                { value: 'All', label: 'All', count: allCount },
+                { value: 'Individual', label: 'Individual', count: individualCount },
+                { value: 'Organization', label: 'Organization', count: organizationCount },
+                { value: 'Customer groups', label: 'Customer groups', count: availableGroups.length },
               ]}
               activeTab={activeTab}
               onTabChange={(v) => handleTabChange(v as typeof activeTab)}
-              showTopScrollbar={activeTab !== 'Customer groups'}
               search={search}
               onSearch={(v) => { setSearch(v); setCurrentPage(1); }}
               toolbarEnd={
@@ -641,10 +642,10 @@ export function CustomersListPage() {
                   <button
                     onClick={() => setFilterDrawerOpen(true)}
                     className={[
-                      'relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                      'relative inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border text-sm transition-colors',
                       activeFilterCount > 0
                         ? 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
                     ].join(' ')}
                   >
                     <Funnel size={14} />
@@ -655,7 +656,7 @@ export function CustomersListPage() {
                       </span>
                     )}
                   </button>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                  <button className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                     <ArrowsDownUp size={14} />
                     Last updated at
                   </button>
@@ -1214,12 +1215,16 @@ function CustomerRow({
         );
       case 'quickActions':
         return (
-          <td key={col.id} style={style} className="px-3 py-2.5">
-            <div className="flex items-center gap-1.5">
+          <td
+            key={col.id}
+            style={{ ...style, backgroundColor: '#ffffff', zIndex: 2 }}
+            className="px-3 py-2.5 whitespace-nowrap"
+          >
+            <div className="flex items-center justify-end gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconButton>
-                    <Copy size={15} />
+                    <Copy size={16} />
                   </IconButton>
                 </TooltipTrigger>
                 <TooltipContent>Duplicate</TooltipContent>
@@ -1261,7 +1266,7 @@ function CustomerRow({
       {visibleCols.map((col) => renderCell(col))}
 
       {/* Kebab — always last */}
-      <td className="sticky right-0 z-[2] px-2 py-2.5 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_white]" style={{ backgroundColor: rowBg }}>
+      <td className="sticky right-0 z-[2] px-2 py-2.5" style={{ backgroundColor: rowBg }}>
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-500 hover:bg-slate-100 transition-colors outline-none">
             <DotsThreeVertical size={16} weight="bold" />

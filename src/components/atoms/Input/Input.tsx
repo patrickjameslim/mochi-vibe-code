@@ -13,7 +13,7 @@ const inputVariants = cva(
     variants: {
       size: inputGroupSizeVariants,
       variant: {
-        outline: 'border bg-white rounded-md',
+        outline: 'border bg-white rounded-[8px]',
         unstyled: 'border-0 bg-transparent h-full',
       },
     },

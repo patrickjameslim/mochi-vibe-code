@@ -82,11 +82,14 @@ export function GroupCombobox({ selected, onChange, groups: initialGroups }: Gro
       >
         {/* Selected pills */}
         {selected.map((g) => (
-          <Badge key={g} colorScheme="primary" className="gap-1 pl-2 pr-1 py-0.5 rounded-md font-medium">
+          <Badge
+            key={g}
+            className="gap-1 pl-2.5 pr-1 py-0.5 rounded-full border border-[#E4E4E7] bg-white text-slate-700 text-[12px] font-medium"
+          >
             {g}
             <button
               onClick={(e) => remove(g, e)}
-              className="inline-flex items-center justify-center w-3.5 h-3.5 rounded hover:bg-violet-200 transition-colors"
+              className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-slate-100 transition-colors"
             >
               <X size={9} weight="bold" />
             </button>
@@ -100,7 +103,7 @@ export function GroupCombobox({ selected, onChange, groups: initialGroups }: Gro
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder={selected.length === 0 ? 'Select customer groups…' : ''}
-          className="flex-1 min-w-[120px] outline-none bg-transparent text-sm text-slate-700 placeholder:text-slate-400"
+          className="flex-1 min-w-[120px] outline-none bg-transparent text-sm text-slate-700 placeholder:text-muted-foreground"
         />
 
         <CaretDown

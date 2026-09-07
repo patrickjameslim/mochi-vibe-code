@@ -42,8 +42,10 @@ export function useStickyColumns(columnConfig: ColumnDef[], colWidths: Record<st
     }
 
     function colCellStyle(id: string): CSSProperties {
-      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 1 };
-      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 1 };
+      // willChange forces the sticky cell onto its own compositing layer so its
+      // content (icons/buttons) doesn't lag a frame behind during fast scroll.
+      if (leftOffsets[id] !== undefined)  return { position: 'sticky', left: leftOffsets[id],   zIndex: 1, willChange: 'transform' };
+      if (rightOffsets[id] !== undefined) return { position: 'sticky', right: rightOffsets[id], zIndex: 1, willChange: 'transform' };
       return {};
     }
 

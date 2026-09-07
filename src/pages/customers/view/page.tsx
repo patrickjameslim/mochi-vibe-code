@@ -5,26 +5,18 @@ import {
   BellSimple,
   Copy,
   Check,
-  PencilSimple,
-  Envelope,
-  Phone,
-  MapPin,
-  IdentificationCard,
-  CreditCard,
-  Receipt,
-  ShieldCheck,
-  CalendarBlank,
-  ClockCounterClockwise,
+  Info,
   FilePdf,
   FileDoc,
   FileXls,
   FileCsv,
   FileZip,
   File as FileIcon,
-  User,
-  Buildings,
-  ArrowSquareOut,
-  UsersFour,
+  Coins,
+  FileText,
+  DotsThreeVertical,
+  Eye,
+  DownloadSimple,
 } from '@phosphor-icons/react';
 import { useNavigate, useParams, useLocation } from '@tanstack/react-router';
 import { useCustomers } from '#/context/CustomersContext';
@@ -32,10 +24,15 @@ import { SuccessBanner } from '#/components/molecules/SuccessBanner';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
 import { Button } from '#/components/atoms/Button';
 import { Badge } from '#/components/atoms/Badge';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '#/components/atoms/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '#/components/atoms/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '#/components/molecules/Tabs';
-import { Separator } from '#/components/atoms/Separator';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '#/components/atoms/DropdownMenu';
 import { SupportingDocFile, CustomerContact } from '#/data/customers';
 import { ProfileAvatar } from '#/components/molecules/ProfileAvatar';
 import { getBillsByCustomer } from '#/data/bills';
@@ -54,29 +51,41 @@ function FileTypeIcon({ name }: { name: string }) {
   return                                             <FileIcon size={20} className="text-slate-400 shrink-0" />;
 }
 
-function FieldLabel({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
+function SectionCard({
+  title,
+  right,
+  children,
+  contentClassName = '',
+}: {
+  title: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  contentClassName?: string;
+}) {
   return (
-    <div className="flex items-center gap-1.5 mb-1">
-      {icon && <span className="text-slate-400">{icon}</span>}
-      <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{children}</p>
-    </div>
+    <Card className="rounded-[8px] shadow-sm border border-[#E4E4E7] py-6 !gap-4 h-full">
+      <CardHeader className="px-6 flex flex-row items-center justify-between">
+        <CardTitle className="text-[20px] font-medium text-slate-900">{title}</CardTitle>
+        {right}
+      </CardHeader>
+      <CardContent className={['px-6', contentClassName].join(' ')}>
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 
-function FieldValue({ children }: { children: React.ReactNode }) {
-  const empty = !children || (typeof children === 'string' && children.trim() === '');
-  return (
-    <p className="text-sm text-slate-800 leading-relaxed">
-      {empty ? <span className="text-slate-400 italic">Not set</span> : children}
-    </p>
-  );
-}
-
-function InfoRow({ label, value, icon }: { label: string; value?: string; icon?: React.ReactNode }) {
+function Field({ label, value, icon }: { label: string; value?: React.ReactNode; icon?: React.ReactNode }) {
+  const empty = value === undefined || value === null || value === '';
   return (
     <div>
-      <FieldLabel icon={icon}>{label}</FieldLabel>
-      <FieldValue>{value}</FieldValue>
+      <div className="flex items-center gap-1 mb-1">
+        <p className="text-[14px] font-medium text-slate-900">{label}</p>
+        {icon}
+      </div>
+      <div className="text-[14px] text-slate-800">
+        {empty ? <span className="text-slate-400 italic">Not set</span> : value}
+      </div>
     </div>
   );
 }
@@ -124,13 +133,21 @@ export function CustomerViewPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  function handleDownloadDoc(doc: SupportingDocFile) {
+    if (!doc.url) return;
+    const a = document.createElement('a');
+    a.href = doc.url;
+    a.download = doc.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   const vatLabel =
     customer.vatStatus === 'vatable' ? 'VAT-able'
     : customer.vatStatus === 'zero' ? 'VAT Zero Rated'
     : customer.vatStatus === 'exempt' ? 'VAT Exempt'
     : undefined;
-
-  const isOrg = customer.type === 'Organization';
 
   return (
     <TooltipProvider>
@@ -178,9 +195,11 @@ export function CustomerViewPage() {
               <TabsTrigger value="Reports" className="px-4">Reports</TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2 py-2 self-center">
-              <Button variant="outline" onClick={() => navigate({ to: '/customers/$id/edit', params: { id } })}>
-                <PencilSimple size={14} />
-                Edit
+              <Button variant="outline" colorScheme="secondary">
+                Bulk create bills
+              </Button>
+              <Button onClick={() => navigate({ to: '/customers/$id/edit', params: { id } })}>
+                Edit customer
               </Button>
             </div>
           </div>
@@ -194,85 +213,40 @@ export function CustomerViewPage() {
 
           {/* ── General tab ── */}
           <TabsContent value="General" className="flex-1 overflow-y-auto px-8 py-6 mt-0">
-            <div className="max-w-5xl mx-auto space-y-5">
+            <div className="max-w-5xl mx-auto space-y-4">
 
-              {/* ── Profile hero card ── */}
-              <Card className="overflow-hidden pt-0">
-                {/* Accent bar */}
-                <div className="h-1.5 bg-gradient-to-r from-violet-500 to-violet-400" />
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-5">
-                    {/* Avatar */}
-                    <div
-                      className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl shrink-0 shadow-sm"
-                      style={{
-                        backgroundColor: customer.avatarUrl ? 'transparent' : customer.avatarColor,
-                      }}
-                    >
-                      {customer.avatarUrl ? (
-                        <img
-                          src={customer.avatarUrl}
-                          alt={customer.name}
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        customer.avatarInitials
-                      )}
-                    </div>
+              {/* ── Top row: Customer information + Billing summary ── */}
+              <div className="flex flex-wrap items-stretch gap-4">
 
-                    {/* Name + meta */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <h2 className="text-xl font-bold text-slate-900 truncate leading-tight">
-                            {customer.name}
-                          </h2>
-                          {/* ID row */}
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                              {customer.id}
-                            </span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={copyId}
-                                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                  {copied
-                                    ? <Check size={13} weight="bold" className="text-green-500" />
-                                    : <Copy size={13} />}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>{copied ? 'Copied!' : 'Copy ID'}</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-
-                        {/* Type badge */}
-                        <Badge
-                          className={[
-                            'gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border shrink-0',
-                            isOrg
-                              ? 'bg-violet-50 text-violet-700 border-violet-200'
-                              : 'bg-blue-50 text-blue-700 border-blue-200',
-                          ].join(' ')}
-                        >
-                          {isOrg
-                            ? <Buildings size={11} weight="bold" />
-                            : <User size={11} weight="bold" />}
-                          {customer.type}
-                        </Badge>
+                {/* ── Customer information (hugs its content) ── */}
+                <div className="w-fit max-w-full">
+                  <SectionCard title="Customer information">
+                    {/* Avatar + name + contact lines */}
+                    <div className="flex items-start gap-5">
+                      <div
+                        className="w-[120px] h-[120px] rounded-full flex items-center justify-center text-white font-semibold text-3xl shrink-0"
+                        style={{
+                          backgroundColor: customer.avatarUrl ? 'transparent' : customer.avatarColor,
+                        }}
+                      >
+                        {customer.avatarUrl ? (
+                          <img
+                            src={customer.avatarUrl}
+                            alt={customer.name}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          customer.avatarInitials
+                        )}
                       </div>
 
-                      {/* Contact info row */}
-                      <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
-                        {customer.email && (
-                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                            <Envelope size={14} className="text-slate-400 shrink-0" />
-                            <Tooltip
-                              open={copiedEmail || undefined}
-                              delayDuration={400}
-                            >
+                      <div className="flex-1 min-w-0 pt-1">
+                        <h2 className="text-[20px] font-medium text-slate-900 leading-tight truncate">
+                          {customer.name}
+                        </h2>
+                        <div className="mt-2 space-y-1">
+                          {customer.email && (
+                            <Tooltip open={copiedEmail || undefined} delayDuration={400}>
                               <TooltipTrigger asChild>
                                 <button
                                   onClick={() => {
@@ -281,10 +255,8 @@ export function CustomerViewPage() {
                                     setTimeout(() => setCopiedEmail(false), 2000);
                                   }}
                                   className={[
-                                    'transition-colors',
-                                    copiedEmail
-                                      ? 'text-green-600'
-                                      : 'hover:text-violet-600 hover:underline',
+                                    'block text-left text-[14px] transition-colors',
+                                    copiedEmail ? 'text-green-600' : 'text-slate-600 hover:text-violet-600 hover:underline',
                                   ].join(' ')}
                                 >
                                   {customer.email}
@@ -294,220 +266,205 @@ export function CustomerViewPage() {
                                 {copiedEmail ? '✓ Copied to clipboard!' : 'Click to copy'}
                               </TooltipContent>
                             </Tooltip>
-                          </div>
-                        )}
-                        {customer.phoneNumber && (
-                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                            <Phone size={14} className="text-slate-400 shrink-0" />
-                            {customer.phoneNumber}
-                          </div>
-                        )}
-                        {customer.address && (
-                          <div className="flex items-center gap-1.5 text-sm text-slate-600 max-w-sm">
-                            <MapPin size={14} className="text-slate-400 shrink-0 mt-px" />
-                            <span className="line-clamp-1">{customer.address}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Groups */}
-                      {groups.length > 0 && (
-                        <div className="mt-3 flex items-center gap-2 flex-wrap">
-                          <UsersFour size={14} className="text-slate-400 shrink-0" />
-                          {groups.map((g) => (
-                            <Badge
-                              key={g}
-                              className="bg-slate-100 text-slate-600 border-slate-200 text-xs px-2 py-0.5 rounded-full border"
-                            >
-                              {g}
-                            </Badge>
-                          ))}
+                          )}
+                          {customer.phoneNumber && (
+                            <p className="text-[14px] text-slate-600">{customer.phoneNumber}</p>
+                          )}
+                          {customer.address && (
+                            <p className="text-[14px] text-slate-600 leading-relaxed">{customer.address}</p>
+                          )}
+                          {customer.tin && (
+                            <p className="text-[14px] text-slate-600">TIN #: {customer.tin}</p>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Timestamps */}
-                  <Separator className="my-4" />
-                  <div className="flex items-center gap-6 text-xs text-slate-400">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarBlank size={12} />
-                      <span>Created {customer.dateCreated}</span>
+                    {/* Field grid */}
+                    <div className="grid grid-cols-3 gap-x-8 gap-y-4 mt-4">
+                      <Field
+                        label="Customer ID"
+                        icon={<Info size={12} className="text-violet-600" />}
+                        value={
+                          <span className="inline-flex items-center gap-1.5">
+                            {customer.id}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={copyId}
+                                  className="text-violet-600 hover:text-violet-700 transition-colors"
+                                >
+                                  {copied
+                                    ? <Check size={13} weight="bold" className="text-green-500" />
+                                    : <Copy size={13} />}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>{copied ? 'Copied!' : 'Copy ID'}</TooltipContent>
+                            </Tooltip>
+                          </span>
+                        }
+                      />
+                      <Field label="Payment method" value={customer.paymentMethod} />
+                      <Field label="VAT status" value={vatLabel} />
+
+                      <Field
+                        label="Customer group"
+                        value={
+                          groups.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {groups.map((g) => (
+                                <Badge
+                                  key={g}
+                                  className="rounded-full border border-[#E4E4E7] bg-white text-slate-700 text-[12px] px-2.5 py-0.5 font-medium"
+                                >
+                                  {g}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : undefined
+                        }
+                      />
+                      <Field label="Payment terms" value={customer.paymentTerms} />
+                      <Field label="Registration number" value={customer.registrationNumber} />
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <ClockCounterClockwise size={12} />
-                      <span>Last updated {customer.lastUpdatedAt}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </SectionCard>
+                </div>
 
-              {/* ── 2-column grid ── */}
-              <div className="grid grid-cols-3 gap-5 items-start">
-
-                {/* ── Left: Details (2 cols) ── */}
-                <Card className="col-span-2 py-0 gap-0">
-                  <CardHeader className="pt-6 pb-4">
-                    <CardTitle className="text-base">Customer details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-6">
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                      <InfoRow
-                        label="Address"
-                        value={customer.address}
-                        icon={<MapPin size={13} />}
-                      />
-                      <InfoRow
-                        label="TIN"
-                        value={customer.tin}
-                        icon={<IdentificationCard size={13} />}
-                      />
-                      <InfoRow
-                        label="Payment method"
-                        value={customer.paymentMethod}
-                        icon={<CreditCard size={13} />}
-                      />
-                      <InfoRow
-                        label="Payment terms"
-                        value={customer.paymentTerms}
-                        icon={<Receipt size={13} />}
-                      />
-                      <InfoRow
-                        label="VAT status"
-                        value={vatLabel}
-                        icon={<ShieldCheck size={13} />}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* ── Right: Billing Summary (1 col) ── */}
-                <div className="col-span-1">
-                  <Card className="py-0 gap-0">
-                    <CardHeader className="flex flex-row items-center justify-between pt-6 pb-4">
-                      <CardTitle className="text-base">Billing summary</CardTitle>
+                {/* ── Billing summary (fills remaining row width) ── */}
+                <div className="flex-1 min-w-[320px]">
+                  <Card className="rounded-[8px] shadow-sm border border-[#E4E4E7] py-6 !gap-4 h-full">
+                    <CardHeader className="px-6 flex flex-row items-center justify-between gap-3">
+                      <CardTitle className="text-[20px] font-medium text-slate-900 whitespace-nowrap">
+                        Billing summary
+                      </CardTitle>
                       <Button
-                        size="xs"
+                        variant="outline"
                         colorScheme="secondary"
+                        className="shrink-0"
                         onClick={() => navigate({ to: '/billings/create', search: { customerId: id } })}
                       >
-                        + Create bill
+                        Create a new bill
                       </Button>
                     </CardHeader>
-                    <CardContent className="pb-4 space-y-3">
-                      {[
-                        { label: 'Total amount due', value: '₱ 0.00' },
-                        { label: 'Total overdue',    value: '₱ 0.00' },
-                        { label: 'Open invoices',    value: '0' },
-                        { label: 'Paid invoices',    value: '0' },
-                        { label: 'Avg. days to pay', value: '—' },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex items-center justify-between">
-                          <span className="text-xs text-slate-500">{label}</span>
-                          <span className="text-sm font-medium text-slate-800">{value}</span>
+                    <CardContent className="px-6 space-y-4">
+                      <div className="rounded-[8px] border border-[#E4E4E7] p-5">
+                        <div className="flex items-start justify-between">
+                          <p className="text-[14px] font-medium text-slate-900">Total accounts receivables</p>
+                          <Coins size={22} className="text-slate-700 shrink-0" />
                         </div>
-                      ))}
+                        <p className="text-[28px] font-medium text-slate-900 mt-2">₱0.00</p>
+                      </div>
+                      <div className="rounded-[8px] border border-[#E4E4E7] p-5">
+                        <div className="flex items-start justify-between">
+                          <p className="text-[14px] font-medium text-slate-900">No. of unpaid invoices</p>
+                          <FileText size={22} className="text-slate-700 shrink-0" />
+                        </div>
+                        <p className="text-[28px] font-medium text-slate-900 mt-2">0</p>
+                      </div>
                     </CardContent>
-                    <CardFooter className="pt-4 pb-6">
-                      <button
-                        onClick={() => setActiveTab('Receivables')}
-                        className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors"
-                      >
-                        View all receivables
-                      </button>
-                    </CardFooter>
                   </Card>
                 </div>
               </div>
 
-              {/* ── Notes ── */}
-              {customer.notes && (
-                <Card className="py-0 gap-0">
-                  <CardHeader className="pt-6 pb-4">
-                    <CardTitle className="text-base">Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-6">
-                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                      {customer.notes}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
+              {/* ── Notes (read-only, no inner border box) ── */}
+              <SectionCard title="Notes">
+                {customer.notes ? (
+                  <p className="text-[14px] text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {customer.notes}
+                  </p>
+                ) : (
+                  <p className="text-[14px] text-slate-400 italic">No notes added.</p>
+                )}
+              </SectionCard>
 
-              {/* ── Supporting Documents ── */}
-              <Card className="py-0 gap-0">
-                <CardHeader className="pt-6 pb-4 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">Supporting documents</CardTitle>
-                  <Badge className="bg-slate-100 text-slate-600 border-slate-200 border text-xs px-2 py-0.5 rounded-full">
-                    {docs.length} {docs.length === 1 ? 'file' : 'files'}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="pb-6">
-                  {docs.length === 0 ? (
-                    <p className="text-sm text-slate-400 italic">No documents attached.</p>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {docs.map((doc) => (
-                        <div
-                          key={doc.id}
-                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0 group"
-                        >
-                          <FileTypeIcon name={doc.name} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
-                            {doc.size && (
-                              <p className="text-xs text-slate-400">{doc.size}</p>
-                            )}
-                          </div>
-                          {doc.url && (
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-violet-600"
-                            >
-                              <ArrowSquareOut size={15} />
-                            </a>
+              {/* ── Supporting Documents (read-only: View + Download only) ── */}
+              <SectionCard title="Supporting Documents">
+                {docs.length === 0 ? (
+                  <p className="text-sm text-slate-400 italic">No documents attached.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {docs.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center gap-3 p-3 rounded-[8px] border border-slate-100 bg-slate-50"
+                      >
+                        <div className="shrink-0 w-12 h-12 rounded-[8px] border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
+                          {doc.isImage && doc.url ? (
+                            <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <FileTypeIcon name={doc.name} />
                           )}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+                          {doc.size && <p className="text-xs text-slate-400 mt-0.5">{doc.size}</p>}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            aria-label="Document actions"
+                            className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-[8px] text-slate-500 hover:bg-slate-100 transition-colors outline-none"
+                          >
+                            <DotsThreeVertical size={16} weight="bold" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-[#18181B]"
+                              onSelect={() => doc.url && window.open(doc.url, '_blank')}
+                            >
+                              <Eye size={14} className="text-[#18181B]" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-[#18181B]"
+                              onSelect={() => handleDownloadDoc(doc)}
+                            >
+                              <DownloadSimple size={14} className="text-[#18181B]" />
+                              Download
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SectionCard>
 
               {/* ── Contacts (Organizations only) ── */}
               {customer.type === 'Organization' && (
-                <Card className="py-0 gap-0">
-                  <CardHeader className="pt-6 pb-4">
-                    <CardTitle className="text-base">Contacts</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-6">
-                    {customer.contacts && customer.contacts.length > 0 ? (
-                      <div className="divide-y divide-slate-100">
-                        {customer.contacts.map((contact: CustomerContact) => (
-                          <div key={contact.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                            <ProfileAvatar name={contact.name} size="sm" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-slate-800">{contact.name}</span>
-                                {contact.isPrimary && (
-                                  <Badge className="bg-violet-50 text-violet-700 border-violet-200 border text-xs px-2 py-0 rounded-full font-medium">
-                                    Primary
-                                  </Badge>
-                                )}
-                              </div>
-                              {contact.email && <p className="text-xs text-slate-500 mt-0.5">{contact.email}</p>}
-                              {contact.phone && <p className="text-xs text-slate-500 mt-0.5">{contact.phone}</p>}
+                <SectionCard title="Contacts">
+                  {customer.contacts && customer.contacts.length > 0 ? (
+                    <div className="space-y-3">
+                      {customer.contacts.map((contact: CustomerContact) => (
+                        <div
+                          key={contact.id}
+                          className="rounded-[8px] border border-[#E4E4E7] p-4 flex items-center gap-3"
+                        >
+                          <ProfileAvatar imgSrc={contact.avatarUrl} name={contact.name} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-slate-800">{contact.name}</span>
+                              {contact.isPrimary && (
+                                <Badge className="bg-violet-50 text-violet-700 border-violet-200 border text-xs px-2 py-0 rounded-full font-medium">
+                                  Primary
+                                </Badge>
+                              )}
                             </div>
+                            {contact.position && (
+                              <p className="text-xs text-slate-500 mt-0.5">{contact.position}</p>
+                            )}
+                            {(contact.phone || contact.email) && (
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {[contact.phone, contact.email].filter(Boolean).join(' • ')}
+                              </p>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-400 italic">No contacts added.</p>
-                    )}
-                  </CardContent>
-                </Card>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400 italic">No contacts added.</p>
+                  )}
+                </SectionCard>
               )}
 
             </div>

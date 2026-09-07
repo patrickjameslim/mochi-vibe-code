@@ -501,7 +501,7 @@ export function ReceivablesTable({ bills: initialBills, onCreateBill: _onCreateB
         })}
 
         <td
-          className="sticky right-0 z-[2] px-2 py-2.5 [box-shadow:-1px_0_0_0_#d1d5db,4px_0_0_0_white]"
+          className="sticky right-0 z-[2] px-2 py-2.5"
           style={{ backgroundColor: rowBg }}
         >
           <DropdownMenu>

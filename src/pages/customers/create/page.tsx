@@ -6,6 +6,7 @@ import type { SavedCustomField } from '../../../types/customFields';
 import {
   ArrowLeft,
   CaretRight,
+  CaretDown,
   BellSimple,
   User,
   Buildings,
@@ -15,6 +16,8 @@ import {
   UploadSimple,
   X,
   MagnifyingGlassPlus,
+  PencilSimple,
+  Trash,
   FilePdf,
   FileDoc,
   FileXls,
@@ -28,11 +31,13 @@ import { Button } from '#/components/atoms/Button';
 import { Input } from '#/components/atoms/Input';
 import { TextareaInput as Textarea } from '#/components/atoms/TextareaInput';
 import { Label } from '#/components/atoms/Label';
+import { Badge } from '#/components/atoms/Badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '#/components/atoms/Card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '#/components/atoms/Select';
 import { GroupCombobox } from '#/components/molecules/GroupCombobox';
 import { formatPHPhone } from '#/utils/phoneFormat';
-import { Customer } from '#/data/customers';
+import { Customer, CustomerContact } from '#/data/customers';
+import { toast } from 'sonner';
 
 const AVATAR_COLORS = [
   '#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981',
@@ -70,7 +75,7 @@ function FormLabel({
   error?: boolean;
 }) {
   return (
-    <Label className={`block text-sm font-medium mb-1 ${error ? 'text-red-600' : 'text-slate-700'}`}>
+    <Label className={`block text-sm font-medium mb-1 ${error ? 'text-red-600' : 'text-slate-900'}`}>
       {children}
       {required && <span className="text-red-500 ml-0.5">*</span>}
     </Label>
@@ -125,16 +130,154 @@ const ALL_GROUPS = [
   'The Finance Centre',
 ];
 
-// SectionCard now delegates to shadcn Card components
-function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+// SectionCard now delegates to shadcn Card components.
+// Card container, header and title styling mirror the Bill detail page
+// (rounded-[8px] / shadow-none / !gap-4 card shell, text-[20px] slate-900
+// section titles) so both pages read as one design language. `titleClassName`
+// lets a specific section override the title weight (e.g. Customer
+// information uses font-medium instead of the default font-semibold).
+function SectionCard({
+  title,
+  description,
+  children,
+  titleClassName,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  titleClassName?: string;
+}) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+    <Card className="rounded-[8px] shadow-none py-6 !gap-4">
+      <CardHeader className="px-6">
+        <CardTitle className={titleClassName ?? 'text-[20px] font-semibold text-slate-900'}>{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent className="space-y-5">{children}</CardContent>
+      <CardContent className="px-6 space-y-4">{children}</CardContent>
     </Card>
+  );
+}
+
+// ─── Shared inline form used to both add a new contact and edit an existing
+// one — same fields, same layout, just a different save handler wired in
+// by the caller. Includes a circular photo upload matching the Customer
+// image pattern. ─────────────────────────────────────────────────────────────
+function ContactFormFields({
+  avatarUrl,
+  onAvatarChange,
+  firstName,
+  onFirstNameChange,
+  lastName,
+  onLastNameChange,
+  email,
+  onEmailChange,
+  position,
+  onPositionChange,
+  phone,
+  onPhoneChange,
+  onCancel,
+  onSave,
+}: {
+  avatarUrl: string;
+  onAvatarChange: (url: string) => void;
+  firstName: string;
+  onFirstNameChange: (v: string) => void;
+  lastName: string;
+  onLastNameChange: (v: string) => void;
+  email: string;
+  onEmailChange: (v: string) => void;
+  position: string;
+  onPositionChange: (v: string) => void;
+  phone: string;
+  onPhoneChange: (v: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="p-4 rounded-lg border border-[#E4E4E7] bg-white space-y-4">
+      <div>
+        <FormLabel>Photo</FormLabel>
+        <div className="relative shrink-0 w-16 h-16">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className={[
+              'block w-16 h-16 rounded-full overflow-hidden transition-colors',
+              avatarUrl
+                ? 'border border-slate-200'
+                : 'border-2 border-dashed border-slate-200 text-slate-300 hover:border-violet-400 hover:text-violet-400 hover:bg-violet-50 flex items-center justify-center',
+            ].join(' ')}
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <Image size={20} />
+            )}
+          </button>
+          {avatarUrl && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Edit photo"
+              className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white border border-[#E4E4E7] shadow-sm flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <PencilSimple size={12} />
+            </button>
+          )}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".jpg,.jpeg,.png,.gif"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onAvatarChange(URL.createObjectURL(f));
+          }}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <FormLabel>First name</FormLabel>
+          <Input value={firstName} onChange={(e) => onFirstNameChange(e.target.value)} placeholder="e.g. Juan" />
+        </div>
+        <div>
+          <FormLabel>Last name</FormLabel>
+          <Input value={lastName} onChange={(e) => onLastNameChange(e.target.value)} placeholder="e.g. Dela Cruz" />
+        </div>
+        <div>
+          <FormLabel>Email</FormLabel>
+          <Input type="email" value={email} onChange={(e) => onEmailChange(e.target.value)} placeholder="e.g. juan@company.com" />
+        </div>
+        <div>
+          <FormLabel>Position</FormLabel>
+          <Input value={position} onChange={(e) => onPositionChange(e.target.value)} placeholder="e.g. Finance Manager" />
+        </div>
+        <div>
+          <FormLabel>Phone</FormLabel>
+          <div className="flex items-center w-full rounded-[8px] border border-slate-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
+            <span className="inline-flex items-center gap-1.5 pl-3 pr-2.5 select-none shrink-0">
+              <span className="text-base leading-none">🇵🇭</span>
+              <CaretDown size={12} className="text-slate-500" />
+            </span>
+            <span className="w-px self-stretch bg-slate-200 my-2.5" />
+            <span className="pl-3 text-sm text-slate-900 select-none shrink-0">+63</span>
+            <input
+              type="tel"
+              value={phone.replace(/^\+63\s*/, '')}
+              onChange={(e) => onPhoneChange(formatPHPhone('63' + e.target.value))}
+              placeholder="9XX XXX XXXX"
+              className="pl-1.5 pr-3 py-2.5 text-sm outline-none bg-transparent flex-1 min-w-0"
+            />
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button colorScheme="primary" onClick={onSave}>Save contact</Button>
+      </div>
+    </div>
   );
 }
 
@@ -258,8 +401,20 @@ export function CreateCustomerPage() {
   const [docs, setDocs] = useState<DocFile[]>(draft?.supportingDocumentFiles ?? []);
   const [draftPrefix, setDraftPrefix] = useState('CST-');
 
-  // Form fields — pre-filled from draft when continuing
-  const [name, setName] = useState(draft?.name === 'Untitled Draft' ? '' : (draft?.name ?? ''));
+  // Form fields — pre-filled from draft when continuing.
+  // `name` holds the Organization's company name; Individual customers use
+  // firstName/lastName instead and their full name is derived in
+  // buildCustomer(). Field visibility (which of these render) is driven by
+  // the Individual/Organization schema below.
+  const [name, setName] = useState(
+    draft?.type === 'Organization' && draft?.name !== 'Untitled Draft' ? (draft?.name ?? '') : ''
+  );
+  const [firstName, setFirstName] = useState(
+    fd?.firstName ?? (draft?.type === 'Individual' ? (draft?.name?.split(' ')[0] ?? '') : '')
+  );
+  const [lastName, setLastName] = useState(
+    fd?.lastName ?? (draft?.type === 'Individual' ? (draft?.name?.split(' ').slice(1).join(' ') ?? '') : '')
+  );
   const [email, setEmail] = useState(draft?.email ?? '');
   const [phone, setPhone] = useState(fd?.phone ?? draft?.phoneNumber ?? '');
   const [addrLine1, setAddrLine1] = useState(fd?.addrLine1 ?? '');
@@ -269,10 +424,15 @@ export function CreateCustomerPage() {
   const [country, setCountry] = useState(fd?.country ?? 'Philippines');
   const [zip, setZip] = useState(fd?.zip ?? '');
   const [tin, setTin] = useState(fd?.tin ?? draft?.tin ?? '');
+  const [registrationNumber, setRegistrationNumber] = useState(fd?.registrationNumber ?? draft?.registrationNumber ?? '');
   const [paymentTerms, setPaymentTerms] = useState(fd?.paymentTerms ?? draft?.paymentTerms ?? '');
-  const [paymentMethod, setPaymentMethod] = useState(fd?.paymentMethod ?? draft?.paymentMethod ?? '');
+  // Payment method is no longer editable via this form (field removed from
+  // the UI), but the value is preserved read-only for backward compatibility
+  // with any existing customer records that already have one set.
+  const [paymentMethod] = useState(fd?.paymentMethod ?? draft?.paymentMethod ?? '');
+  const [notes, setNotes] = useState(draft?.notes ?? '');
   // Validation errors
-  const [errors, setErrors] = useState<{ name?: string; email?: string; address?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; email?: string; address?: string; contacts?: string }>({});
 
   // Refs for scroll-to-error
   const nameFieldRef    = useRef<HTMLDivElement>(null);
@@ -282,6 +442,102 @@ export function CreateCustomerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const prefixInputRef = useRef<HTMLInputElement>(null);
+
+  // Organization-only contact persons. "+ Add a contact" reveals an inline
+  // form (Photo, Full name, Email, Position, Phone) instead of navigating
+  // away; clicking the pencil on a saved contact reuses the same form,
+  // inline, to edit it in place. Only one of add/edit is ever open at
+  // once, so both share the same draft-field state.
+  const [contacts, setContacts] = useState<CustomerContact[]>([]);
+  const [addingContact, setAddingContact] = useState(false);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [newContactAvatarUrl, setNewContactAvatarUrl] = useState('');
+  const [newContactFirstName, setNewContactFirstName] = useState('');
+  const [newContactLastName, setNewContactLastName] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactPosition, setNewContactPosition] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+
+  function resetContactForm() {
+    setNewContactAvatarUrl('');
+    setNewContactFirstName('');
+    setNewContactLastName('');
+    setNewContactEmail('');
+    setNewContactPosition('');
+    setNewContactPhone('');
+    setAddingContact(false);
+    setEditingContactId(null);
+  }
+
+  function openAddContact() {
+    resetContactForm();
+    setAddingContact(true);
+  }
+
+  function startEditContact(contact: CustomerContact) {
+    setAddingContact(false);
+    setEditingContactId(contact.id);
+    setNewContactAvatarUrl(contact.avatarUrl ?? '');
+    const [first, ...rest] = contact.name.trim().split(/\s+/);
+    setNewContactFirstName(first ?? '');
+    setNewContactLastName(rest.join(' '));
+    setNewContactEmail(contact.email ?? '');
+    setNewContactPosition(contact.position ?? '');
+    setNewContactPhone(contact.phone ?? '');
+  }
+
+  function saveContactForm() {
+    const fullName = `${newContactFirstName.trim()} ${newContactLastName.trim()}`.trim();
+    if (!fullName) return;
+    if (editingContactId) {
+      setContacts((prev) => prev.map((c) => (
+        c.id === editingContactId
+          ? {
+              ...c,
+              name: fullName,
+              email: newContactEmail.trim(),
+              position: newContactPosition.trim(),
+              phone: newContactPhone.trim(),
+              avatarUrl: newContactAvatarUrl || undefined,
+            }
+          : c
+      )));
+    } else {
+      const contact: CustomerContact = {
+        id: `contact-${Date.now()}`,
+        name: fullName,
+        position: newContactPosition.trim(),
+        email: newContactEmail.trim(),
+        phone: newContactPhone.trim(),
+        avatarUrl: newContactAvatarUrl || undefined,
+        isPrimary: contacts.length === 0,
+      };
+      setContacts((prev) => [...prev, contact]);
+    }
+    if (errors.contacts) setErrors((p) => ({ ...p, contacts: undefined }));
+    resetContactForm();
+  }
+
+  function removeContact(contactId: string) {
+    setContacts((prev) => {
+      const removingPrimary = prev.find((c) => c.id === contactId)?.isPrimary;
+      const next = prev.filter((c) => c.id !== contactId);
+      if (removingPrimary && next.length > 0 && !next.some((c) => c.isPrimary)) {
+        next[0] = { ...next[0], isPrimary: true };
+      }
+      return next;
+    });
+  }
+
+  function setPrimaryContact(contactId: string) {
+    setContacts((prev) => prev.map((c) => ({ ...c, isPrimary: c.id === contactId })));
+    const newPrimary = contacts.find((c) => c.id === contactId);
+    if (newPrimary) {
+      toast('Primary contact updated', {
+        description: `${newPrimary.name} is now the primary contact.`,
+      });
+    }
+  }
 
   // Close lightbox on Escape
   useEffect(() => {
@@ -354,7 +610,12 @@ export function CreateCustomerPage() {
     const addressParts = [addrLine1, addrLine2, city, province, country !== 'Philippines' ? country : '', zip]
       .map((s) => s.trim()).filter(Boolean);
     const address = addressParts.join(', ');
-    const resolvedName = name.trim() || 'Untitled Draft';
+    // Individual customers are named via First + Last name; Organizations
+    // via the single company name field — only one of these renders at a
+    // time, per the Individual/Organization field schema.
+    const resolvedName = customerType === 'Individual'
+      ? `${firstName.trim()} ${lastName.trim()}`.trim() || 'Untitled Draft'
+      : name.trim() || 'Untitled Draft';
 
     return {
       id: draft?.id ?? (idPrefix + idNumber),
@@ -363,14 +624,17 @@ export function CreateCustomerPage() {
       avatarInitials: buildInitials(resolvedName),
       avatarColor: pickColor(resolvedName),
       avatarUrl: uploadedImage?.url,
-      email: email.trim(),
+      email: customerType === 'Individual' ? email.trim() : '',
       address,
-      phoneNumber: phone.trim(),
+      phoneNumber: customerType === 'Individual' ? phone.trim() : '',
       group: selectedGroups[0] ?? '',
-      tin: tin.trim() || undefined,
+      tin: customerType === 'Organization' ? (tin.trim() || undefined) : undefined,
+      registrationNumber: registrationNumber.trim() || undefined,
       paymentMethod: paymentMethod || undefined,
       paymentTerms: paymentTerms.trim() || undefined,
-      vatStatus,
+      vatStatus: customerType === 'Organization' ? vatStatus : undefined,
+      contacts: customerType === 'Organization' ? contacts : undefined,
+      notes: notes.trim() || undefined,
       supportingDocuments: docs.map((d) => d.name),
       supportingDocumentFiles: docs,
       lastUpdatedAt: formatNow(),
@@ -385,6 +649,8 @@ export function CreateCustomerPage() {
       status: 'draft',
       draftFormData: {
         customerType,
+        firstName,
+        lastName,
         addrLine1,
         addrLine2,
         city,
@@ -393,6 +659,7 @@ export function CreateCustomerPage() {
         zip,
         phone,
         tin,
+        registrationNumber,
         paymentTerms,
         paymentMethod,
         vatStatus,
@@ -415,16 +682,25 @@ export function CreateCustomerPage() {
   function validate(): boolean {
     const next: typeof errors = {};
 
-    if (!name.trim())
-      next.name = 'Customer name is required.';
+    if (customerType === 'Individual') {
+      if (!firstName.trim() || !lastName.trim())
+        next.name = 'First and last name are required.';
+    } else if (!name.trim()) {
+      next.name = 'Company name is required.';
+    }
 
-    if (!email.trim())
-      next.email = 'Customer email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      next.email = 'Please enter a valid email address.';
+    if (customerType === 'Individual') {
+      if (!email.trim())
+        next.email = 'Customer email is required.';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+        next.email = 'Please enter a valid email address.';
+    }
 
     if (!addrLine1.trim())
       next.address = 'Customer address is required.';
+
+    if (customerType === 'Organization' && contacts.length === 0)
+      next.contacts = 'At least 1 contact is required for an organization.';
 
     setErrors(next);
 
@@ -438,7 +714,7 @@ export function CreateCustomerPage() {
 
   function handleSubmit() {
     if (!validate()) return;
-    const customer = buildCustomer({ status: undefined, draftFormData: undefined, name: name.trim() });
+    const customer = buildCustomer({ status: undefined, draftFormData: undefined });
     setCustomers(prev => {
       const existing = prev.findIndex(c => c.id === customer.id);
       if (existing >= 0) {
@@ -482,34 +758,34 @@ export function CreateCustomerPage() {
 
         {/* Form action bar */}
         <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-end gap-2">
-          <Button variant="outline" className="text-violet-700" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
+          <Button variant="outline" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
           <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
           <Button colorScheme="primary" onClick={handleSubmit}>Create customer</Button>
         </div>
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          <div className="max-w-6xl mx-auto space-y-4">
+          <div className="max-w-4xl mx-auto flex flex-col gap-4">
 
           {/* ── Customer information ── */}
-          <SectionCard title="Customer information">
+          <SectionCard title="Customer information" titleClassName="text-[20px] font-medium text-slate-900">
 
             {/* Type toggle */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {(['Individual', 'Organization'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setCustomerType(t)}
                   className={[
-                    'flex items-center gap-2.5 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors',
+                    'flex items-center gap-2.5 px-4 py-2.5 h-[50px] rounded-[8px] border text-sm font-medium text-slate-900 bg-white transition-colors',
                     customerType === t
-                      ? 'border-violet-500 bg-violet-50 text-violet-700'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                      ? 'border-violet-500'
+                      : 'border-slate-200 hover:bg-slate-50',
                   ].join(' ')}
                 >
                   {t === 'Individual'
-                    ? <User size={16} className={customerType === t ? 'text-violet-500' : 'text-slate-400'} />
-                    : <Buildings size={16} className={customerType === t ? 'text-violet-500' : 'text-slate-400'} />}
+                    ? <User size={16} className="text-slate-900" />
+                    : <Buildings size={16} className="text-slate-900" />}
                   {t}
                 </button>
               ))}
@@ -517,8 +793,8 @@ export function CreateCustomerPage() {
 
             {/* Customer image */}
             <div>
-              <Label>Customer image</Label>
-              <p className="text-xs text-slate-400 mb-2">Accepted formats: .jpg, .png, .gif (max 20MB)</p>
+              <Label className="text-sm font-medium text-slate-900 mb-1">Customer image</Label>
+              <p className="text-[14px] text-[#71717A] mb-2">Accepted formats: .jpg, .png, .gif (max 20MB)</p>
 
               {uploadedImage ? (
                 <div className="flex items-center gap-3">
@@ -526,7 +802,7 @@ export function CreateCustomerPage() {
                   <div className="relative group shrink-0">
                     <button
                       onClick={() => setLightboxOpen(true)}
-                      className="block w-16 h-16 rounded-lg border border-slate-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      className="block w-16 h-16 rounded-full border border-slate-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-violet-400"
                     >
                       <img
                         src={uploadedImage.url}
@@ -534,7 +810,7 @@ export function CreateCustomerPage() {
                         className="w-full h-full object-cover"
                       />
                       {/* Hover overlay */}
-                      <span className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                      <span className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                         <MagnifyingGlassPlus size={18} className="text-white" />
                       </span>
                     </button>
@@ -563,7 +839,7 @@ export function CreateCustomerPage() {
               ) : (
                 <button
                   onClick={() => imageInputRef.current?.click()}
-                  className="inline-flex items-center justify-center w-16 h-16 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:border-violet-400 hover:text-violet-400 hover:bg-violet-50 transition-colors"
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-full border-2 border-dashed border-slate-200 text-slate-300 hover:border-violet-400 hover:text-violet-400 hover:bg-violet-50 transition-colors"
                 >
                   <Image size={20} />
                 </button>
@@ -580,10 +856,10 @@ export function CreateCustomerPage() {
 
             {/* Customer ID */}
             <div>
-              <Label>Customer ID</Label>
+              <Label className="text-sm font-medium text-slate-900 mb-1">Customer ID</Label>
               <div className="flex items-center gap-2">
                 {/* Prefixed input */}
-                <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
+                <div className="flex items-stretch rounded-[8px] border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
                   <span className="inline-flex items-center px-3 bg-slate-50 border-r border-slate-200 text-sm text-slate-500 font-medium select-none whitespace-nowrap">
                     {idPrefix}
                   </span>
@@ -644,37 +920,84 @@ export function CreateCustomerPage() {
               </div>
             </div>
 
-            {/* Name */}
-            <div ref={nameFieldRef}>
-              <FormLabel required error={!!errors.name}>Customer name</FormLabel>
-              <Input
-                value={name}
-                onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
-                error={!!errors.name}
-              />
-              <FieldError message={errors.name} />
-            </div>
+            {/* Name — Individual: First + Last name. Organization:
+                single company name field. Only one renders per the field
+                schema (firstName/lastName/name (company) are mutually
+                exclusive). */}
+            {customerType === 'Individual' ? (
+              <div ref={nameFieldRef} className="w-[394px]">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <FormLabel required error={!!errors.name}>First name</FormLabel>
+                    <Input
+                      value={firstName}
+                      onChange={(e) => { setFirstName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
+                      error={!!errors.name}
+                    />
+                  </div>
+                  <div>
+                    <FormLabel required error={!!errors.name}>Last name</FormLabel>
+                    <Input
+                      value={lastName}
+                      onChange={(e) => { setLastName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
+                      error={!!errors.name}
+                    />
+                  </div>
+                </div>
+                <FieldError message={errors.name} />
+              </div>
+            ) : (
+              <div ref={nameFieldRef} className="w-[394px]">
+                <FormLabel required error={!!errors.name}>Company name</FormLabel>
+                <Input
+                  value={name}
+                  onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
+                  error={!!errors.name}
+                />
+                <FieldError message={errors.name} />
+              </div>
+            )}
 
-            {/* Email */}
-            <div ref={emailFieldRef}>
-              <FormLabel required error={!!errors.email}>Customer email</FormLabel>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
-                error={!!errors.email}
-              />
-              <FieldError message={errors.email} />
-            </div>
+            {/* Email — Individual only, per the field schema (Organization
+                has no email field) */}
+            {customerType === 'Individual' && (
+              <div ref={emailFieldRef} className="w-[394px]">
+                <FormLabel required error={!!errors.email}>Customer email</FormLabel>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
+                  error={!!errors.email}
+                />
+                <FieldError message={errors.email} />
+              </div>
+            )}
 
-            {/* Phone */}
-            <div>
-              <FormLabel>Customer phone number</FormLabel>
-              <Input type="tel" value={phone} onChange={(e) => setPhone(formatPHPhone(e.target.value))} placeholder="+63 9XX XXX XXXX" />
-            </div>
+            {/* Phone — Individual only, fixed "+63" prefix badge, mirrors
+                the Customer ID prefix pattern */}
+            {customerType === 'Individual' && (
+              <div className="w-[394px]">
+                <FormLabel>Customer phone number</FormLabel>
+                <div className="flex items-center w-full rounded-[8px] border border-slate-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
+                  <span className="inline-flex items-center gap-1.5 pl-3 pr-2.5 select-none shrink-0">
+                    <span className="text-base leading-none">🇵🇭</span>
+                    <CaretDown size={12} className="text-slate-500" />
+                  </span>
+                  <span className="w-px self-stretch bg-slate-200 my-2.5" />
+                  <span className="pl-3 text-sm text-slate-900 select-none shrink-0">+63</span>
+                  <input
+                    type="tel"
+                    value={phone.replace(/^\+63\s*/, '')}
+                    onChange={(e) => setPhone(formatPHPhone('63' + e.target.value))}
+                    placeholder="9XX XXX XXXX"
+                    className="pl-1.5 pr-3 py-2.5 text-sm outline-none bg-transparent flex-1 min-w-0"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Address */}
-            <div ref={addressFieldRef}>
+            <div ref={addressFieldRef} className="w-[394px]">
               <FormLabel required error={!!errors.address}>Customer address</FormLabel>
               <div className="space-y-2">
                 <Input
@@ -691,7 +1014,7 @@ export function CreateCustomerPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {/* Country — shadcn Select */}
                   <Select value={country} onValueChange={setCountry}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Country" />
                     </SelectTrigger>
                     <SelectContent>
@@ -706,90 +1029,89 @@ export function CreateCustomerPage() {
               <FieldError message={errors.address} />
             </div>
 
-            {/* VAT status */}
-            <div>
-              <FormLabel>VAT status</FormLabel>
-              <div className="flex items-center gap-5 mt-1">
-                {[
-                  { value: 'vatable', label: 'VAT-able' },
-                  { value: 'zero',    label: 'VAT Zero Rated' },
-                  { value: 'exempt',  label: 'VAT Exempt' },
-                ].map(({ value, label }) => (
-                  <label key={value} className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="vat"
-                      value={value}
-                      checked={vatStatus === value}
-                      onChange={() => setVatStatus(value as typeof vatStatus)}
-                      className="accent-violet-600 w-3.5 h-3.5"
+            {/* VAT status, Withholding tax, and TIN are Organization-only
+                per the field schema (Individual has no taxTreatment /
+                tinNumber). */}
+            {customerType === 'Organization' && (
+              <>
+                {/* VAT status (taxTreatment) */}
+                <div>
+                  <FormLabel>VAT status</FormLabel>
+                  <div className="flex items-center gap-5 mt-1">
+                    {[
+                      { value: 'vatable', label: 'VAT-able' },
+                      { value: 'zero',    label: 'VAT Zero Rated' },
+                      { value: 'exempt',  label: 'VAT Exempt' },
+                    ].map(({ value, label }) => (
+                      <label key={value} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="vat"
+                          value={value}
+                          checked={vatStatus === value}
+                          onChange={() => setVatStatus(value as typeof vatStatus)}
+                          className="accent-violet-600 w-3.5 h-3.5"
+                        />
+                        <span className="text-sm text-slate-900">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Withholding tax */}
+                <div>
+                  <FormLabel>Withholding tax %</FormLabel>
+                  <div className="relative max-w-[150px]">
+                    <Input
+                      type="number"
+                      value={withholding}
+                      onChange={(e) => setWithholding(e.target.value)}
+                      className="rounded-[8px] pr-8"
                     />
-                    <span className="text-sm text-slate-700">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+                  </div>
+                </div>
 
-            {/* Withholding tax */}
-            <div>
-              <FormLabel>Withholding tax %</FormLabel>
-              <div className="flex items-center gap-2 max-w-[120px]">
-                <Input
-                  type="number"
-                  value={withholding}
-                  onChange={(e) => setWithholding(e.target.value)}
-                  className="text-right"
-                />
-                <span className="text-sm text-slate-500 shrink-0">%</span>
-              </div>
-            </div>
+                {/* TIN (tinNumber) */}
+                <div>
+                  <FormLabel>Customer TIN</FormLabel>
+                  <Input
+                    placeholder="###-###-###"
+                    className="max-w-[200px]"
+                    value={tin}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                      let formatted = digits;
+                      if (digits.length > 6) formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+                      else if (digits.length > 3) formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+                      setTin(formatted);
+                    }}
+                  />
+                </div>
+              </>
+            )}
 
-            {/* TIN */}
-            <div>
-              <FormLabel>Customer TIN</FormLabel>
+            {/* Registration number — shared by both Individual and Organization */}
+            <div className="w-[394px]">
+              <FormLabel>Registration number</FormLabel>
               <Input
-                placeholder="###-###-###"
-                className="max-w-[200px]"
-                value={tin}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
-                  let formatted = digits;
-                  if (digits.length > 6) formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-                  else if (digits.length > 3) formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
-                  setTin(formatted);
-                }}
+                placeholder="Enter registration number"
+                value={registrationNumber}
+                onChange={(e) => setRegistrationNumber(e.target.value)}
               />
             </div>
 
             {/* Default payment terms */}
-            <div>
+            <div className="w-[394px]">
               <div className="flex items-center gap-1 mb-1">
-                <Label className="text-[13px] font-medium text-slate-700 mb-0">Default payment terms</Label>
-                <Info size={13} className="text-slate-400" />
+                <Label className="text-sm font-medium text-slate-900 mb-0">Default payment terms</Label>
+                <Info size={13} className="text-violet-500" />
               </div>
-              <Input placeholder="e.g. Net 30" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
-            </div>
-
-            {/* Payment method — shadcn Select */}
-            <div>
-              <div className="flex items-center gap-1 mb-1">
-                <Label className="text-[13px] font-medium text-slate-700 mb-0">Payment method</Label>
-                <Info size={13} className="text-slate-400" />
-              </div>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent>
-                  {['Cash', 'Bank Transfer', 'Check', 'Credit Card', 'GCash', 'Maya'].map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input placeholder="Enter number of days" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
             </div>
 
             {/* Customer group */}
-            <div>
+            <div className="w-[394px]">
               <FormLabel>Customer group</FormLabel>
               <GroupCombobox selected={selectedGroups} onChange={setSelectedGroups} groups={ALL_GROUPS} />
             </div>
@@ -798,16 +1120,21 @@ export function CreateCustomerPage() {
 
           {/* ── Notes ── */}
           <SectionCard title="Notes">
-            <Textarea rows={4} />
+            <Textarea
+              rows={4}
+              className="w-full min-h-[140px] resize-y"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </SectionCard>
 
           {/* ── Supporting documents ── */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Supporting documents</CardTitle>
+          <Card className="rounded-[8px] shadow-none py-6 !gap-4">
+            <CardHeader className="px-6">
+              <CardTitle className="text-[20px] font-semibold text-slate-900">Supporting documents</CardTitle>
               <CardDescription>Maximum file size: 25MB</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="px-6 space-y-4">
 
               {/* Drop zone */}
               <div
@@ -815,15 +1142,14 @@ export function CreateCustomerPage() {
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); handleDocUpload(e.dataTransfer.files); }}
                 className={[
-                  'flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed py-10 transition-colors cursor-pointer',
+                  'flex flex-col items-center justify-center gap-1 rounded-[8px] border-2 border-dashed py-10 transition-colors cursor-pointer',
                   dragOver ? 'border-violet-400 bg-violet-50' : 'border-slate-200 bg-slate-50 hover:border-violet-300 hover:bg-violet-50/40',
                 ].join(' ')}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <UploadSimple size={24} className={dragOver ? 'text-violet-400 mb-1' : 'text-slate-300 mb-1'} />
-                <p className="text-sm text-slate-500">Drop files here</p>
-                <p className="text-xs text-slate-400">or</p>
-                <span className="text-sm text-violet-600 font-medium">Browse files</span>
+                <UploadSimple size={24} className={dragOver ? 'text-violet-400 mb-2' : 'text-slate-400 mb-2'} />
+                <p className="text-sm font-semibold text-slate-600">Drag your files here</p>
+                <p className="text-sm text-slate-500">or click to browse files</p>
               </div>
 
               {/* Uploaded file list */}
@@ -832,10 +1158,10 @@ export function CreateCustomerPage() {
                   {docs.map((doc) => (
                     <li
                       key={doc.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 group"
+                      className="flex items-center gap-3 p-3 rounded-[8px] border border-slate-100 bg-slate-50 group"
                     >
                       {/* Thumbnail */}
-                      <div className="shrink-0 w-12 h-12 rounded-lg border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
+                      <div className="shrink-0 w-12 h-12 rounded-[8px] border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
                         {doc.isImage ? (
                           <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
                         ) : (
@@ -863,6 +1189,129 @@ export function CreateCustomerPage() {
             </CardContent>
           </Card>
 
+          {/* ── Contacts — Organization only. "+ Add a contact" reveals an
+              inline form (Photo, Full name, Email, Position, Phone) instead
+              of navigating away; clicking the pencil on a saved contact
+              reuses the same form, inline, to edit it in place. ── */}
+          {customerType === 'Organization' && (
+            <SectionCard
+              title="Contacts"
+              description={contacts.length === 0 && !addingContact ? 'At least 1 contact is required per customer' : undefined}
+            >
+              {contacts.length > 0 && (
+                <ul className="space-y-2">
+                  {contacts.map((contact) => (
+                    <li
+                      key={contact.id}
+                      className={editingContactId === contact.id ? '' : 'flex items-center gap-3 p-4 rounded-lg border border-[#E4E4E7] bg-white group'}
+                    >
+                      {editingContactId === contact.id ? (
+                        <ContactFormFields
+                          avatarUrl={newContactAvatarUrl}
+                          onAvatarChange={setNewContactAvatarUrl}
+                          firstName={newContactFirstName}
+                          onFirstNameChange={setNewContactFirstName}
+                          lastName={newContactLastName}
+                          onLastNameChange={setNewContactLastName}
+                          email={newContactEmail}
+                          onEmailChange={setNewContactEmail}
+                          position={newContactPosition}
+                          onPositionChange={setNewContactPosition}
+                          phone={newContactPhone}
+                          onPhoneChange={setNewContactPhone}
+                          onCancel={resetContactForm}
+                          onSave={saveContactForm}
+                        />
+                      ) : (
+                        <>
+                          {contact.avatarUrl ? (
+                            <img
+                              src={contact.avatarUrl}
+                              alt={contact.name}
+                              className="w-11 h-11 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <span className="flex items-center justify-center w-11 h-11 rounded-full bg-violet-100 text-violet-700 font-semibold text-sm shrink-0">
+                              {buildInitials(contact.name)}
+                            </span>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-slate-900 truncate">{contact.name}</p>
+                              {contact.isPrimary && (
+                                <Badge className="gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-violet-50 text-violet-700 border-violet-200 shrink-0">
+                                  Primary
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-[#71717A] mt-1">{contact.position}</p>
+                            <p className="text-sm text-[#71717A] mt-1">{contact.phone} &bull; {contact.email}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!contact.isPrimary && (
+                              <button
+                                type="button"
+                                onClick={() => setPrimaryContact(contact.id)}
+                                className="text-sm font-medium text-violet-600 hover:text-violet-800 hover:underline transition-colors whitespace-nowrap"
+                              >
+                                Set as primary
+                              </button>
+                            )}
+                            <button
+                              onClick={() => startEditContact(contact)}
+                              aria-label="Edit contact"
+                              className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-[#E4E4E7] bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                            >
+                              <PencilSimple size={16} />
+                            </button>
+                            <button
+                              onClick={() => removeContact(contact.id)}
+                              aria-label="Delete contact"
+                              className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-[#E4E4E7] bg-white text-red-500 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash size={16} />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {addingContact && (
+                <ContactFormFields
+                  avatarUrl={newContactAvatarUrl}
+                  onAvatarChange={setNewContactAvatarUrl}
+                  firstName={newContactFirstName}
+                  onFirstNameChange={setNewContactFirstName}
+                  lastName={newContactLastName}
+                  onLastNameChange={setNewContactLastName}
+                  email={newContactEmail}
+                  onEmailChange={setNewContactEmail}
+                  position={newContactPosition}
+                  onPositionChange={setNewContactPosition}
+                  phone={newContactPhone}
+                  onPhoneChange={setNewContactPhone}
+                  onCancel={resetContactForm}
+                  onSave={saveContactForm}
+                />
+              )}
+
+              {!addingContact && !editingContactId && (
+                <button
+                  onClick={openAddContact}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E4E4E7] text-sm font-medium text-slate-900 bg-white hover:bg-slate-50 transition-colors"
+                >
+                  <Plus size={16} />
+                  Add a contact
+                </button>
+              )}
+
+              <FieldError message={errors.contacts} />
+            </SectionCard>
+          )}
+
           {/* ── Custom fields ── */}
           {savedCustomFields.filter(f => f.visible).length > 0 && (
             <SectionCard title="Custom fields">
@@ -879,7 +1328,7 @@ export function CreateCustomerPage() {
 
           {/* Bottom CTAs */}
           <div className="flex items-center justify-end gap-2 py-4">
-            <Button variant="outline" className="text-violet-700" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
+            <Button variant="outline" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
             <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
             <Button colorScheme="primary" onClick={handleSubmit}>Create customer</Button>
           </div>
