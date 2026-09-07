@@ -162,6 +162,9 @@ export function AppSidebar() {
   const billingActive = pathname.startsWith('/billings');
   const [billingOpen, setBillingOpen] = useState(billingActive);
 
+  const workflowsActive = pathname.startsWith('/workflows');
+  const [workflowsOpen, setWorkflowsOpen] = useState(workflowsActive);
+
   return (
     <aside className="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0">
       <AppSwitcher />
@@ -241,7 +244,25 @@ export function AppSidebar() {
           active={pathname === '/reports'}
           onClick={() => navigate({ to: '/reports' })}
         />
-        <NavItem icon={<Graph size={18} />}       label="Workflows" />
+        {/* ── Workflows (expandable) ── */}
+        <NavItem
+          icon={<Graph size={18} />}
+          label="Workflows"
+          active={workflowsActive}
+          expandable
+          expanded={workflowsOpen}
+          onClick={() => setWorkflowsOpen((o) => !o)}
+        />
+        {workflowsOpen && (
+          <div className="space-y-0.5">
+            <SubNavItem
+              icon={<ListBullets size={12} />}
+              label="Email Templates"
+              active={pathname === '/workflows'}
+              onClick={() => navigate({ to: '/workflows' })}
+            />
+          </div>
+        )}
         <NavItem
           icon={<Gear size={18} />}
           label="Settings"

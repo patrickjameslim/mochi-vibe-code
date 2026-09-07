@@ -202,7 +202,7 @@ function SecSubNavItem({ label, active, onClick }: { label: string; active: bool
     <button
       onClick={onClick}
       className={cn(
-        'w-full text-left pl-8 pr-4 py-1.5 text-sm border-l-[3px] transition-colors',
+        'w-full h-[40px] flex items-center text-left pl-5 pr-4 text-sm border-l-[3px] transition-colors',
         active
           ? 'border-violet-600 bg-violet-50 text-violet-700 font-medium'
           : 'border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-800',
@@ -2734,7 +2734,7 @@ export function SettingsPage() {
         {/* ── Body ── */}
         <div className="flex flex-1 overflow-hidden">
           {/* Secondary nav — compact */}
-          <nav className="w-48 shrink-0 bg-white border-r border-slate-200 overflow-y-auto py-2">
+          <nav className="w-[228px] shrink-0 bg-white border-r border-slate-200 overflow-y-auto py-2">
             <SecNavItem label="Business Information"       active={activeSection === 'business-info'}       onClick={() => setActiveSection('business-info')} />
             <SecNavItem label="Receiving Accounts"         active={activeSection === 'receiving-accounts'}   onClick={() => setActiveSection('receiving-accounts')} />
             <SecNavItem label="BIR Invoicing Registration" active={activeSection === 'bir-invoicing'}        onClick={() => setActiveSection('bir-invoicing')} />

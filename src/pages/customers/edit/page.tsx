@@ -633,7 +633,7 @@ export function CustomerEditPage() {
             Cancel/Save changes placement as Create's Cancel/Save/Submit row. */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={() => navigate({ to: '/customers/$id/view', params: { id } })}>Cancel</Button>
+            <Button variant="outline" className="text-slate-700" onClick={() => navigate({ to: '/customers/$id/view', params: { id } })}>Cancel</Button>
             <Button colorScheme="primary" onClick={handleSave}>Save changes</Button>
           </div>
 
@@ -694,33 +694,36 @@ export function CustomerEditPage() {
                     plain muted text + a copy action. This keeps it legible
                     as identifying metadata while making clear it isn't an
                     editable field — Company name below it is the first
-                    real form field. */}
-                <div>
-                  <Label className="text-sm font-medium text-slate-900 mb-1">Customer ID</Label>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-slate-900">{customer.id}</span>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={copyId}
-                          aria-label="Copy Customer ID"
-                          className="text-violet-500 hover:text-violet-700 transition-colors"
-                        >
-                          {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        {copied ? 'Copied' : 'Copy Customer ID'}
-                      </TooltipContent>
-                    </Tooltip>
+                    real form field. Wrapped in the same 2-col grid Create
+                    uses for this field so the width matches First name. */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-slate-900 mb-1">Customer ID</Label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-slate-900">{customer.id}</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={copyId}
+                            aria-label="Copy Customer ID"
+                            className="text-violet-500 hover:text-violet-700 transition-colors"
+                          >
+                            {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          {copied ? 'Copied' : 'Copy Customer ID'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </div>
                 </div>
 
                 {/* Name — Individual: First + Last name. Organization:
                     single company name field. */}
                 {customerType === 'Individual' ? (
-                  <div ref={nameFieldRef} className="w-[394px]">
-                    <div className="grid grid-cols-2 gap-2">
+                  <div ref={nameFieldRef} className="w-full">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <FormLabel required error={!!errors.name}>First name</FormLabel>
                         <Input
@@ -730,7 +733,7 @@ export function CustomerEditPage() {
                         />
                       </div>
                       <div>
-                        <FormLabel required error={!!errors.name}>Last name</FormLabel>
+                        <FormLabel error={!!errors.name}>Last name</FormLabel>
                         <Input
                           value={lastName}
                           onChange={(e) => { setLastName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
@@ -741,56 +744,59 @@ export function CustomerEditPage() {
                     <FieldError message={errors.name} />
                   </div>
                 ) : (
-                  <div ref={nameFieldRef} className="w-[394px]">
-                    <FormLabel required error={!!errors.name}>Company name</FormLabel>
-                    <Input
-                      value={name}
-                      onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
-                      error={!!errors.name}
-                    />
-                    <FieldError message={errors.name} />
-                  </div>
-                )}
-
-                {/* Email — Individual only */}
-                {customerType === 'Individual' && (
-                  <div ref={emailFieldRef} className="w-[394px]">
-                    <FormLabel required error={!!errors.email}>Customer email</FormLabel>
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
-                      error={!!errors.email}
-                    />
-                    <FieldError message={errors.email} />
-                  </div>
-                )}
-
-                {/* Phone — Individual only, fixed "+63" prefix badge */}
-                {customerType === 'Individual' && (
-                  <div className="w-[394px]">
-                    <FormLabel>Customer phone number</FormLabel>
-                    <div className="flex items-center w-full rounded-[8px] border border-slate-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
-                      <span className="inline-flex items-center gap-1.5 pl-3 pr-2.5 select-none shrink-0">
-                        <span className="text-base leading-none">🇵🇭</span>
-                        <CaretDown size={12} className="text-slate-500" />
-                      </span>
-                      <span className="w-px self-stretch bg-slate-200 my-2.5" />
-                      <span className="pl-3 text-sm text-slate-900 select-none shrink-0">+63</span>
-                      <input
-                        type="tel"
-                        value={phone.replace(/^\+63\s*/, '')}
-                        onChange={(e) => setPhone(formatPHPhone('63' + e.target.value))}
-                        placeholder="9XX XXX XXXX"
-                        className="pl-1.5 pr-3 py-2.5 text-sm outline-none bg-transparent flex-1 min-w-0"
+                  <div className="grid grid-cols-2 gap-4">
+                    <div ref={nameFieldRef}>
+                      <FormLabel required error={!!errors.name}>Company name</FormLabel>
+                      <Input
+                        value={name}
+                        onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
+                        error={!!errors.name}
                       />
+                      <FieldError message={errors.name} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Email + Phone — Individual only — paired side by side to
+                    match Create's layout. */}
+                {customerType === 'Individual' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div ref={emailFieldRef}>
+                      <FormLabel required error={!!errors.email}>Customer email</FormLabel>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
+                        error={!!errors.email}
+                      />
+                      <FieldError message={errors.email} />
+                    </div>
+
+                    <div>
+                      <FormLabel>Customer phone number</FormLabel>
+                      <div className="flex items-center w-full rounded-[8px] border border-slate-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
+                        <span className="inline-flex items-center gap-1.5 pl-3 pr-2.5 select-none shrink-0">
+                          <span className="text-base leading-none">🇵🇭</span>
+                          <CaretDown size={12} className="text-slate-500" />
+                        </span>
+                        <span className="w-px self-stretch bg-slate-200 my-2.5" />
+                        <span className="pl-3 text-sm text-slate-900 select-none shrink-0">+63</span>
+                        <input
+                          type="tel"
+                          value={phone.replace(/^\+63\s*/, '')}
+                          onChange={(e) => setPhone(formatPHPhone('63' + e.target.value))}
+                          placeholder="9XX XXX XXXX"
+                          className="pl-1.5 pr-3 py-2.5 text-sm outline-none bg-transparent flex-1 min-w-0"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {/* Address — single field (Customer.address is stored as one
-                    joined string), styled like Create's Address line 1 */}
-                <div ref={addressFieldRef} className="w-[394px]">
+                    joined string), styled like Create's Address line 1 —
+                    full width to match Create's Address wrapper. */}
+                <div ref={addressFieldRef} className="w-full">
                   <FormLabel required error={!!errors.address}>Customer address</FormLabel>
                   <Input
                     value={address}
@@ -857,29 +863,38 @@ export function CustomerEditPage() {
                   </>
                 )}
 
-                {/* Registration number — shared by both types */}
-                <div className="w-[394px]">
-                  <FormLabel>Registration number</FormLabel>
-                  <Input
-                    placeholder="Enter registration number"
-                    value={registrationNumber}
-                    onChange={(e) => setRegistrationNumber(e.target.value)}
-                  />
+                {/* Company registration number — shared by both types.
+                    Wrapped in the same 2-col grid used for First/Last name
+                    so it lands at exactly that column's width, matching
+                    Create. */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <FormLabel>Company registration number</FormLabel>
+                    <Input
+                      placeholder="Enter registration number"
+                      value={registrationNumber}
+                      onChange={(e) => setRegistrationNumber(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 {/* Default payment terms */}
-                <div className="w-[394px]">
-                  <div className="flex items-center gap-1 mb-1">
-                    <Label className="text-sm font-medium text-slate-900 mb-0">Default payment terms</Label>
-                    <Info size={13} className="text-violet-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <Label className="text-sm font-medium text-slate-900 mb-0">Default payment terms</Label>
+                      <Info size={13} className="text-violet-500" />
+                    </div>
+                    <Input placeholder="Enter number of days" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
                   </div>
-                  <Input placeholder="Enter number of days" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
                 </div>
 
                 {/* Customer group */}
-                <div className="w-[394px]">
-                  <FormLabel>Customer group</FormLabel>
-                  <GroupCombobox selected={selectedGroups} onChange={setSelectedGroups} groups={ALL_GROUPS} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <FormLabel>Customer group</FormLabel>
+                    <GroupCombobox selected={selectedGroups} onChange={setSelectedGroups} groups={ALL_GROUPS} />
+                  </div>
                 </div>
 
               </SectionCard>

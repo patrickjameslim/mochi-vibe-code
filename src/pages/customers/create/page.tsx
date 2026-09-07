@@ -758,8 +758,8 @@ export function CreateCustomerPage() {
 
         {/* Form action bar */}
         <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-end gap-2">
-          <Button variant="outline" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
-          <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
+          <Button variant="outline" className="text-slate-700" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
+          <Button variant="outline" className="text-slate-700" onClick={handleSaveAsDraft}>Save as draft</Button>
           <Button colorScheme="primary" onClick={handleSubmit}>Create customer</Button>
         </div>
 
@@ -854,68 +854,90 @@ export function CreateCustomerPage() {
               />
             </div>
 
-            {/* Customer ID */}
-            <div>
-              <Label className="text-sm font-medium text-slate-900 mb-1">Customer ID</Label>
-              <div className="flex items-center gap-2">
-                {/* Prefixed input */}
-                <div className="flex items-stretch rounded-[8px] border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
-                  <span className="inline-flex items-center px-3 bg-slate-50 border-r border-slate-200 text-sm text-slate-500 font-medium select-none whitespace-nowrap">
-                    {idPrefix}
-                  </span>
-                  <input
-                    type="text"
-                    value={idNumber}
-                    onChange={(e) => setIdNumber(e.target.value)}
-                    className="px-3 py-2 text-sm outline-none bg-white w-32"
-                  />
-                </div>
+            {/* Customer ID — same combined column width as First name
+                (wrapped in the same 2-col grid). Label stays on its own
+                row; the prefixed-input box and the "Edit prefix" button
+                sit side by side on the row below, sharing that column's
+                width so their outer edges align with First name's. */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium text-slate-900 mb-1">Customer ID</Label>
 
-                {/* Update ID prefix link */}
-                <div className="relative" ref={prefixPopoverRef}>
-                  <button
-                    onClick={() => setPrefixPopoverOpen((o) => !o)}
-                    className="text-xs text-violet-600 hover:text-violet-800 hover:underline transition-colors whitespace-nowrap"
-                  >
-                    Update ID prefix
-                  </button>
+                <div className="flex items-stretch gap-2">
+                  {/* Prefix + number + Generate, all inside one bordered
+                      box — explicit 40px height matches the shared Input
+                      component's default height so this lines up with
+                      every other field. */}
+                  <div className="flex items-stretch h-[40px] flex-1 min-w-0 rounded-[8px] border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
+                    <span className="inline-flex items-center px-3 bg-slate-50 border-r border-slate-200 text-sm text-slate-500 font-medium select-none whitespace-nowrap">
+                      {idPrefix}
+                    </span>
+                    <input
+                      type="text"
+                      value={idNumber}
+                      onChange={(e) => setIdNumber(e.target.value)}
+                      className="px-3 text-sm outline-none bg-white flex-1 min-w-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIdNumber(`${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`)}
+                      className="px-3 flex items-center text-sm font-normal text-violet-600 hover:text-violet-800 hover:bg-violet-50 transition-colors whitespace-nowrap"
+                    >
+                      Generate
+                    </button>
+                  </div>
 
-                  {/* Popover */}
-                  {prefixPopoverOpen && (
-                    <div className="absolute left-0 top-full mt-2 w-64 bg-white rounded-xl border border-slate-200 shadow-lg z-20 p-4">
-                      <p className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Edit ID prefix</p>
-                      <Input
-                        ref={prefixInputRef}
-                        type="text"
-                        value={draftPrefix}
-                        onChange={(e) => setDraftPrefix(e.target.value)}
-                        placeholder="e.g. CST-"
-                        className="mb-3"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { setIdPrefix(draftPrefix); setPrefixPopoverOpen(false); }
-                          if (e.key === 'Escape') setPrefixPopoverOpen(false);
-                        }}
-                      />
-                      {/* Preview */}
-                      <p className="text-xs text-slate-400 mb-3">
-                        Preview: <span className="font-medium text-slate-700">{draftPrefix || '—'}{idNumber}</span>
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { setIdPrefix(draftPrefix); setPrefixPopoverOpen(false); }}
-                          className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-colors"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setPrefixPopoverOpen(false)}
-                          className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                        >
-                          Cancel
-                        </button>
+                  {/* Edit prefix — secondary/outlined button, beside the
+                      input box; visually secondary since editing the
+                      prefix is a config action, not the primary Generate
+                      action. */}
+                  <div className="relative shrink-0" ref={prefixPopoverRef}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="text-slate-700"
+                      onClick={() => setPrefixPopoverOpen((o) => !o)}
+                    >
+                      Edit prefix
+                    </Button>
+
+                    {/* Popover */}
+                    {prefixPopoverOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl border border-slate-200 shadow-lg z-20 p-4">
+                        <p className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Edit ID prefix</p>
+                        <Input
+                          ref={prefixInputRef}
+                          type="text"
+                          value={draftPrefix}
+                          onChange={(e) => setDraftPrefix(e.target.value)}
+                          placeholder="e.g. CST-"
+                          className="mb-3"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { setIdPrefix(draftPrefix); setPrefixPopoverOpen(false); }
+                            if (e.key === 'Escape') setPrefixPopoverOpen(false);
+                          }}
+                        />
+                        {/* Preview */}
+                        <p className="text-xs text-slate-400 mb-3">
+                          Preview: <span className="font-medium text-slate-700">{draftPrefix || '—'}{idNumber}</span>
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { setIdPrefix(draftPrefix); setPrefixPopoverOpen(false); }}
+                            className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setPrefixPopoverOpen(false)}
+                            className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -925,8 +947,8 @@ export function CreateCustomerPage() {
                 schema (firstName/lastName/name (company) are mutually
                 exclusive). */}
             {customerType === 'Individual' ? (
-              <div ref={nameFieldRef} className="w-[394px]">
-                <div className="grid grid-cols-2 gap-2">
+              <div ref={nameFieldRef} className="w-full">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <FormLabel required error={!!errors.name}>First name</FormLabel>
                     <Input
@@ -936,7 +958,7 @@ export function CreateCustomerPage() {
                     />
                   </div>
                   <div>
-                    <FormLabel required error={!!errors.name}>Last name</FormLabel>
+                    <FormLabel error={!!errors.name}>Last name</FormLabel>
                     <Input
                       value={lastName}
                       onChange={(e) => { setLastName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
@@ -947,57 +969,58 @@ export function CreateCustomerPage() {
                 <FieldError message={errors.name} />
               </div>
             ) : (
-              <div ref={nameFieldRef} className="w-[394px]">
-                <FormLabel required error={!!errors.name}>Company name</FormLabel>
-                <Input
-                  value={name}
-                  onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
-                  error={!!errors.name}
-                />
-                <FieldError message={errors.name} />
-              </div>
-            )}
-
-            {/* Email — Individual only, per the field schema (Organization
-                has no email field) */}
-            {customerType === 'Individual' && (
-              <div ref={emailFieldRef} className="w-[394px]">
-                <FormLabel required error={!!errors.email}>Customer email</FormLabel>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
-                  error={!!errors.email}
-                />
-                <FieldError message={errors.email} />
-              </div>
-            )}
-
-            {/* Phone — Individual only, fixed "+63" prefix badge, mirrors
-                the Customer ID prefix pattern */}
-            {customerType === 'Individual' && (
-              <div className="w-[394px]">
-                <FormLabel>Customer phone number</FormLabel>
-                <div className="flex items-center w-full rounded-[8px] border border-slate-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
-                  <span className="inline-flex items-center gap-1.5 pl-3 pr-2.5 select-none shrink-0">
-                    <span className="text-base leading-none">🇵🇭</span>
-                    <CaretDown size={12} className="text-slate-500" />
-                  </span>
-                  <span className="w-px self-stretch bg-slate-200 my-2.5" />
-                  <span className="pl-3 text-sm text-slate-900 select-none shrink-0">+63</span>
-                  <input
-                    type="tel"
-                    value={phone.replace(/^\+63\s*/, '')}
-                    onChange={(e) => setPhone(formatPHPhone('63' + e.target.value))}
-                    placeholder="9XX XXX XXXX"
-                    className="pl-1.5 pr-3 py-2.5 text-sm outline-none bg-transparent flex-1 min-w-0"
+              <div className="grid grid-cols-2 gap-4">
+                <div ref={nameFieldRef}>
+                  <FormLabel required error={!!errors.name}>Company name</FormLabel>
+                  <Input
+                    value={name}
+                    onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
+                    error={!!errors.name}
                   />
+                  <FieldError message={errors.name} />
+                </div>
+              </div>
+            )}
+
+            {/* Email + Phone — Individual only, per the field schema
+                (Organization has no email/phone fields) — paired side by
+                side to match the reference layout. */}
+            {customerType === 'Individual' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div ref={emailFieldRef}>
+                  <FormLabel required error={!!errors.email}>Customer email</FormLabel>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
+                    error={!!errors.email}
+                  />
+                  <FieldError message={errors.email} />
+                </div>
+
+                <div>
+                  <FormLabel>Customer phone number</FormLabel>
+                  <div className="flex items-center w-full rounded-[8px] border border-slate-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-violet-200 focus-within:border-violet-400 transition-shadow">
+                    <span className="inline-flex items-center gap-1.5 pl-3 pr-2.5 select-none shrink-0">
+                      <span className="text-base leading-none">🇵🇭</span>
+                      <CaretDown size={12} className="text-slate-500" />
+                    </span>
+                    <span className="w-px self-stretch bg-slate-200 my-2.5" />
+                    <span className="pl-3 text-sm text-slate-900 select-none shrink-0">+63</span>
+                    <input
+                      type="tel"
+                      value={phone.replace(/^\+63\s*/, '')}
+                      onChange={(e) => setPhone(formatPHPhone('63' + e.target.value))}
+                      placeholder="9XX XXX XXXX"
+                      className="pl-1.5 pr-3 py-2.5 text-sm outline-none bg-transparent flex-1 min-w-0"
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Address */}
-            <div ref={addressFieldRef} className="w-[394px]">
+            <div ref={addressFieldRef} className="w-full">
               <FormLabel required error={!!errors.address}>Customer address</FormLabel>
               <div className="space-y-2">
                 <Input
@@ -1091,29 +1114,38 @@ export function CreateCustomerPage() {
               </>
             )}
 
-            {/* Registration number — shared by both Individual and Organization */}
-            <div className="w-[394px]">
-              <FormLabel>Registration number</FormLabel>
-              <Input
-                placeholder="Enter registration number"
-                value={registrationNumber}
-                onChange={(e) => setRegistrationNumber(e.target.value)}
-              />
+            {/* Company registration number — shared by both Individual and
+                Organization. Wrapped in the same 2-col grid used for First/
+                Last name so it lands at exactly that column's width instead
+                of stretching full width. */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <FormLabel>Company registration number</FormLabel>
+                <Input
+                  placeholder="Enter registration number"
+                  value={registrationNumber}
+                  onChange={(e) => setRegistrationNumber(e.target.value)}
+                />
+              </div>
             </div>
 
             {/* Default payment terms */}
-            <div className="w-[394px]">
-              <div className="flex items-center gap-1 mb-1">
-                <Label className="text-sm font-medium text-slate-900 mb-0">Default payment terms</Label>
-                <Info size={13} className="text-violet-500" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-1 mb-1">
+                  <Label className="text-sm font-medium text-slate-900 mb-0">Default payment terms</Label>
+                  <Info size={13} className="text-violet-500" />
+                </div>
+                <Input placeholder="Enter number of days" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
               </div>
-              <Input placeholder="Enter number of days" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
             </div>
 
             {/* Customer group */}
-            <div className="w-[394px]">
-              <FormLabel>Customer group</FormLabel>
-              <GroupCombobox selected={selectedGroups} onChange={setSelectedGroups} groups={ALL_GROUPS} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <FormLabel>Customer group</FormLabel>
+                <GroupCombobox selected={selectedGroups} onChange={setSelectedGroups} groups={ALL_GROUPS} />
+              </div>
             </div>
 
           </SectionCard>
@@ -1328,8 +1360,8 @@ export function CreateCustomerPage() {
 
           {/* Bottom CTAs */}
           <div className="flex items-center justify-end gap-2 py-4">
-            <Button variant="outline" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
-            <Button variant="outline" onClick={handleSaveAsDraft}>Save as draft</Button>
+            <Button variant="outline" className="text-slate-700" onClick={() => navigate({ to: '/customers' })}>Cancel</Button>
+            <Button variant="outline" className="text-slate-700" onClick={handleSaveAsDraft}>Save as draft</Button>
             <Button colorScheme="primary" onClick={handleSubmit}>Create customer</Button>
           </div>
           </div>
