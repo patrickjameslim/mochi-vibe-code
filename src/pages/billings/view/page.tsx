@@ -616,7 +616,7 @@ export function BillDetailsPage() {
                                             !isReasonExpanded && reasonNeedsClamp && 'line-clamp-2',
                                           )}
                                         >
-                                          <span className="font-medium text-slate-400">Reason: </span>
+                                          <span className="font-medium text-slate-400">Remarks: </span>
                                           {reason}
                                         </p>
                                         {reasonNeedsClamp && (
@@ -974,7 +974,7 @@ export function BillDetailsPage() {
                                     !isAmountReasonExpanded && waiverReasonNeedsClamp && 'line-clamp-2',
                                   )}
                                 >
-                                  <span className="font-medium text-slate-500">Reason: </span>
+                                  <span className="font-medium text-slate-500">Remarks: </span>
                                   {waiverReason}
                                 </p>
                                 {waiverReasonNeedsClamp && (
@@ -1093,12 +1093,12 @@ export function BillDetailsPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600">
-                Reason <span className="text-red-400">*</span>
+                Remarks <span className="text-red-400">*</span>
               </label>
               <textarea
                 value={waiveReason}
                 onChange={(e) => { setWaiveReason(e.target.value.slice(0, 500)); setWaiveErrors((prev) => ({ ...prev, reason: false })); }}
-                placeholder="Enter reason..."
+                placeholder="Enter remarks..."
                 rows={3}
                 maxLength={500}
                 className={[
@@ -1108,7 +1108,7 @@ export function BillDetailsPage() {
               />
               <div className="flex items-center justify-between">
                 {waiveErrors.reason ? (
-                  <p className="text-xs text-red-500">A reason is required.</p>
+                  <p className="text-xs text-red-500">Remarks are required.</p>
                 ) : (
                   <span />
                 )}
