@@ -97,7 +97,8 @@ interface Customer {
 }
 
 interface FilterState {
-  status: BillStatus | 'all';
+  /** Empty array means "All" — otherwise a multi-select set of statuses. */
+  status: BillStatus[];
   amountMin: string;
   amountMax: string;
   overdueMin: string;
@@ -292,7 +293,7 @@ function isPayable(b: Bill) {
 }
 
 const DEFAULT_FILTERS: FilterState = {
-  status: 'all',
+  status: [],
   amountMin: '',
   amountMax: '',
   overdueMin: '',
@@ -1907,7 +1908,7 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   function applyFilters(b: Bill): boolean {
-    if (appliedFilters.status !== 'all' && b.status !== appliedFilters.status) return false;
+    if (appliedFilters.status.length > 0 && !appliedFilters.status.includes(b.status)) return false;
     if (appliedFilters.billType !== 'all' && b.billType !== appliedFilters.billType) return false;
     if (appliedFilters.amountMin && b.amount < parseFloat(appliedFilters.amountMin)) return false;
     if (appliedFilters.amountMax && b.amount > parseFloat(appliedFilters.amountMax)) return false;
@@ -1987,13 +1988,19 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                   const count = value === 'all'
                     ? getActiveBills().length
                     : getActiveBills().filter(b => b.status === value).length;
-                  const active = appliedFilters.status === value;
+                  const active = value === 'all' ? appliedFilters.status.length === 0 : appliedFilters.status.includes(value);
+                  function toggleStatus(prev: FilterState): FilterState {
+                    if (value === 'all') return { ...prev, status: [] };
+                    const isActive = prev.status.includes(value);
+                    const nextStatus = isActive ? prev.status.filter((s) => s !== value) : [...prev.status, value];
+                    return { ...prev, status: nextStatus };
+                  }
                   return (
                     <button
                       key={value}
                       onClick={() => {
-                        setFilters(f => ({ ...f, status: value }));
-                        setAppliedFilters(f => ({ ...f, status: value }));
+                        setFilters(toggleStatus);
+                        setAppliedFilters(toggleStatus);
                       }}
                       className={[
                         'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-colors',
@@ -2098,27 +2105,22 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
           </div>
         </div>
 
-        {/* Sticky footer — selection summary + amount + continue */}
+        {/* Sticky footer — amount + continue */}
         <div className="border-t border-slate-200 bg-white shrink-0">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-5">
-              <p className="text-sm text-slate-500">
-                {activeFilterCount > 0 || appliedFilters.status !== 'all' ? 'Bills Matching Filter' : 'Bills in Portal'}{' '}
-                <span className="font-semibold text-slate-800">{allVisiblePayable.length}</span>
-              </p>
-              <p className="text-sm text-slate-500">
-                Selected Bills <span className="font-semibold text-slate-800">{selected.size}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
-              <button
-                onClick={onContinue}
-                className={['px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors', selected.size > 0 ? 'bg-violet-600 hover:bg-violet-700' : 'bg-violet-300 cursor-not-allowed'].join(' ')}
-              >
-                Continue
-              </button>
-            </div>
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-end gap-4">
+            <p className="text-lg font-bold text-slate-900">{fmt(selectedTotal)}</p>
+            <button
+              onClick={onContinue}
+              disabled={selected.size === 0}
+              className={['flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors', selected.size > 0 ? 'bg-violet-600 hover:bg-violet-700' : 'bg-violet-300 cursor-not-allowed'].join(' ')}
+            >
+              Continue
+              {selected.size > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[24px] h-5 px-2.5 rounded-md bg-white/20 text-xs font-medium">
+                  {selected.size}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -2473,6 +2475,10 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
   // Breakdown accordion state
   const [showFees, setShowFees] = useState(false);
 
+  // Order summary — collapse to roughly match the Payment method column's height
+  const [showAllBills, setShowAllBills] = useState(false);
+  const ORDER_SUMMARY_VISIBLE_COUNT = 3;
+
   // Upload state (supports multiple proofs)
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [remarks, setRemarks] = useState('');
@@ -2615,10 +2621,21 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
           <div className="flex-1 flex flex-col gap-3">
             <p className="text-sm font-semibold text-slate-800">Order summary</p>
             <div className="flex flex-col gap-3">
-              {selectedBills.map((bill) => (
+              {(showAllBills ? selectedBills : selectedBills.slice(0, ORDER_SUMMARY_VISIBLE_COUNT)).map((bill) => (
                 <OrderSummaryCard key={bill.id} bill={bill} />
               ))}
             </div>
+            {selectedBills.length > ORDER_SUMMARY_VISIBLE_COUNT && (
+              <button
+                onClick={() => setShowAllBills((v) => !v)}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold text-violet-600 hover:text-violet-800 hover:bg-violet-50 transition-colors"
+              >
+                {showAllBills
+                  ? 'Show less'
+                  : `Show ${selectedBills.length - ORDER_SUMMARY_VISIBLE_COUNT} more ${selectedBills.length - ORDER_SUMMARY_VISIBLE_COUNT === 1 ? 'bill' : 'bills'}`}
+                <CaretDown size={13} className={['transition-transform', showAllBills ? 'rotate-180' : ''].join(' ')} />
+              </button>
+            )}
           </div>
 
           {/* RIGHT: Payment method — single cohesive card */}
@@ -2710,8 +2727,6 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
                   )}
                 </div>
               )}
-
-              <p className="text-xs text-slate-400 text-center pt-1">Secured by <span className="font-semibold text-slate-500">PayMongo</span></p>
             </div>
           </div>
           </div>
