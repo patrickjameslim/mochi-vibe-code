@@ -2156,8 +2156,8 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={clampedPage <= 1}
                     aria-label="Previous page"
-                    className="w-7 h-7 flex items-center justify-center rounded-md border hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                    style={{ borderColor: '#E4E4E7', color: '#09090B' }}
+                    className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                    style={{ color: '#09090B' }}
                   >
                     <CaretLeft size={14} />
                   </button>
@@ -2168,8 +2168,8 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={clampedPage >= totalPages}
                     aria-label="Next page"
-                    className="w-7 h-7 flex items-center justify-center rounded-md border hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                    style={{ borderColor: '#E4E4E7', color: '#09090B' }}
+                    className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                    style={{ color: '#09090B' }}
                   >
                     <CaretRight size={14} />
                   </button>
