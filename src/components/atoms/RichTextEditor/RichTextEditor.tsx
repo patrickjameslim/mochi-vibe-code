@@ -495,75 +495,82 @@ export function RichTextEditor({
       className,
     )}>
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-slate-200 bg-slate-50 flex-wrap shrink-0">
-        <select
-          aria-label="Font size"
-          title="Font size"
-          defaultValue="14"
-          onChange={(e) => setFontSize(e.target.value)}
-          className="h-7 px-1 rounded text-xs text-slate-600 bg-transparent hover:bg-slate-100 outline-none cursor-pointer border-none"
-        >
-          {['12', '14', '16', '18', '20', '24', '28', '32'].map((size) => (
-            <option key={size} value={size}>{size}</option>
-          ))}
-        </select>
-        <div
-          className="relative inline-flex items-center justify-center w-7 h-7 rounded text-slate-600 hover:bg-slate-100 transition-colors"
-          title="Text color"
-        >
-          <TextAa size={14} />
-          <span
-            className="absolute bottom-1 left-1.5 right-1.5 h-[2px] rounded-full"
-            style={{ backgroundColor: textColor }}
-          />
-          <input
-            type="color"
-            aria-label="Text color"
-            value={textColor}
-            onChange={handleColorChange}
-            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-          />
-        </div>
-        <div className="w-px h-4 bg-slate-200 mx-1" />
-        <ToolbarButton label="Bold" onClick={() => exec('bold')}>
-          <TextB size={14} weight="bold" />
-        </ToolbarButton>
-        <ToolbarButton label="Italic" onClick={() => exec('italic')}>
-          <TextItalic size={14} />
-        </ToolbarButton>
-        <ToolbarButton label="Underline" onClick={() => exec('underline')}>
-          <TextUnderline size={14} />
-        </ToolbarButton>
-        <ToolbarButton label="Strikethrough" onClick={() => exec('strikeThrough')}>
-          <TextStrikethrough size={14} />
-        </ToolbarButton>
-        <div className="w-px h-4 bg-slate-200 mx-1" />
-        <ToolbarButton label="Bullet list" onClick={() => exec('insertUnorderedList')}>
-          <ListBullets size={14} />
-        </ToolbarButton>
-        <ToolbarButton label="Numbered list" onClick={() => exec('insertOrderedList')}>
-          <ListNumbers size={14} />
-        </ToolbarButton>
-        <ToolbarButton label="Insert link" onClick={handleLink}>
-          <LinkSimple size={14} />
-        </ToolbarButton>
-        <div className="w-px h-4 bg-slate-200 mx-1" />
-        <ToolbarButton label="Align left" onClick={() => exec('justifyLeft')}>
-          <TextAlignLeft size={14} />
-        </ToolbarButton>
-        <ToolbarButton label="Align center" onClick={() => exec('justifyCenter')}>
-          <TextAlignCenter size={14} />
-        </ToolbarButton>
-        <ToolbarButton label="Align right" onClick={() => exec('justifyRight')}>
-          <TextAlignRight size={14} />
-        </ToolbarButton>
-        <div className="w-px h-4 bg-slate-200 mx-1" />
-        <ToolbarButton label="Undo" onClick={() => exec('undo')}>
-          <ArrowCounterClockwise size={14} />
-        </ToolbarButton>
+        {/* Full formatting toolbar — hidden entirely for single-line fields
+            like Subject, which only ever get placeholder insertion (see
+            "Insert placeholder" below, rendered unconditionally). */}
+        {!singleLine && (
+          <>
+            <select
+              aria-label="Font size"
+              title="Font size"
+              defaultValue="14"
+              onChange={(e) => setFontSize(e.target.value)}
+              className="h-7 px-1 rounded text-xs text-slate-600 bg-transparent hover:bg-slate-100 outline-none cursor-pointer border-none"
+            >
+              {['12', '14', '16', '18', '20', '24', '28', '32'].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+            <div
+              className="relative inline-flex items-center justify-center w-7 h-7 rounded text-slate-600 hover:bg-slate-100 transition-colors"
+              title="Text color"
+            >
+              <TextAa size={14} />
+              <span
+                className="absolute bottom-1 left-1.5 right-1.5 h-[2px] rounded-full"
+                style={{ backgroundColor: textColor }}
+              />
+              <input
+                type="color"
+                aria-label="Text color"
+                value={textColor}
+                onChange={handleColorChange}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+            </div>
+            <div className="w-px h-4 bg-slate-200 mx-1" />
+            <ToolbarButton label="Bold" onClick={() => exec('bold')}>
+              <TextB size={14} weight="bold" />
+            </ToolbarButton>
+            <ToolbarButton label="Italic" onClick={() => exec('italic')}>
+              <TextItalic size={14} />
+            </ToolbarButton>
+            <ToolbarButton label="Underline" onClick={() => exec('underline')}>
+              <TextUnderline size={14} />
+            </ToolbarButton>
+            <ToolbarButton label="Strikethrough" onClick={() => exec('strikeThrough')}>
+              <TextStrikethrough size={14} />
+            </ToolbarButton>
+            <div className="w-px h-4 bg-slate-200 mx-1" />
+            <ToolbarButton label="Bullet list" onClick={() => exec('insertUnorderedList')}>
+              <ListBullets size={14} />
+            </ToolbarButton>
+            <ToolbarButton label="Numbered list" onClick={() => exec('insertOrderedList')}>
+              <ListNumbers size={14} />
+            </ToolbarButton>
+            <ToolbarButton label="Insert link" onClick={handleLink}>
+              <LinkSimple size={14} />
+            </ToolbarButton>
+            <div className="w-px h-4 bg-slate-200 mx-1" />
+            <ToolbarButton label="Align left" onClick={() => exec('justifyLeft')}>
+              <TextAlignLeft size={14} />
+            </ToolbarButton>
+            <ToolbarButton label="Align center" onClick={() => exec('justifyCenter')}>
+              <TextAlignCenter size={14} />
+            </ToolbarButton>
+            <ToolbarButton label="Align right" onClick={() => exec('justifyRight')}>
+              <TextAlignRight size={14} />
+            </ToolbarButton>
+            <div className="w-px h-4 bg-slate-200 mx-1" />
+            <ToolbarButton label="Undo" onClick={() => exec('undo')}>
+              <ArrowCounterClockwise size={14} />
+            </ToolbarButton>
+          </>
+        )}
 
         {placeholders.length > 0 && (
           <>
-            <div className="w-px h-4 bg-slate-200 mx-1" />
+            {!singleLine && <div className="w-px h-4 bg-slate-200 mx-1" />}
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex items-center gap-1 h-7 px-2 rounded text-xs font-medium text-violet-600 hover:bg-violet-50 transition-colors outline-none">
                 Insert placeholder
