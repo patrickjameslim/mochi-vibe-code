@@ -315,7 +315,7 @@ const STATUS_STYLES: Record<BillStatus, string> = {
 };
 
 const STATUS_LABELS: Record<BillStatus, string> = {
-  paid: 'Paid', unpaid: 'Unpaid', pending: 'Pending', overdue: 'Overdue',
+  paid: 'Paid', unpaid: 'Unpaid', pending: 'Verifying', overdue: 'Overdue',
 };
 
 function StatusBadge({ status }: { status: BillStatus }) {
@@ -334,84 +334,90 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
 
   return (
     <div
-      onClick={() => !isPaid && onToggle()}
       className={[
-        'relative bg-white rounded-xl border flex items-center gap-4 px-5 py-4 transition-all',
-        isPaid ? 'opacity-70 cursor-default' : 'cursor-pointer',
+        'relative bg-white rounded-xl border transition-all',
         checked
           ? 'border-violet-400 ring-2 ring-violet-100 shadow-sm'
           : 'border-slate-200 hover:border-slate-300 hover:shadow-sm',
       ].join(' ')}
     >
-      {/* ── Checkbox ── */}
       <div
-        onClick={(e) => { e.stopPropagation(); !isPaid && onToggle(); }}
-        className={[
-          'w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center cursor-pointer transition-all',
-          checked
-            ? 'bg-violet-600 border-violet-600'
-            : 'border-slate-300 hover:border-slate-400',
-          isPaid ? 'opacity-50 cursor-default' : '',
-        ].join(' ')}
+        onClick={() => !isPaid && onToggle()}
+        className={['flex items-center gap-4 px-5 py-4', isPaid ? 'cursor-default' : 'cursor-pointer'].join(' ')}
       >
-        {checked && <Check size={12} weight="bold" className="text-white" />}
-      </div>
-
-      {/* ── Main info: Bill ID + Status + Name + Dates ── */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={(e) => { e.stopPropagation(); window.open(`/bills/${bill.id}`, '_blank'); }}
-            className="text-sm font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors shrink-0"
-          >
-            #{bill.id}
-          </button>
-          <StatusBadge status={bill.status} />
+        {/* ── Checkbox ── */}
+        <div
+          onClick={(e) => { e.stopPropagation(); !isPaid && onToggle(); }}
+          className={[
+            'w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center cursor-pointer transition-all',
+            checked
+              ? 'bg-violet-600 border-violet-600'
+              : 'border-slate-300 hover:border-slate-400',
+            isPaid ? 'opacity-50 cursor-default' : '',
+          ].join(' ')}
+        >
+          {checked && <Check size={12} weight="bold" className="text-white" />}
         </div>
-        {bill.billType === 'recurring' && bill.name && (
-          <h3 className="text-sm font-medium text-slate-800 leading-snug truncate">{bill.name}</h3>
-        )}
-        <div className="flex items-center gap-5">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <CalendarBlank size={13} className="shrink-0 text-slate-400" />
-            <span><span className="text-slate-400">Issue Date: </span>{bill.billDate}</span>
+
+        {/* ── Main info: Bill ID + Status + Name + Dates ── */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); window.open(`/bills/${bill.id}`, '_blank'); }}
+              className="text-sm font-semibold text-violet-600 hover:text-violet-800 hover:underline transition-colors shrink-0"
+            >
+              #{bill.id}
+            </button>
+            <StatusBadge status={bill.status} />
           </div>
-          <div className={[
-            'flex items-center gap-1.5 text-xs',
-            isOverdue ? 'text-red-600 font-semibold' : 'text-slate-500',
-          ].join(' ')}>
-            <CalendarBlank size={13} className={['shrink-0', isOverdue ? 'text-red-500' : 'text-slate-400'].join(' ')} />
-            <span>
-              <span className={isOverdue ? 'text-red-400 font-normal' : 'text-slate-400'}>Due Date: </span>
-              {bill.dueDate}
+          {bill.billType === 'recurring' && bill.name && (
+            <h3 className="text-sm font-medium text-slate-800 leading-snug truncate">{bill.name}</h3>
+          )}
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <CalendarBlank size={13} className="shrink-0 text-slate-400" />
+              <span><span className="text-slate-400">Issue Date: </span>{bill.billDate}</span>
+            </div>
+            <div className={[
+              'flex items-center gap-1.5 text-xs',
+              isOverdue ? 'text-red-600 font-semibold' : 'text-slate-500',
+            ].join(' ')}>
+              <CalendarBlank size={13} className={['shrink-0', isOverdue ? 'text-red-500' : 'text-slate-400'].join(' ')} />
+              <span>
+                <span className={isOverdue ? 'text-red-400 font-normal' : 'text-slate-400'}>Due Date: </span>
+                {bill.dueDate}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Amount (+ overdue) ── */}
+        <div className="flex flex-col items-end gap-0.5 shrink-0 pl-4">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Amount Due</span>
+          <span className="text-xl font-medium text-slate-900 tracking-tight">{fmt(bill.amount)}</span>
+          {bill.overdueCharge && (
+            <span className="text-xs font-medium text-red-600 flex items-center gap-1">
+              <Warning size={11} weight="fill" /> + {fmt(bill.overdueCharge)}
             </span>
-          </div>
+          )}
         </div>
+
+        {/* ── Divider ── */}
+        <div className="self-stretch border-l border-slate-100" />
+
+        {/* ── Download PDF (icon-only, tooltip) ── */}
+        <button
+          onClick={(e) => e.stopPropagation()}
+          title="Download Bill PDF"
+          aria-label="Download Bill PDF"
+          className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700 transition-colors"
+        >
+          <DownloadSimple size={16} />
+        </button>
       </div>
 
-      {/* ── Amount (+ overdue) ── */}
-      <div className="flex flex-col items-end gap-0.5 shrink-0 pl-4">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Amount Due</span>
-        <span className="text-xl font-medium text-slate-900 tracking-tight">{fmt(bill.amount)}</span>
-        {bill.overdueCharge && (
-          <span className="text-xs font-medium text-red-600 flex items-center gap-1">
-            <Warning size={11} weight="fill" /> + {fmt(bill.overdueCharge)}
-          </span>
-        )}
-      </div>
-
-      {/* ── Divider ── */}
-      <div className="self-stretch border-l border-slate-100" />
-
-      {/* ── Download PDF (icon-only, tooltip) ── */}
-      <button
-        onClick={(e) => e.stopPropagation()}
-        title="Download Bill PDF"
-        aria-label="Download Bill PDF"
-        className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700 transition-colors"
-      >
-        <DownloadSimple size={16} />
-      </button>
+      {/* ── Line Items Accordion ── */}
+      <LineItemsAccordion bill={bill} />
     </div>
   );
 }
@@ -1905,6 +1911,8 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   function applyFilters(b: Bill): boolean {
@@ -1917,12 +1925,21 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
     return true;
   }
 
-  const filtered = getActiveBills().filter((b) => {
-    const matchSearch =
-      b.id.toLowerCase().includes(search.toLowerCase()) ||
-      b.name.toLowerCase().includes(search.toLowerCase());
-    return matchSearch && applyFilters(b);
-  });
+  // Overdue → Unpaid → Verifying (pending) → Paid, then earliest Due Date first within each status.
+  const STATUS_SORT_ORDER: Record<BillStatus, number> = { overdue: 0, unpaid: 1, pending: 2, paid: 3 };
+
+  const filtered = getActiveBills()
+    .filter((b) => {
+      const matchSearch =
+        b.id.toLowerCase().includes(search.toLowerCase()) ||
+        b.name.toLowerCase().includes(search.toLowerCase());
+      return matchSearch && applyFilters(b);
+    })
+    .sort((a, b) => {
+      const statusDiff = STATUS_SORT_ORDER[a.status] - STATUS_SORT_ORDER[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
 
   const payableBills = getActiveBills().filter(isPayable);
   const allVisiblePayable = filtered.filter(isPayable);
@@ -1930,6 +1947,15 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
   const selectedTotal = payableBills
     .filter((b) => selected.has(b.id))
     .reduce((s, b) => s + b.amount + (b.overdueCharge ?? 0), 0);
+
+  // Pagination — 10 bills per page by default
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const clampedPage = Math.min(page, totalPages);
+  const paginatedBills = filtered.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, appliedFilters, pageSize]);
 
   function handleSelectAll() {
     if (allSelected) {
@@ -1950,9 +1976,9 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
 
   const ALL_STATUSES: Array<{ value: BillStatus | 'all'; label: string }> = [
     { value: 'all', label: 'All' },
-    { value: 'unpaid', label: 'Unpaid' },
     { value: 'overdue', label: 'Overdue' },
-    { value: 'pending', label: 'Pending' },
+    { value: 'unpaid', label: 'Unpaid' },
+    { value: 'pending', label: 'Verifying' },
     { value: 'paid', label: 'Paid' },
   ];
 
@@ -2091,7 +2117,7 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                 Please select at least one bill to continue.
               </div>
             )}
-            {filtered.map((bill) => (
+            {paginatedBills.map((bill) => (
               <BillCard
                 key={bill.id}
                 bill={bill}
@@ -2101,6 +2127,54 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
             ))}
             {filtered.length === 0 && (
               <div className="py-16 text-center text-sm text-slate-400">No bills match your search.</div>
+            )}
+
+            {/* Pagination */}
+            {filtered.length > 0 && (
+              <div className="flex items-center justify-between pt-3">
+                {filtered.length > 10 ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <span>Rows per page</span>
+                    <div className="relative inline-flex">
+                      <select
+                        value={pageSize}
+                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        className="appearance-none border rounded-lg pl-3 pr-7 py-1.5 text-sm text-slate-700 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-100"
+                        style={{ borderColor: '#E4E4E7' }}
+                      >
+                        {[10, 25, 50].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                      <CaretDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: '#09090B' }} />
+                    </div>
+                  </div>
+                ) : <div />}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={clampedPage <= 1}
+                    aria-label="Previous page"
+                    className="w-7 h-7 flex items-center justify-center rounded-md border hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                    style={{ borderColor: '#E4E4E7', color: '#09090B' }}
+                  >
+                    <CaretLeft size={14} />
+                  </button>
+                  <span className="w-7 h-7 flex items-center justify-center rounded-md border bg-white text-sm font-medium" style={{ borderColor: '#E4E4E7', color: '#09090B' }}>
+                    {clampedPage}
+                  </span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={clampedPage >= totalPages}
+                    aria-label="Next page"
+                    className="w-7 h-7 flex items-center justify-center rounded-md border hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                    style={{ borderColor: '#E4E4E7', color: '#09090B' }}
+                  >
+                    <CaretRight size={14} />
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -2157,7 +2231,6 @@ function gatewayFeeFor(method: PaymentMethod, subtotal: number) {
 // ─── Order Summary Card (Step 2) ──────────────────────────────────────────────
 
 function OrderSummaryCard({ bill }: { bill: Bill }) {
-  const [open, setOpen] = useState(false); // line items accordion collapsed by default
   const isOverdue = bill.status === 'overdue';
 
   return (
@@ -2188,7 +2261,7 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
       {/* Meta grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 py-4">
         <div>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Bill Date</p>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Issue Date</p>
           <p className="text-sm text-slate-700">{bill.billDate}</p>
         </div>
         <div>
@@ -2206,66 +2279,72 @@ function OrderSummaryCard({ bill }: { bill: Bill }) {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Line Items Accordion */}
-      <div className="border-t border-slate-100 rounded-b-lg overflow-hidden">
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-        >
-          <span>Line items ({bill.lineItems.length})</span>
-          <CaretDown size={14} className={['transition-transform text-slate-400', open ? 'rotate-180' : ''].join(' ')} />
-        </button>
-        {open && (
-          <div className="px-5 pb-4">
-            <table className="w-full text-sm table-fixed">
-              <colgroup>
-                <col />
-                <col className="w-12" />
-                <col className="w-28" />
-                <col className="w-28" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left font-medium text-slate-500 py-2 pr-4">Item</th>
-                  <th className="text-right font-medium text-slate-500 py-2 px-4">Qty</th>
-                  <th className="text-right font-medium text-slate-500 py-2 px-4 whitespace-nowrap">Price</th>
-                  <th className="text-right font-medium text-slate-500 py-2 pl-4 whitespace-nowrap">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bill.lineItems.map((li, i) => {
-                  const originalPrice = li.subtotal + li.discount;
-                  const discountPct = originalPrice > 0 && li.discount > 0
-                    ? Math.round((li.discount / originalPrice) * 100)
-                    : 0;
-                  return (
-                    <tr key={i} className="border-b border-slate-100 last:border-0 align-top">
-                      <td className="py-3 pr-4">
-                        <p className="font-semibold text-slate-800">{li.name}</p>
-                        <p className="text-sm text-slate-400 mt-0.5">{li.description}</p>
-                      </td>
-                      <td className="py-3 px-4 text-right font-semibold text-slate-800">{li.quantity}</td>
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <p className="font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(originalPrice)}</p>
-                        {discountPct > 0 && (
-                          <p className="text-xs text-violet-600 mt-0.5 whitespace-nowrap">{discountPct}% discount</p>
-                        )}
-                      </td>
-                      <td className="py-3 pl-4 text-right whitespace-nowrap">
-                        <p className="font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(li.subtotal)}</p>
-                        {discountPct > 0 && (
-                          <p className="text-xs text-slate-400 line-through mt-0.5 tabular-nums whitespace-nowrap">{fmt(originalPrice)}</p>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+/** Collapsible line-items breakdown table, shared by the Step 1 bill card. Collapsed by default. */
+function LineItemsAccordion({ bill }: { bill: Bill }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border-t border-slate-100 rounded-b-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between pl-14 pr-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+      >
+        <span>Line items ({bill.lineItems.length})</span>
+        <CaretDown size={14} className={['transition-transform text-slate-400', open ? 'rotate-180' : ''].join(' ')} />
+      </button>
+      {open && (
+        <div className="pl-14 pr-5 pb-4">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              <col />
+              <col className="w-12" />
+              <col className="w-28" />
+              <col className="w-28" />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="text-left font-medium text-slate-500 py-2 pr-4">Item</th>
+                <th className="text-right font-medium text-slate-500 py-2 px-4">Qty</th>
+                <th className="text-right font-medium text-slate-500 py-2 px-4 whitespace-nowrap">Price</th>
+                <th className="text-right font-medium text-slate-500 py-2 pl-4 whitespace-nowrap">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bill.lineItems.map((li, i) => {
+                const originalPrice = li.subtotal + li.discount;
+                const discountPct = originalPrice > 0 && li.discount > 0
+                  ? Math.round((li.discount / originalPrice) * 100)
+                  : 0;
+                return (
+                  <tr key={i} className="border-b border-slate-100 last:border-0 align-top">
+                    <td className="py-3 pr-4">
+                      <p className="font-semibold text-slate-800">{li.name}</p>
+                      <p className="text-sm text-slate-400 mt-0.5">{li.description}</p>
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold text-slate-800">{li.quantity}</td>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <p className="font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(originalPrice)}</p>
+                      {discountPct > 0 && (
+                        <p className="text-xs text-violet-600 mt-0.5 whitespace-nowrap">{discountPct}% discount</p>
+                      )}
+                    </td>
+                    <td className="py-3 pl-4 text-right whitespace-nowrap">
+                      <p className="font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(li.subtotal)}</p>
+                      {discountPct > 0 && (
+                        <p className="text-xs text-slate-400 line-through mt-0.5 tabular-nums whitespace-nowrap">{fmt(originalPrice)}</p>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -2568,52 +2647,6 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
       <div className="flex-1 overflow-auto py-8">
         <div className="max-w-5xl mx-auto px-6 flex flex-col gap-6">
 
-          {/* Breakdown card — full width, above the two-column content */}
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100">
-              <p className="text-sm font-bold text-slate-800">Breakdown</p>
-            </div>
-            <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-              <span className="text-slate-900">Number of bills selected</span>
-              <span className="font-medium text-slate-800">{selectedBills.length}</span>
-            </div>
-            <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-              <span className="text-slate-900">Subtotal</span>
-              <span className="font-medium text-slate-800">{fmt(amountDue)}</span>
-            </div>
-            {/* Payment Gateway Fee — expandable row */}
-            {!isUpload && (
-              <div className="border-b border-slate-100">
-                <button
-                  onClick={() => setShowFees(f => !f)}
-                  className="w-full flex justify-between items-center px-5 py-3 text-sm cursor-pointer bg-white hover:bg-slate-50 transition-colors"
-                >
-                  <span className="flex items-center gap-1.5 font-medium text-violet-600">
-                    Payment Gateway Fee
-                    <CaretDown size={12} weight="bold" className={['text-violet-500 transition-transform', showFees ? 'rotate-180' : ''].join(' ')} />
-                  </span>
-                  <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
-                </button>
-                {showFees && (
-                  <div className="px-5 pb-3 flex flex-col gap-2">
-                    <div className="flex justify-between items-center pl-4 text-sm">
-                      <span className="text-slate-900">Gateway Rate (3.5%)</span>
-                      <span className="text-slate-600">3.50%</span>
-                    </div>
-                    <div className="flex justify-between items-center pl-4 text-sm">
-                      <span className="text-slate-900">Gateway Fee Amount</span>
-                      <span className="text-slate-600">{fmt(gatewayFee)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="flex justify-between items-center px-5 py-3.5 bg-violet-50">
-              <span className="text-sm font-bold text-slate-800">Total Amount Due</span>
-              <span className="text-base font-bold text-violet-700">{fmt(totalDue)}</span>
-            </div>
-          </div>
-
           {/* Two-column: Order summary + Payment method */}
           <div className="flex gap-8 items-start">
 
@@ -2636,6 +2669,52 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
                 <CaretDown size={13} className={['transition-transform', showAllBills ? 'rotate-180' : ''].join(' ')} />
               </button>
             )}
+
+            {/* Breakdown — compact summary aligned with the Order Summary column width */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100">
+                <p className="text-sm font-bold text-slate-800">Breakdown</p>
+              </div>
+              <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
+                <span className="text-slate-900">Number of bills selected</span>
+                <span className="font-medium text-slate-800">{selectedBills.length}</span>
+              </div>
+              <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
+                <span className="text-slate-900">Subtotal</span>
+                <span className="font-medium text-slate-800">{fmt(amountDue)}</span>
+              </div>
+              {/* Payment Gateway Fee — expandable row */}
+              {!isUpload && (
+                <div className="border-b border-slate-100">
+                  <button
+                    onClick={() => setShowFees(f => !f)}
+                    className="w-full flex justify-between items-center px-5 py-3 text-sm cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5 font-medium text-violet-600">
+                      Payment Gateway Fee
+                      <CaretDown size={12} weight="bold" className={['text-violet-500 transition-transform', showFees ? 'rotate-180' : ''].join(' ')} />
+                    </span>
+                    <span className="font-medium text-slate-800">{fmt(gatewayFee)}</span>
+                  </button>
+                  {showFees && (
+                    <div className="px-5 pb-3 flex flex-col gap-2">
+                      <div className="flex justify-between items-center pl-4 text-sm">
+                        <span className="text-slate-900">Gateway Rate (3.5%)</span>
+                        <span className="text-slate-600">3.50%</span>
+                      </div>
+                      <div className="flex justify-between items-center pl-4 text-sm">
+                        <span className="text-slate-900">Gateway Fee Amount</span>
+                        <span className="text-slate-600">{fmt(gatewayFee)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex justify-between items-center px-5 py-3.5 bg-violet-50">
+                <span className="text-sm font-bold text-slate-800">Total Amount Due</span>
+                <span className="text-base font-bold text-violet-700">{fmt(totalDue)}</span>
+              </div>
+            </div>
           </div>
 
           {/* RIGHT: Payment method — single cohesive card */}
