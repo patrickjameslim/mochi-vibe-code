@@ -347,13 +347,13 @@ function BillCard({ bill, checked, onToggle }: { bill: Bill; checked: boolean; o
       >
         {/* ── Checkbox ── */}
         <div
-          onClick={(e) => { e.stopPropagation(); !isPaid && onToggle(); }}
+          onClick={isPaid ? undefined : (e) => { e.stopPropagation(); onToggle(); }}
+          aria-disabled={isPaid}
           className={[
-            'w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center cursor-pointer transition-all',
-            checked
-              ? 'bg-violet-600 border-violet-600'
-              : 'border-slate-300 hover:border-slate-400',
-            isPaid ? 'opacity-50 cursor-default' : '',
+            'w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center transition-all',
+            isPaid
+              ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed pointer-events-none'
+              : ['cursor-pointer', checked ? 'bg-violet-600 border-violet-600' : 'border-slate-300 hover:border-slate-400'].join(' '),
           ].join(' ')}
         >
           {checked && <Check size={12} weight="bold" className="text-white" />}
@@ -747,22 +747,28 @@ function PriceRangeSlider({
   maxValue,
   onMinChange,
   onMaxChange,
-  minPlaceholder = '0.00',
-  maxPlaceholder = '100,000.00',
+  minRange = 0,
   maxRange = 100000,
 }: {
   minValue: string;
   maxValue: string;
   onMinChange: (v: string) => void;
   onMaxChange: (v: string) => void;
-  minPlaceholder?: string;
-  maxPlaceholder?: string;
+  minRange?: number;
   maxRange?: number;
 }) {
-  const min = minValue ? parseFloat(minValue) : 0;
+  const min = minValue ? parseFloat(minValue) : minRange;
   const max = maxValue ? parseFloat(maxValue) : maxRange;
-  const minPercent = (min / maxRange) * 100;
-  const maxPercent = (max / maxRange) * 100;
+  const span = maxRange - minRange || 1;
+  const minPercent = ((min - minRange) / span) * 100;
+  const maxPercent = ((max - minRange) / span) * 100;
+
+  function formatNumber(n: number) {
+    return n.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  }
+  // Always pre-filled with the real min/max — never shown as muted placeholder text.
+  const minDisplay = minValue !== '' ? minValue : formatNumber(minRange);
+  const maxDisplay = maxValue !== '' ? maxValue : formatNumber(maxRange);
 
   return (
     <div className="flex flex-col gap-4">
@@ -783,7 +789,7 @@ function PriceRangeSlider({
         {/* Min slider */}
         <input
           type="range"
-          min="0"
+          min={minRange}
           max={maxRange}
           value={min}
           onChange={(e) => {
@@ -794,14 +800,14 @@ function PriceRangeSlider({
           }}
           className="absolute top-1/2 left-0 right-0 w-full h-2 -translate-y-1/2 pointer-events-none appearance-none bg-transparent cursor-pointer"
           style={{
-            zIndex: min > maxRange - 100 ? 5 : 3,
+            zIndex: min > maxRange - (span * 0.1) ? 5 : 3,
           }}
         />
 
         {/* Max slider */}
         <input
           type="range"
-          min="0"
+          min={minRange}
           max={maxRange}
           value={max}
           onChange={(e) => {
@@ -812,7 +818,7 @@ function PriceRangeSlider({
           }}
           className="absolute top-1/2 left-0 right-0 w-full h-2 -translate-y-1/2 pointer-events-none appearance-none bg-transparent cursor-pointer"
           style={{
-            zIndex: max < 100 ? 3 : 5,
+            zIndex: max < minRange + (span * 0.1) ? 3 : 5,
           }}
         />
 
@@ -847,12 +853,12 @@ function PriceRangeSlider({
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-400">From</span>
           <div className="flex items-center border border-slate-300 rounded-lg px-3 py-2 gap-1 bg-white">
-            <span className="text-sm text-slate-400">₱</span>
+            <span className="text-sm text-slate-700">₱</span>
             <input
-              type="number"
-              placeholder={minPlaceholder}
-              value={minValue}
-              onChange={(e) => onMinChange(e.target.value)}
+              type="text"
+              inputMode="decimal"
+              value={minDisplay}
+              onChange={(e) => onMinChange(e.target.value.replace(/[^0-9.]/g, ''))}
               className="w-20 text-sm outline-none text-slate-700 bg-transparent"
             />
           </div>
@@ -860,12 +866,12 @@ function PriceRangeSlider({
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-400">To</span>
           <div className="flex items-center border border-slate-300 rounded-lg px-3 py-2 gap-1 bg-white">
-            <span className="text-sm text-slate-400">₱</span>
+            <span className="text-sm text-slate-700">₱</span>
             <input
-              type="number"
-              placeholder={maxPlaceholder}
-              value={maxValue}
-              onChange={(e) => onMaxChange(e.target.value)}
+              type="text"
+              inputMode="decimal"
+              value={maxDisplay}
+              onChange={(e) => onMaxChange(e.target.value.replace(/[^0-9.]/g, ''))}
               className="w-20 text-sm outline-none text-slate-700 bg-transparent"
             />
           </div>
@@ -890,6 +896,15 @@ function FilterDrawer({ open, onClose, filters, onChange, onApply, onReset }: {
   const billTypeLabels: Record<BillType | 'all', string> = {
     'all': 'All', 'one-time': 'One-Time', 'recurring': 'Recurring', 'installment': 'Installment',
   };
+
+  // Dynamic slider ranges — derived from the actual bills currently loaded (real data, no hardcoded caps).
+  const activeBills = getActiveBills();
+  const billAmounts = activeBills.map((b) => b.amount);
+  const amountRangeMin = billAmounts.length ? Math.min(...billAmounts) : 0;
+  const amountRangeMax = billAmounts.length ? Math.max(...billAmounts) : 0;
+  const overdueCharges = activeBills.map((b) => b.overdueCharge ?? 0);
+  const overdueRangeMin = overdueCharges.length ? Math.min(...overdueCharges) : 0;
+  const overdueRangeMax = overdueCharges.length ? Math.max(...overdueCharges) : 0;
 
   if (!open) return null;
 
@@ -919,8 +934,8 @@ function FilterDrawer({ open, onClose, filters, onChange, onApply, onReset }: {
               maxValue={filters.amountMax}
               onMinChange={(v) => onChange({ amountMin: v })}
               onMaxChange={(v) => onChange({ amountMax: v })}
-              minPlaceholder="0.00"
-              maxPlaceholder="100,000.00"
+              minRange={amountRangeMin}
+              maxRange={amountRangeMax}
             />
           </div>
 
@@ -932,9 +947,8 @@ function FilterDrawer({ open, onClose, filters, onChange, onApply, onReset }: {
               maxValue={filters.overdueMax}
               onMinChange={(v) => onChange({ overdueMin: v })}
               onMaxChange={(v) => onChange({ overdueMax: v })}
-              minPlaceholder="0.00"
-              maxPlaceholder="10,000.00"
-              maxRange={10000}
+              minRange={overdueRangeMin}
+              maxRange={overdueRangeMax}
             />
           </div>
 
@@ -2156,8 +2170,8 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={clampedPage <= 1}
                     aria-label="Previous page"
-                    className="w-7 h-7 flex items-center justify-center rounded-md border hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                    style={{ borderColor: '#E4E4E7', color: '#09090B' }}
+                    className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                    style={{ color: '#09090B' }}
                   >
                     <CaretLeft size={14} />
                   </button>
@@ -2168,8 +2182,8 @@ function Step1({ selected, onToggle, showError, onContinue, showSummary = true, 
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={clampedPage >= totalPages}
                     aria-label="Next page"
-                    className="w-7 h-7 flex items-center justify-center rounded-md border hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                    style={{ borderColor: '#E4E4E7', color: '#09090B' }}
+                    className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                    style={{ color: '#09090B' }}
                   >
                     <CaretRight size={14} />
                   </button>
@@ -2652,7 +2666,7 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
 
           {/* LEFT: Order summary */}
           <div className="flex-1 flex flex-col gap-3">
-            <p className="text-sm font-semibold text-slate-800">Order summary</p>
+            <p className="text-sm font-semibold text-slate-800">Order summary ({selectedBills.length})</p>
             <div className="flex flex-col gap-3">
               {(showAllBills ? selectedBills : selectedBills.slice(0, ORDER_SUMMARY_VISIBLE_COUNT)).map((bill) => (
                 <OrderSummaryCard key={bill.id} bill={bill} />
@@ -2674,10 +2688,6 @@ function Step2({ selected, method, setMethod, onSubmitRedirect, onUploadSuccess,
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100">
                 <p className="text-sm font-bold text-slate-800">Breakdown</p>
-              </div>
-              <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
-                <span className="text-slate-900">Number of bills selected</span>
-                <span className="font-medium text-slate-800">{selectedBills.length}</span>
               </div>
               <div className="flex justify-between items-center px-5 py-3 text-sm border-b border-slate-100">
                 <span className="text-slate-900">Subtotal</span>
