@@ -4,6 +4,7 @@ export { Link } from './Link'
 export { Text, TextSandbox } from './Text'
 export { Input, type InputProps } from './Input'
 export { TextareaInput } from './TextareaInput'
+export { RichTextEditor, type RichTextPlaceholder } from './RichTextEditor'
 export {
   Button,
   ButtonSandbox,
