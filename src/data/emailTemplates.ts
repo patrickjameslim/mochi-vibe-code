@@ -160,6 +160,10 @@ export const ALL_PLACEHOLDERS: PlaceholderDef[] = [
   // same underlying concepts, clearer terms.
   { key: '[Due In]', label: 'Due In', category: 'Billing' },
   { key: '[Overdue Period]', label: 'Overdue Period', category: 'Billing' },
+  // Available as an option wherever offered, but not inserted into any
+  // template's default copy — just the raw day count (e.g. "5"), distinct
+  // from [Overdue Period]'s full phrase (e.g. "3 days overdue").
+  { key: '[Days Outstanding]', label: 'Days Outstanding', category: 'Billing' },
   { key: '[Total Unsettled Invoices]', label: 'Total Unsettled Invoices', category: 'Billing' },
   { key: '[Invoice Total Amount]', label: 'Invoice Total Amount', category: 'Billing' },
 ];
@@ -173,7 +177,7 @@ export const TEMPLATE_PLACEHOLDER_KEYS: Record<EmailTemplateId, string[]> = {
   ],
   'payment-reminder': [
     '[Organization Name]', '[Tags]', '[Invoice Number]', '[Customer Contact Name]',
-    '[Due In]', '[Overdue Period]', '[Invoice Total Amount]',
+    '[Due Date]', '[Due In]', '[Overdue Period]', '[Days Outstanding]', '[Invoice Total Amount]',
   ],
   'payment-overdue': [
     '[Organization Name]', '[Tags]', '[Invoice Number]', '[Customer Contact Name]',
@@ -238,8 +242,14 @@ function defaultPaymentReminder(): ReminderEmailTemplateContent {
     subject: `🔔 Don't miss your payment with ${chip('[Organization Name]')} - ${chip('[Invoice Number]')}`,
     body:
       `Dear ${chip('[Customer Contact Name]')},<br><br>` +
-      `You have an outstanding bill that is due ${chip('[Due In]')}.<br>` +
-      `Please settle your outstanding balance. This bill is ${chip('[Overdue Period]')}.`,
+      `This is a quick reminder that payment for ${chip('[Invoice Number]')} is due on ${chip('[Due Date]')}.<br><br>` +
+      `<b>Current Balance</b>: ${chip('[Invoice Total Amount]')}<br><br>` +
+      'Please settle your outstanding balance at your earliest convenience.<br><br>' +
+      '<b>Paying via PDC?</b> If you have already provided a post-dated check for this invoice, please ensure your bank account is sufficiently funded prior to the due date to avoid bouncing fees or late penalties.<br><br>' +
+      "<b>Already paid online?</b> If you've already sent your payment, please disregard this reminder.<br><br>" +
+      'Thank you for your prompt attention to this.<br><br>' +
+      'Best Regards,<br>' +
+      `${chip('[Organization Name]')}`,
   };
 }
 
