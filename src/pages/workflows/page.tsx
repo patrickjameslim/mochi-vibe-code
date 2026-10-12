@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearch } from '@tanstack/react-router';
-import { CaretRight, CaretDown, BellSimple, Check, X, Plus, TrashSimple, Question } from '@phosphor-icons/react';
+import { CaretRight, CaretDown, BellSimple, Check, Question } from '@phosphor-icons/react';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
 import { Button } from '#/components/atoms/Button';
 import { Label } from '#/components/atoms/Label';
 import { RichTextEditor } from '#/components/atoms/RichTextEditor';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '#/components/atoms/Dialog';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '#/components/atoms/Select';
 import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/atoms/Tooltip';
 import { cn } from '#/components/utils';
 import { toast } from 'sonner';
@@ -21,9 +19,6 @@ import {
   REMINDER_FREQUENCY_OPTIONS,
   type EmailTemplateId,
   type ReminderFrequencyPreset,
-  type ReminderCustomOffset,
-  type ReminderOffsetDirection,
-  type ReminderOffsetUnit,
   type StandardEmailTemplateContent,
   type ReminderEmailTemplateContent,
 } from '#/data/emailTemplates';
@@ -123,17 +118,12 @@ function TemplateNavGroup({
 function ReminderFrequencyMultiSelect({
   selected,
   onChange,
-  customCount,
-  onEditCustomSchedule,
-  onRemoveCustom,
 }: {
   selected: ReminderFrequencyPreset[];
   onChange: (next: ReminderFrequencyPreset[]) => void;
-  customCount: number;
-  onEditCustomSchedule: () => void;
-  onRemoveCustom: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'before' | 'after'>('before');
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -145,6 +135,22 @@ function ReminderFrequencyMultiSelect({
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Every time the dropdown opens, land on whichever tab actually holds the
+  // current selection — Before if that's the only place selections exist,
+  // After if that's the only place, and Before (the default) if selections
+  // span both or there aren't any yet. Deliberately only reacts to `open`
+  // transitioning, not to `selected` changing — switching tabs mid-session
+  // must stay instant and never get silently overridden while open.
+  useEffect(() => {
+    if (!open) return;
+    const categoryOf = (value: ReminderFrequencyPreset) =>
+      REMINDER_FREQUENCY_OPTIONS.find((opt) => opt.value === value)?.category;
+    const hasBefore = selected.some((v) => categoryOf(v) === 'before');
+    const hasAfter = selected.some((v) => categoryOf(v) === 'after');
+    setActiveTab(hasAfter && !hasBefore ? 'after' : 'before');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Keeps `selected` sorted to match REMINDER_FREQUENCY_OPTIONS' own
@@ -163,27 +169,17 @@ function ReminderFrequencyMultiSelect({
     onChange(next);
   }
 
-  // Custom has its own independent schedule count (customCount) that's
-  // unrelated to how many PRESET options are checked — folding both into
-  // one combined number (e.g. "7 reminder schedules") reads as one tally
-  // when it's really two different things. So Custom's count is only shown
-  // on its own when Custom is the ONLY thing selected; the moment a preset
-  // is selected alongside it, it's a mix of schedule types and gets the
-  // same generic "Multiple schedules selected" treatment as multiple
-  // presets, rather than pretending the counts can be combined into one.
-  const presetSelected = selected.filter((value) => value !== 'custom');
-  const isCustomSelected = selected.includes('custom') && customCount > 0;
-
+  // Single selection always shows the full phrase (e.g. "7 days before due
+  // date") regardless of which tab it lives under — never the short,
+  // tab-scoped label, since the trigger has no tab context of its own.
   let triggerLabel = 'Select schedule';
-  if (isCustomSelected && presetSelected.length === 0) {
-    triggerLabel = `Custom — ${customCount} reminder schedule${customCount > 1 ? 's' : ''}`;
-  } else if (isCustomSelected && presetSelected.length > 0) {
-    triggerLabel = 'Multiple schedules selected';
-  } else if (presetSelected.length === 1) {
-    triggerLabel = REMINDER_FREQUENCY_OPTIONS.find((opt) => opt.value === presetSelected[0])?.label ?? 'Select schedule';
-  } else if (presetSelected.length > 1) {
+  if (selected.length === 1) {
+    triggerLabel = REMINDER_FREQUENCY_OPTIONS.find((opt) => opt.value === selected[0])?.label ?? 'Select schedule';
+  } else if (selected.length > 1) {
     triggerLabel = 'Multiple schedules selected';
   }
+
+  const visibleOptions = REMINDER_FREQUENCY_OPTIONS.filter((opt) => opt.category === activeTab);
 
   return (
     <div ref={containerRef} className="relative">
@@ -203,8 +199,47 @@ function ReminderFrequencyMultiSelect({
 
       {open && (
         <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
-          <ul className="max-h-80 overflow-y-auto py-1">
-            {REMINDER_FREQUENCY_OPTIONS.filter((opt) => opt.value !== 'custom').map((opt) => {
+          <div className="p-2 border-b border-slate-100">
+            {/* Subtle segmented control — a very light gray track with a
+                compact white (not purple) chip for the active segment,
+                just a hairline border for definition, no shadow. Purple
+                stays reserved for the checkbox/row selected states below;
+                this only needs to read as "current category", not as
+                another prominent selected/button state. */}
+            <div role="tablist" aria-orientation="horizontal" className="inline-flex w-full items-center rounded-lg bg-slate-50 p-[3px]">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'before'}
+                onClick={() => setActiveTab('before')}
+                className={cn(
+                  'flex-1 h-7 rounded-md text-sm transition-colors',
+                  activeTab === 'before'
+                    ? 'bg-white text-slate-900 font-medium border border-slate-200'
+                    : 'text-slate-500 font-normal border border-transparent hover:text-slate-700',
+                )}
+              >
+                Before due date
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'after'}
+                onClick={() => setActiveTab('after')}
+                className={cn(
+                  'flex-1 h-7 rounded-md text-sm transition-colors',
+                  activeTab === 'after'
+                    ? 'bg-white text-slate-900 font-medium border border-slate-200'
+                    : 'text-slate-500 font-normal border border-transparent hover:text-slate-700',
+                )}
+              >
+                After due date
+              </button>
+            </div>
+          </div>
+
+          <ul className="max-h-64 overflow-y-auto py-1">
+            {visibleOptions.map((opt) => {
               const isSelected = selected.includes(opt.value);
               return (
                 <li key={opt.value}>
@@ -224,50 +259,12 @@ function ReminderFrequencyMultiSelect({
                     >
                       {isSelected && <Check size={10} weight="bold" className="text-white" />}
                     </span>
-                    {opt.label}
+                    <span className="flex-1 min-w-0">{opt.shortLabel}</span>
                   </button>
                 </li>
               );
             })}
           </ul>
-
-          {/* "Custom" is an ACTION — clicking it opens the date-picker
-              modal directly — not a checkbox toggle like the presets
-              above, so it's deliberately styled differently: a divider
-              sets it apart, a chevron (not a checkbox square) hints it
-              opens something, and a separate "×" only appears once dates
-              are actually configured, as the way to remove it again now
-              that there's no checkbox to uncheck. */}
-          <div className="border-t border-slate-200 py-1">
-            <div
-              className={cn(
-                'flex items-center gap-1 pl-3 pr-2 py-1 transition-colors',
-                selected.includes('custom') ? 'bg-violet-50 text-violet-700' : 'text-slate-700 hover:bg-slate-50',
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => { setOpen(false); onEditCustomSchedule(); }}
-                className="flex-1 min-w-0 flex items-center justify-between gap-2 py-1 text-sm text-left"
-              >
-                <span className="truncate">
-                  {customCount > 0
-                    ? `Custom — ${customCount} schedule${customCount > 1 ? 's' : ''}`
-                    : 'Custom'}
-                </span>
-                <CaretRight size={12} className="shrink-0 text-slate-400" />
-              </button>
-              {selected.includes('custom') && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onRemoveCustom(); }}
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-full hover:bg-violet-100 transition-colors shrink-0"
-                >
-                  <X size={11} weight="bold" className="text-violet-500" />
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -342,272 +339,6 @@ function StandardTemplateEditor({
   );
 }
 
-// ─── Custom reminder schedule — relative to the invoice's own due date ─────
-// Payment Reminder is ONE shared template applied across invoices that all
-// have different due dates, so "Custom" can never mean fixed calendar
-// dates — every custom schedule has to be expressed relative to whatever
-// due date a given invoice ends up with (e.g. "10 days before", "20 days
-// after"), the same way the built-in presets already are. Modeled after a
-// Google Calendar-style custom-notification builder: one row per offset
-// (a day count + before/after), each independently removable, with an
-// "Add another" action to add more — not a fixed-date calendar.
-
-// Resolves an offset to a single day count for sorting/dedup/scheduling —
-// "2 Weeks" and "14 Days" both resolve to 14, so they're treated as the
-// same schedule even though the user typed them differently.
-function resolveOffsetDays(offset: ReminderCustomOffset): number {
-  if (offset.direction === 'on') return 0;
-  return offset.unit === 'weeks' ? offset.amount * 7 : offset.amount;
-}
-
-function ReminderOffsetRow({
-  index,
-  offset,
-  disableOnDueDate,
-  canRemove,
-  onChange,
-  onRemove,
-}: {
-  index: number;
-  offset: ReminderCustomOffset;
-  // True when another row already uses "On the due date" — only one
-  // schedule may ever represent the due date itself, so this row's own
-  // option is greyed out (unless it's the row that already holds it).
-  disableOnDueDate: boolean;
-  // False when this is the only remaining row — at least one schedule must
-  // always exist, so the delete action is disabled rather than removed
-  // (removing it would shift layout unexpectedly as rows come and go).
-  canRemove: boolean;
-  onChange: (patch: Partial<ReminderCustomOffset>) => void;
-  onRemove: () => void;
-}) {
-  const isOnDueDate = offset.direction === 'on';
-
-  function handleDirectionChange(value: string) {
-    onChange({ direction: value as ReminderOffsetDirection });
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-900">Reminder {index + 1}</span>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={!canRemove}
-          aria-label={`Remove reminder ${index + 1}`}
-          className="inline-flex items-center justify-center w-7 h-7 rounded-full text-red-500 hover:text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 transition-colors disabled:opacity-30 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed"
-        >
-          <TrashSimple size={14} />
-        </button>
-      </div>
-      {/* Row keeps the same three-column shape no matter which timing is
-          selected — "On the due date" doesn't need a number or unit, but
-          replacing them with matching disabled placeholders (rather than
-          removing them) keeps every row visually aligned and avoids the
-          timing dropdown awkwardly stretching to fill the row. Both
-          placeholders share identical sizing, background, border, and
-          centered dash treatment so neither reads as more "disabled" than
-          the other. */}
-      <div className="flex items-center gap-2">
-        {isOnDueDate ? (
-          <>
-            <div
-              aria-hidden="true"
-              className="w-[100px] h-10 rounded-[8px] border border-slate-200 bg-muted flex items-center justify-center shrink-0"
-            >
-              <span className="text-sm font-normal leading-none text-muted-foreground select-none">—</span>
-            </div>
-            <div
-              aria-hidden="true"
-              className="w-[140px] h-10 rounded-[8px] border border-slate-200 bg-muted flex items-center justify-center shrink-0"
-            >
-              <span className="text-sm font-normal leading-none text-muted-foreground select-none">—</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <input
-              type="number"
-              min={1}
-              max={365}
-              value={offset.amount}
-              onChange={(e) => onChange({ amount: Math.min(365, Math.max(1, Number(e.target.value) || 1)) })}
-              className="w-[100px] h-10 px-2 rounded-[8px] border border-slate-200 bg-white text-sm text-center outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 transition-shadow shrink-0"
-            />
-            <Select value={offset.unit} onValueChange={(value) => onChange({ unit: value as ReminderOffsetUnit })}>
-              <SelectTrigger className="w-[140px] shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="days">Day(s)</SelectItem>
-                <SelectItem value="weeks">Week(s)</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
-        )}
-        <Select value={offset.direction} onValueChange={handleDirectionChange}>
-          <SelectTrigger className="flex-1 min-w-0">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="before">Before due date</SelectItem>
-            <SelectItem value="on" disabled={disableOnDueDate}>On the due date</SelectItem>
-            <SelectItem value="after">After due date</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-}
-
-// Chronological ordering relative to the invoice due date: schedules that
-// fire further before the due date come first, then the due-date-itself
-// schedule (if any), then after-due-date schedules from soonest to latest.
-const OFFSET_DIRECTION_RANK: Record<ReminderOffsetDirection, number> = { before: 0, on: 1, after: 2 };
-
-function compareOffsets(a: ReminderCustomOffset, b: ReminderCustomOffset): number {
-  if (a.direction !== b.direction) return OFFSET_DIRECTION_RANK[a.direction] - OFFSET_DIRECTION_RANK[b.direction];
-  const daysA = resolveOffsetDays(a);
-  const daysB = resolveOffsetDays(b);
-  if (a.direction === 'before') return daysB - daysA;
-  if (a.direction === 'after') return daysA - daysB;
-  return 0;
-}
-
-function offsetKey(offset: ReminderCustomOffset): string {
-  return offset.direction === 'on' ? 'on' : `${offset.direction}-${resolveOffsetDays(offset)}`;
-}
-
-function hasDuplicateOffsets(offsets: ReminderCustomOffset[]): boolean {
-  const seen = new Set<string>();
-  for (const offset of offsets) {
-    const key = offsetKey(offset);
-    if (seen.has(key)) return true;
-    seen.add(key);
-  }
-  return false;
-}
-
-// The schedule shown by default — both when the modal first opens with
-// nothing saved yet, and whenever "Add reminder schedule" is clicked.
-function createDefaultOffset(): ReminderCustomOffset {
-  return { id: crypto.randomUUID(), amount: 1, unit: 'days', direction: 'before' };
-}
-
-// Opened the moment "Custom" is chosen in the "Send this email" dropdown —
-// offsets are edited in an isolated draft here and only committed to the
-// template on Save, so Cancel always discards any in-progress changes
-// without touching whatever was already saved.
-function CustomReminderScheduleModal({
-  open,
-  initialOffsets,
-  onCancel,
-  onSave,
-}: {
-  open: boolean;
-  initialOffsets: ReminderCustomOffset[];
-  onCancel: () => void;
-  onSave: (offsets: ReminderCustomOffset[]) => void;
-}) {
-  const [draftOffsets, setDraftOffsets] = useState<ReminderCustomOffset[]>(() =>
-    initialOffsets.length > 0 ? [...initialOffsets].sort(compareOffsets) : [createDefaultOffset()],
-  );
-
-  // Re-seed the draft from whatever's currently saved every time the modal
-  // opens — so re-opening it later to edit starts from the committed
-  // schedule, not from a stale draft left over from a previous, cancelled
-  // attempt. Sorted so re-opening always shows the chronological order the
-  // schedule was last saved in. When there's nothing saved yet, a single
-  // "1 Day Before due date" row is shown right away — no reason to make
-  // users click "Add reminder schedule" just to see the first row.
-  useEffect(() => {
-    if (open) {
-      setDraftOffsets(initialOffsets.length > 0 ? [...initialOffsets].sort(compareOffsets) : [createDefaultOffset()]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  function addOffset() {
-    setDraftOffsets((prev) => [...prev, createDefaultOffset()]);
-  }
-
-  function updateOffset(id: string, patch: Partial<ReminderCustomOffset>) {
-    setDraftOffsets((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
-  }
-
-  function removeOffset(id: string) {
-    setDraftOffsets((prev) => prev.filter((o) => o.id !== id));
-  }
-
-  const hasOnDueDate = draftOffsets.some((o) => o.direction === 'on');
-  const hasDuplicates = hasDuplicateOffsets(draftOffsets);
-  const isValid =
-    draftOffsets.length > 0 &&
-    draftOffsets.every((o) => o.direction === 'on' || o.amount >= 1) &&
-    !hasDuplicates;
-
-  function handleSave() {
-    onSave([...draftOffsets].sort(compareOffsets));
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
-      <DialogContent className="max-w-[30rem] sm:max-w-[30rem] max-h-[85vh] flex flex-col gap-0 p-0">
-        <DialogHeader className="p-4 pb-0 shrink-0">
-          <DialogTitle className="text-base font-semibold text-slate-900">Set Reminder Schedule</DialogTitle>
-          {/* Screen-reader-only — no visible supporting text under the
-              title, but Radix Dialog still needs a description wired up
-              via aria-describedby to stay accessible. */}
-          <DialogDescription className="sr-only">
-            Configure one or more custom reminder schedules relative to the invoice due date.
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Scrolls independently once enough reminder rows are added to
-            exceed the modal's max height — header and footer (Cancel/Save)
-            stay fixed in place so they're always reachable. */}
-        <div className="px-4 pt-3 pb-4 space-y-4 overflow-y-auto flex-1 min-h-0">
-          {draftOffsets.length === 0 ? (
-            <p className="text-sm text-slate-400 py-1">No custom schedule added yet.</p>
-          ) : (
-            draftOffsets.map((offset, index) => (
-              <ReminderOffsetRow
-                key={offset.id}
-                index={index}
-                offset={offset}
-                disableOnDueDate={hasOnDueDate && offset.direction !== 'on'}
-                canRemove={draftOffsets.length > 1}
-                onChange={(patch) => updateOffset(offset.id, patch)}
-                onRemove={() => removeOffset(offset.id)}
-              />
-            ))
-          )}
-
-          <Button
-            type="button"
-            variant="outline"
-            colorScheme="secondary"
-            size="md"
-            onClick={addOffset}
-            className="w-full"
-          >
-            <Plus size={16} weight="bold" />
-            Add reminder schedule
-          </Button>
-        </div>
-
-        <DialogFooter className="flex-row justify-end gap-2 p-4 pt-2 shrink-0 border-t border-slate-100">
-          <Button variant="outline" size="md" onClick={onCancel}>Cancel</Button>
-          <Button colorScheme="primary" size="md" onClick={handleSave} disabled={!isValid}>
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── Payment Reminder — one shared Subject/body, multiple send schedules ───
 // A Payment Reminder is still ONE template — one shared Subject and Email
 // body — but it can be configured to go out on more than one schedule
@@ -626,8 +357,6 @@ function ReminderTemplateEditor({
   saved: ReminderEmailTemplateContent;
 }) {
   const [frequencies, setFrequencies] = useState<ReminderFrequencyPreset[]>(saved.frequencies);
-  const [customOffsets, setCustomOffsets] = useState<ReminderCustomOffset[]>(saved.customOffsets ?? []);
-  const [customScheduleModalOpen, setCustomScheduleModalOpen] = useState(false);
   const [subject, setSubject] = useState(saved.subject);
   const [body, setBody] = useState(saved.body);
 
@@ -635,7 +364,6 @@ function ReminderTemplateEditor({
 
   const isDirty =
     JSON.stringify(frequencies) !== JSON.stringify(saved.frequencies) ||
-    JSON.stringify(customOffsets) !== JSON.stringify(saved.customOffsets ?? []) ||
     subject !== saved.subject ||
     body !== saved.body;
 
@@ -643,32 +371,12 @@ function ReminderTemplateEditor({
     setEmailTemplate(id, {
       kind: 'reminder',
       frequencies,
-      customOffsets,
       subject,
       body,
     });
     toast.success('Template updated', {
       description: `${title.replace(/ Workflow$/, '')} email template has been saved.`,
     });
-  }
-
-  function handleCustomScheduleCancel() {
-    setCustomScheduleModalOpen(false);
-  }
-
-  function handleCustomScheduleSave(offsets: ReminderCustomOffset[]) {
-    setCustomOffsets(offsets);
-    if (!frequencies.includes('custom')) setFrequencies((prev) => [...prev, 'custom']);
-    setCustomScheduleModalOpen(false);
-  }
-
-  // The only way to un-configure Custom now that it's an action (opening a
-  // modal) rather than a checkbox — clears both its offsets and its
-  // membership in the schedule together, since a custom entry with no
-  // offsets wouldn't mean anything.
-  function handleRemoveCustom() {
-    setCustomOffsets([]);
-    setFrequencies((prev) => prev.filter((v) => v !== 'custom'));
   }
 
   return (
@@ -700,18 +408,8 @@ function ReminderTemplateEditor({
               <ReminderFrequencyMultiSelect
                 selected={frequencies}
                 onChange={setFrequencies}
-                customCount={customOffsets.length}
-                onEditCustomSchedule={() => setCustomScheduleModalOpen(true)}
-                onRemoveCustom={handleRemoveCustom}
               />
             </div>
-
-            <CustomReminderScheduleModal
-              open={customScheduleModalOpen}
-              initialOffsets={customOffsets}
-              onCancel={handleCustomScheduleCancel}
-              onSave={handleCustomScheduleSave}
-            />
 
             <div className="shrink-0">
               <Label className="block text-sm font-medium text-slate-700 mb-1.5">
