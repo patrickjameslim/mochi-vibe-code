@@ -16,6 +16,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useCustomFields } from '#/context/CustomFieldsContext';
+import paymongoLogo from '#/assets/paymongo-logo.jpg';
+import xenditLogo from '#/assets/xendit-logo.png';
 import {
   BellSimple,
   CaretRight,
@@ -30,6 +32,7 @@ import {
   FilePdf,
   MagnifyingGlass,
   Minus,
+  PencilSimple,
   Percent,
   Plus,
   Receipt,
@@ -43,6 +46,9 @@ import {
   WarningCircle,
   X,
   CurrencyDollar,
+  Spinner,
+  Eye,
+  EyeSlash,
 } from '@phosphor-icons/react';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
 import { UpgradeModal } from '#/components/organisms/UpgradeModal';
@@ -77,6 +83,7 @@ import { BILLS } from '#/data/bills';
 import { cn } from '#/components/utils';
 import { getPenaltySettings, setPenaltySettings, type PenaltyCalcType, type RepeatUnit } from '#/data/penaltySettings';
 import { formatPeso } from '#/data/bills';
+import { toast } from 'sonner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1101,17 +1108,440 @@ function SettingsPortalPreview({ pinEnabled, showSummary, showCustomerInfo, orgF
   );
 }
 
+// ─── Payment Gateway Connection (onboarding + method configuration) ──────────
+
+type GatewayStatus = 'not_connected' | 'pending_approval' | 'approved' | 'connected' | 'failed' | 'needs_action';
+
+interface GatewayMethodDef {
+  key: string;
+  label: string;
+  available: boolean;
+}
+
+function GatewayConnectionCard({
+  id,
+  name,
+  logoSrc,
+  logoInitials,
+  logoBg,
+  logoText,
+  accent,
+  description,
+  status,
+  setStatus,
+  enabled,
+  onToggleEnabled,
+  methods,
+  methodState,
+  setMethodState,
+  richRegistrationFlow = false,
+}: {
+  id: string;
+  name: string;
+  logoSrc?: string;
+  logoInitials: string;
+  logoBg: string;
+  logoText: string;
+  accent: 'violet' | 'blue';
+  description: string;
+  status: GatewayStatus;
+  setStatus: (s: GatewayStatus) => void;
+  enabled: boolean;
+  onToggleEnabled: (v: boolean) => void;
+  methods: GatewayMethodDef[];
+  methodState: Record<string, boolean>;
+  setMethodState: (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => void;
+  /** Xendit-only: models the fuller Register → primary account created (awaiting KYC) →
+   * under review → Connected/Needs Action lifecycle. Leaves PayMongo's simpler flow untouched. */
+  richRegistrationFlow?: boolean;
+}) {
+  // Rich registration flow (Xendit only) — Register → primary account created
+  // (awaiting KYC) → under review → Connected / Needs Action.
+  const [registering, setRegistering] = useState(false);
+  const [pendingSubStage, setPendingSubStage] = useState<'kyc' | 'review'>('review');
+
+  // Connect existing account flow modal
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const [connectKeys, setConnectKeys] = useState({ publicKey: '', secretKey: '' });
+  const [showSecretKey, setShowSecretKey] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState('');
+  // Brief confirmation toast shown once the connection is actually committed
+  const [showConnectedToast, setShowConnectedToast] = useState(false);
+  // Stacked toasts for individual payment-method enable/disable toggles
+  const [methodToasts, setMethodToasts] = useState<{ id: number; label: string; enabled: boolean }[]>([]);
+  const methodToastId = useRef(0);
+
+  function toggleMethod(key: string, label: string, next: boolean) {
+    setMethodState((prev) => ({ ...prev, [key]: next }));
+    const id = ++methodToastId.current;
+    setMethodToasts((prev) => [...prev, { id, label, enabled: next }]);
+    window.setTimeout(() => setMethodToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
+  }
+
+  // Once the gateway is connected, every payment method it supports should be
+  // enabled by default so merchants don't have to manually turn each one on.
+  function enableAllMethods() {
+    setMethodState((prev) => {
+      const next = { ...prev };
+      methods.forEach((m) => { next[m.key] = true; });
+      return next;
+    });
+  }
+
+  const accentBtn = accent === 'violet'
+    ? 'border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100'
+    : 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100';
+  const accentSolid = accent === 'violet' ? 'bg-violet-600 hover:bg-violet-700' : 'bg-blue-600 hover:bg-blue-700';
+
+  const statusBadge: Record<GatewayStatus, { label: string; className: string }> = {
+    not_connected: { label: 'Not Connected', className: 'bg-slate-100 text-[#71717A]' },
+    pending_approval: { label: 'Pending', className: 'bg-amber-50 text-amber-700' },
+    approved: { label: 'Approved', className: 'bg-blue-50 text-blue-700' },
+    connected: { label: 'Connected', className: 'bg-emerald-50 text-emerald-700' },
+    failed: { label: 'Connection Failed', className: 'bg-red-50 text-red-700' },
+    needs_action: { label: 'Needs Action', className: 'bg-red-50 text-red-700' },
+  };
+  const badge = statusBadge[status];
+
+  function handleOpenRegistrationForm() {
+    // Opens the real PayMongo/Xendit onboarding form in a new tab, and keeps
+    // Mochi settings open in this tab so the merchant can return once done.
+    // NOTE for engineering: status intentionally stays "Not Connected" here —
+    // opening (or closing) the form is not a submission signal. Only advance
+    // to "Pending Approval" once PayMongo confirms the form was submitted
+    // (e.g. via webhook or a status API call).
+    window.open('about:blank', '_blank', 'noopener,noreferrer');
+  }
+
+  function handleRegister() {
+    // Xendit rich flow: the backend sends the merchant's account details to
+    // Xendit's API to initiate primary account creation. We wait for that
+    // request to be confirmed before moving on — no separate onboarding tab.
+    if (registering) return; // prevent duplicate requests
+    setRegistering(true);
+    window.setTimeout(() => {
+      setRegistering(false);
+      // NOTE for engineering: this always "succeeds" here. Advance to
+      // Pending Approval only once the primary-account-creation request is
+      // actually confirmed by Xendit's API.
+      setStatus('pending_approval');
+      setPendingSubStage('review');
+    }, 1000);
+  }
+
+  function handleConnect() {
+    if (connecting) return; // prevent duplicate submissions
+    setConnecting(true);
+    setConnectError('');
+    window.setTimeout(() => {
+      // Success — commit immediately and close. No separate loading/success
+      // modal: the button's own spinner state is all the feedback needed.
+      setStatus('connected');
+      onToggleEnabled(true);
+      enableAllMethods();
+      closeConnectModal();
+      setShowConnectedToast(true);
+      window.setTimeout(() => setShowConnectedToast(false), 3000);
+    }, 1000);
+  }
+  function closeConnectModal() {
+    setConnectModalOpen(false);
+    setConnecting(false);
+    setConnectError('');
+    setShowSecretKey(false);
+    setConnectKeys({ publicKey: '', secretKey: '' });
+  }
+
+  return (
+    <>
+    <div className="border border-slate-200 rounded-lg p-4 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={['w-10 h-10 rounded-[8px] flex items-center justify-center shrink-0 overflow-hidden', logoSrc ? '' : logoBg].join(' ')}>
+            {logoSrc ? (
+              <img src={logoSrc} alt={`${name} logo`} className="w-full h-full object-cover" />
+            ) : (
+              <span className={['text-[10px] font-extrabold', logoText].join(' ')}>{logoInitials}</span>
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-[#18181B]">{name}</p>
+              <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', badge.className].join(' ')}>{badge.label}</span>
+            </div>
+            <p className="text-sm text-[#71717A] mt-0.5">{description}</p>
+          </div>
+        </div>
+        {/* Live toggle — only interactive once the account is connected, so merchants can't enable
+            a gateway that isn't actually able to accept payments yet. */}
+        <span className="relative group inline-flex">
+          <Switch checked={enabled} onCheckedChange={onToggleEnabled} checkedBg="primary" disabled={status !== 'connected'} />
+          {status !== 'connected' && (
+            <span className="pointer-events-none absolute right-0 bottom-full mb-2 w-48 rounded-lg bg-slate-800 text-white text-[11px] leading-snug px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+              Connect your {name} account before making it available to customers.
+            </span>
+          )}
+        </span>
+      </div>
+
+      {/* ── Not connected / failed: entry points ── */}
+      {(status === 'not_connected' || status === 'failed') && (
+        <div className="flex flex-col gap-2">
+          {status === 'failed' && (
+            <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+              <WarningCircle size={13} weight="fill" /> We couldn't connect your {name} account. Please check your credentials and try again.
+            </p>
+          )}
+          {/* Registration failures surface as a toast instead of an inline
+              error block — the card itself always stays in this same plain
+              "Register" state, so a failed attempt doesn't leave the card
+              looking visually different or require its own "Try Again"
+              affordance; the merchant just presses Register again. */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="filled"
+              colorScheme="secondary"
+              size="sm"
+              isLoading={registering}
+              loadingText="Registering..."
+              onClick={richRegistrationFlow ? handleRegister : handleOpenRegistrationForm}
+              className="bg-[#F4F3FF] text-violet-700 hover:bg-[#E4E1FA] text-sm font-semibold h-9 px-4 py-2 rounded-md"
+            >
+              Register
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending approval ──
+          NOTE for engineering: submission and approval are not auto-detected
+          yet. "Pending Approval" should only be entered once {name} confirms
+          the registration was submitted (e.g. via webhook or a status API
+          call), and "Connected"/"Needs Action" only once {name} confirms the
+          review outcome — none of these transitions are simulated here. */}
+      {status === 'pending_approval' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-[8px] px-3 py-2.5">
+          <p className="text-xs text-blue-700">
+            Your {name} registration is awaiting approval. You'll receive an email once your application has been reviewed.
+          </p>
+        </div>
+      )}
+
+      {/* ── Approved (PayMongo only): approved but awaiting account activation ──
+          NOTE for engineering: this stage should only be entered once {name}
+          confirms the application was approved, and only exited once {name}
+          confirms the account is fully activated — no simulated timers. */}
+      {status === 'approved' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-[8px] px-3 py-2.5">
+          <p className="text-xs text-blue-700">
+            Your {name} application has been approved. Your account is awaiting activation. We'll notify you once it's ready.
+          </p>
+        </div>
+      )}
+
+      {/* ── Needs action ── */}
+      {status === 'needs_action' && (
+        <div className="bg-red-50 border border-red-200 rounded-[8px] px-3 py-2.5">
+          <p className="text-xs text-red-700">
+            Additional information needed. Check your email to update your application.
+          </p>
+        </div>
+      )}
+
+      {/* ── Connected: payment method configuration ── */}
+      {status === 'connected' && (
+        <div className="border-t border-slate-100 pt-3">
+          <p className="text-xs font-semibold text-[#71717A] uppercase tracking-wider mb-2">Payment methods</p>
+          <div className="flex flex-col gap-2.5">
+            {methods.map((m) => (
+              <label key={m.key} className="flex items-center gap-3 w-fit cursor-pointer">
+                <Switch
+                  checked={!!methodState[m.key]}
+                  onCheckedChange={(v) => toggleMethod(m.key, m.label, v)}
+                  checkedBg="primary"
+                />
+                <span className="text-sm font-medium text-[#18181B]">{m.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+    </div>
+
+      {/* ── Prototype-only testing controls — visually separate from the Xendit card itself.
+          Not part of the merchant-facing product; must not appear in production. In
+          production these transitions only happen when Mochi receives a verified
+          confirmation from the {name} integration (registration submitted →
+          Pending Approval, application approved → Connected, or needing
+          more info → Needs Action). ── */}
+      {(status === 'not_connected' || status === 'pending_approval' || status === 'approved' || status === 'needs_action') && (
+        <div className="px-1 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-medium text-slate-300">Prototype preview only:</span>
+          {status === 'not_connected' && (
+            <>
+              <button onClick={() => { setStatus('pending_approval'); setPendingSubStage('review'); }} className="text-[10px] font-medium text-slate-400 hover:text-slate-500 underline transition-colors">
+                jump to Pending
+              </button>
+              {richRegistrationFlow && (
+                <button onClick={() => toast.error('Unable to start registration', { description: 'Something went wrong. Please try again.' })} className="text-[10px] font-medium text-slate-400 hover:text-slate-500 underline transition-colors">
+                  simulate registration failure
+                </button>
+              )}
+            </>
+          )}
+          {status === 'pending_approval' && (
+            <>
+              {richRegistrationFlow ? (
+                <button onClick={() => { setStatus('connected'); onToggleEnabled(true); enableAllMethods(); }} className="text-[10px] font-medium text-slate-400 hover:text-slate-500 underline transition-colors">
+                  jump to Connected
+                </button>
+              ) : (
+                <button onClick={() => setStatus('approved')} className="text-[10px] font-medium text-slate-400 hover:text-slate-500 underline transition-colors">
+                  jump to Approved
+                </button>
+              )}
+              <button onClick={() => setStatus('needs_action')} className="text-[10px] font-medium text-slate-400 hover:text-slate-500 underline transition-colors">
+                jump to Needs Action
+              </button>
+            </>
+          )}
+          {status === 'approved' && (
+            <button onClick={() => { setStatus('connected'); onToggleEnabled(true); enableAllMethods(); }} className="text-[10px] font-medium text-slate-400 hover:text-slate-500 underline transition-colors">
+              jump to Connected
+            </button>
+          )}
+          {status === 'needs_action' && (
+            <button onClick={() => { setStatus('pending_approval'); setPendingSubStage('review'); }} className="text-[10px] font-medium text-slate-400 hover:text-slate-500 underline transition-colors">
+              simulate resubmission → back to Pending
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Connect existing account modal ── */}
+      {connectModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col gap-4 p-6 relative">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-[#18181B]">Connect your {name} account</h3>
+              <button onClick={closeConnectModal} className="text-[#71717A] hover:text-[#18181B] transition-colors"><X size={18} /></button>
+            </div>
+
+            <p className="text-sm text-[#71717A]">Enter your {name} API keys to connect your account to Mochi.</p>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-[#18181B]">Public Key</label>
+                <input value={connectKeys.publicKey} onChange={(e) => setConnectKeys((k) => ({ ...k, publicKey: e.target.value }))} placeholder="Enter your public key" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 transition-colors" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-[#18181B]">Secret Key</label>
+                <div className="relative">
+                  <input
+                    type={showSecretKey ? 'text' : 'password'}
+                    value={connectKeys.secretKey}
+                    onChange={(e) => setConnectKeys((k) => ({ ...k, secretKey: e.target.value }))}
+                    placeholder="Enter your secret key"
+                    className="w-full border border-slate-200 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSecretKey((v) => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-[#18181B] transition-colors"
+                    aria-label={showSecretKey ? 'Hide secret key' : 'Show secret key'}
+                  >
+                    {showSecretKey ? <EyeSlash size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="text-xs text-[#71717A]">Your secret key is sensitive. Keep it private.</p>
+              </div>
+              <a href="#" onClick={(e) => e.preventDefault()} className="text-xs font-medium text-violet-600 hover:text-violet-800 transition-colors w-fit">
+                Where can I find my API keys?
+              </a>
+            </div>
+
+            {connectError && (
+              <p className="flex items-start gap-1.5 text-xs text-red-600 font-medium">
+                <WarningCircle size={13} weight="fill" className="shrink-0 mt-0.5" /> {connectError}
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={closeConnectModal} disabled={connecting} className="px-4 py-2 rounded-lg text-sm font-medium text-[#18181B] border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors">Cancel</button>
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className={['flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-70 disabled:cursor-not-allowed', accentSolid].join(' ')}
+              >
+                {connecting && <Spinner size={15} className="animate-spin" />}
+                {connecting ? 'Connecting...' : 'Connect Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connection confirmation toast — bottom-left, auto-dismisses */}
+      {showConnectedToast && (
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl shadow-lg px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle size={18} weight="fill" className="text-emerald-500 shrink-0" />
+          {name} connected successfully.
+        </div>
+      )}
+
+      {/* Payment-method enable/disable toasts — stacked bottom-left, newest on top */}
+      {methodToasts.length > 0 && (
+        <div className="fixed bottom-6 left-6 z-50 flex flex-col-reverse gap-3 w-80">
+          {methodToasts.map((t) => (
+            <div key={t.id} className="flex items-start justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl shadow-lg px-4 py-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle size={18} weight="fill" className="text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800">{t.label}</p>
+                  <p className="text-sm text-emerald-700">The payment method has been {t.enabled ? 'enabled' : 'disabled'}</p>
+                </div>
+              </div>
+              <button onClick={() => setMethodToasts((prev) => prev.filter((x) => x.id !== t.id))} className="text-emerald-600 hover:text-emerald-800 transition-colors shrink-0" aria-label="Dismiss">
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Customer Payment Portal Settings ────────────────────────────────────────
 
 function CustomerPaymentPortalSettings() {
   const [saved, setSaved] = useState(false);
   // Payment Methods state
   const [manualUpload, setManualUpload] = useState(true);
-  const [paymongoStatus, setPaymongoStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
+  const [paymongoStatus, setPaymongoStatus] = useState<GatewayStatus>('not_connected');
   const [paymongoEnabled, setPaymongoEnabled] = useState(false);
-  const [xenditStatus, setXenditStatus] = useState<'not_connected' | 'pending' | 'connected'>('not_connected');
+  const [paymongoMethods, setPaymongoMethods] = useState<Record<string, boolean>>({ card: false, gcash: false, grabpay: false, onlineBanking: false, paymaya: false, qrph: false });
+  const [xenditStatus, setXenditStatus] = useState<GatewayStatus>('not_connected');
   const [xenditEnabled, setXenditEnabled] = useState(false);
+  const [xenditMethods, setXenditMethods] = useState<Record<string, boolean>>({ creditCard: false, directDebit: false, gcash: false, qrph: false });
   const [switchGatewayTarget, setSwitchGatewayTarget] = useState<'paymongo' | 'xendit' | null>(null);
+
+  const PAYMONGO_METHOD_DEFS: GatewayMethodDef[] = [
+    { key: 'card', label: 'Card', available: true },
+    { key: 'gcash', label: 'GCash', available: true },
+    { key: 'grabpay', label: 'GrabPay', available: true },
+    { key: 'onlineBanking', label: 'Online Banking', available: true },
+    { key: 'paymaya', label: 'PayMaya', available: true },
+    { key: 'qrph', label: 'QR Ph', available: true },
+  ];
+  const XENDIT_METHOD_DEFS: GatewayMethodDef[] = [
+    { key: 'creditCard', label: 'Credit Card', available: true },
+    { key: 'directDebit', label: 'Direct Debit', available: true },
+    { key: 'gcash', label: 'GCash', available: true },
+    { key: 'qrph', label: 'QR Ph', available: true },
+  ];
 
   function handlePaymongoToggle(next: boolean) {
     if (next && xenditEnabled) { setSwitchGatewayTarget('paymongo'); return; }
@@ -1127,9 +1557,11 @@ function CustomerPaymentPortalSettings() {
     setSwitchGatewayTarget(null);
   }
 
-  type CustomMethod = { id: string; name: string; desc: string; requiresRemarks: boolean; requiresProof: boolean; internalOnly: boolean };
+  type CustomMethod = { id: string; name: string; desc: string; requiresRemarks: boolean; requiresProof: boolean; internalOnly: boolean; enabled: boolean };
   const [customMethods, setCustomMethods] = useState<CustomMethod[]>([]);
   const [showAddMethod, setShowAddMethod] = useState(false);
+  const [editingMethodId, setEditingMethodId] = useState<string | null>(null);
+  const [deletingMethodId, setDeletingMethodId] = useState<string | null>(null);
   const [newMethod, setNewMethod] = useState({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false });
   const [methodErrors, setMethodErrors] = useState({ name: false, desc: false });
 
@@ -1145,50 +1577,25 @@ function CustomerPaymentPortalSettings() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
 
-      {/* ── Sticky toolbar ── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-2.5 shrink-0 grid grid-cols-3 items-center gap-4">
-        <div />
-
-        <div />
-
-        {/* Right — Discard + Save */}
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="md" onClick={() => {}} className="text-slate-800">
-            Discard changes
-          </Button>
-          <Button colorScheme="primary" size="md" onClick={handleSave}>
-            {saved ? '✓ Saved' : 'Save changes'}
-          </Button>
-        </div>
-      </div>
-
       {/* ── Scrollable content ── */}
       <div className="flex-1 overflow-y-auto px-8 py-8 flex flex-col gap-6">
 
         {/* Page header */}
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Customer Payment Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage your customer payment portal, view how customers sign in, and configure your payment methods.
+          <h1 className="text-xl font-bold text-[#18181B]">Customer Payment Portal</h1>
+          <p className="text-sm text-[#71717A] mt-1">
+            Set up how customers pay through the portal.
           </p>
         </div>
 
         {/* Access & Security */}
-        <div className="bg-white border border-slate-200 rounded-xl">
-          <div className="px-6 py-5 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-800">Access & Security</h2>
-            <p className="text-xs text-slate-500 mt-1">How customers securely access their payment portal.</p>
-          </div>
-          <div className="px-6 py-6 flex flex-col gap-4">
-            <p className="text-sm font-semibold text-slate-800">Email Authentication</p>
-            <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-4">
-              <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
-              <div className="flex flex-col gap-1.5">
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  Customers authenticate using their registered email address. A one-time password (OTP) is sent to their email each time they sign in. The OTP expires after <span className="font-semibold text-slate-700">5 minutes</span> and customers can request a new code if it expires.
-                </p>
-              </div>
-            </div>
+        <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-lg px-4 py-4">
+          <Info size={16} className="text-violet-500 shrink-0 mt-0.5" />
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-semibold text-[#18181B]">The customer payment portal is now more secure.</p>
+            <p className="text-sm text-[#71717A] leading-relaxed">
+              Customers are required to sign in using the email saved in your Customers list. We'll send a one-time password (OTP) to that email each time they sign in.
+            </p>
           </div>
         </div>
 
@@ -1197,17 +1604,17 @@ function CustomerPaymentPortalSettings() {
 
           {/* Payment Methods header */}
           <div>
-            <h2 className="text-sm font-semibold text-slate-800">Payment Methods</h2>
-            <p className="text-xs text-slate-500 mt-1">Choose how your customers can pay invoices through the customer portal.</p>
+            <h2 className="text-sm font-semibold text-[#18181B]">Payment Methods</h2>
+            <p className="text-sm text-[#71717A] mt-1">Choose how your customers can pay invoices through the customer portal.</p>
           </div>
 
           {/* Manual Payment */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Manual Payment</p>
+            <p className="text-xs font-semibold text-[#71717A] uppercase tracking-wider mb-3">Manual Payment</p>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-slate-800">Upload Proof of Payment</p>
-                <p className="text-xs text-slate-400 mt-0.5">Customers can upload a receipt and submit payment manually.</p>
+                <p className="text-sm font-medium text-[#18181B]">Upload Proof of Payment</p>
+                <p className="text-sm text-[#71717A] mt-0.5">Customers can upload a receipt and submit payment manually.</p>
               </div>
               <Switch checked={manualUpload} onCheckedChange={setManualUpload} checkedBg="primary" />
             </div>
@@ -1217,72 +1624,43 @@ function CustomerPaymentPortalSettings() {
 
           {/* Online Payment Gateways */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Online Payment Gateways</p>
+            <p className="text-xs font-semibold text-[#71717A] uppercase tracking-wider mb-3">Online Payment Gateways</p>
             <div className="flex flex-col gap-3">
-              {/* PayMongo */}
-              <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-extrabold text-violet-700">PM</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-slate-800">PayMongo</p>
-                        <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', paymongoStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : paymongoStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
-                          {paymongoStatus === 'connected' ? 'Connected' : paymongoStatus === 'pending' ? 'Pending' : 'Not Connected'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
-                    </div>
-                  </div>
-                  {/* Toggle always clickable; switching to another active gateway triggers a confirmation modal */}
-                  <Switch checked={paymongoEnabled} onCheckedChange={handlePaymongoToggle} checkedBg="primary" />
-                </div>
-                {/* CTAs only when toggle ON + not yet connected */}
-                {paymongoEnabled && paymongoStatus !== 'connected' && (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setPaymongoStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">Request Registration Link</button>
-                    <button onClick={() => setPaymongoStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Connect Existing Account</button>
-                  </div>
-                )}
-                {/* Connected + enabled → live indicator */}
-                {paymongoEnabled && paymongoStatus === 'connected' && (
-                  <p className="text-xs text-emerald-600 font-medium">✓ Live — PayMongo is available to customers in the portal.</p>
-                )}
-              </div>
-              {/* Xendit */}
-              <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-extrabold text-blue-700">XD</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-slate-800">Xendit</p>
-                        <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full', xenditStatus === 'connected' ? 'bg-emerald-50 text-emerald-700' : xenditStatus === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
-                          {xenditStatus === 'connected' ? 'Connected' : xenditStatus === 'pending' ? 'Pending' : 'Not Connected'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-0.5">Customers can pay via credit card, debit card, and e-wallets.</p>
-                    </div>
-                  </div>
-                  {/* Toggle always clickable; switching to another active gateway triggers a confirmation modal */}
-                  <Switch checked={xenditEnabled} onCheckedChange={handleXenditToggle} checkedBg="primary" />
-                </div>
-                {/* CTAs only when toggle ON + not yet connected */}
-                {xenditEnabled && xenditStatus !== 'connected' && (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setXenditStatus('pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">Create Account</button>
-                    <button onClick={() => setXenditStatus('connected')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Connect Existing Account</button>
-                  </div>
-                )}
-                {/* Connected + enabled → live indicator */}
-                {xenditEnabled && xenditStatus === 'connected' && (
-                  <p className="text-xs text-emerald-600 font-medium">✓ Live — Xendit is available to customers in the portal.</p>
-                )}
-              </div>
+              <GatewayConnectionCard
+                id="paymongo"
+                name="PayMongo"
+                logoSrc={paymongoLogo}
+                logoInitials="PM"
+                logoBg="bg-violet-50"
+                logoText="text-violet-700"
+                accent="violet"
+                description="Customers can pay via credit card, debit card, and e-wallets."
+                status={paymongoStatus}
+                setStatus={setPaymongoStatus}
+                enabled={paymongoEnabled}
+                onToggleEnabled={handlePaymongoToggle}
+                methods={PAYMONGO_METHOD_DEFS}
+                methodState={paymongoMethods}
+                setMethodState={setPaymongoMethods}
+              />
+              <GatewayConnectionCard
+                id="xendit"
+                name="Xendit"
+                logoSrc={xenditLogo}
+                logoInitials="XD"
+                logoBg="bg-blue-50"
+                logoText="text-blue-700"
+                accent="blue"
+                description="Customers can pay via credit card, debit card, and e-wallets."
+                status={xenditStatus}
+                setStatus={setXenditStatus}
+                enabled={xenditEnabled}
+                onToggleEnabled={handleXenditToggle}
+                methods={XENDIT_METHOD_DEFS}
+                methodState={xenditMethods}
+                setMethodState={setXenditMethods}
+                richRegistrationFlow
+              />
             </div>
           </div>
 
@@ -1291,27 +1669,55 @@ function CustomerPaymentPortalSettings() {
           {/* Custom Payment Methods */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Custom Payment Methods</p>
-              <button onClick={() => { setNewMethod({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false }); setMethodErrors({ name: false, desc: false }); setShowAddMethod(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <p className="text-xs font-semibold text-[#71717A] uppercase tracking-wider">Custom Payment Methods</p>
+              <button onClick={() => { setEditingMethodId(null); setNewMethod({ name: '', desc: '', requiresRemarks: false, requiresProof: true, internalOnly: false }); setMethodErrors({ name: false, desc: false }); setShowAddMethod(true); }} className="flex items-center justify-center gap-1.5 h-9 px-4 py-2 rounded-md text-sm font-semibold border border-slate-200 text-[#18181B] hover:bg-slate-50 transition-colors">
                 <Plus size={12} weight="bold" /> Add Payment Method
               </button>
             </div>
             {customMethods.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-slate-100">No custom payment methods added yet.</p>
+              <p className="text-sm text-[#71717A] text-center py-4 bg-slate-50 rounded-lg border border-slate-100">No custom payment methods added yet.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {customMethods.map((m) => (
-                  <div key={m.id} className="flex items-start justify-between gap-3 border border-slate-200 rounded-lg px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{m.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{m.desc}</p>
-                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                        {m.requiresProof && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Proof</span>}
-                        {m.requiresRemarks && <span className="text-[10px] font-semibold bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Requires Remarks</span>}
-                        {m.internalOnly && <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Internal Only</span>}
+                  <div key={m.id} className="flex items-start justify-between gap-3 border border-slate-200 rounded-xl px-4 py-4">
+                    <div className="flex items-start gap-3">
+                      <Switch
+                        checked={m.enabled}
+                        onCheckedChange={(v) => setCustomMethods((prev) => prev.map((x) => x.id === m.id ? { ...x, enabled: v } : x))}
+                        checkedBg="primary"
+                        className="mt-0.5"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-[#18181B]">{m.name}</p>
+                        <p className="text-sm text-[#71717A] mt-0.5">{m.desc}</p>
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          {m.requiresProof && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-violet-50 text-violet-700">Proof of payment required</span>}
+                          {m.requiresRemarks && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-violet-50 text-violet-700">Remarks required</span>}
+                          {m.internalOnly && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-[#71717A]">Internal only</span>}
+                        </div>
                       </div>
                     </div>
-                    <button onClick={() => setCustomMethods((prev) => prev.filter((x) => x.id !== m.id))} className="text-slate-400 hover:text-red-500 transition-colors mt-0.5"><X size={14} /></button>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingMethodId(m.id);
+                          setNewMethod({ name: m.name, desc: m.desc, requiresRemarks: m.requiresRemarks, requiresProof: m.requiresProof, internalOnly: m.internalOnly });
+                          setMethodErrors({ name: false, desc: false });
+                          setShowAddMethod(true);
+                        }}
+                        className="text-[#71717A] hover:text-[#18181B] transition-colors"
+                        aria-label="Edit payment method"
+                      >
+                        <PencilSimple size={16} />
+                      </button>
+                      <button
+                        onClick={() => setDeletingMethodId(m.id)}
+                        className="text-red-400 hover:text-red-600 transition-colors"
+                        aria-label="Delete payment method"
+                      >
+                        <Trash size={16} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1323,56 +1729,103 @@ function CustomerPaymentPortalSettings() {
       {/* Add Payment Method Modal */}
       {showAddMethod && (
         <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col gap-5 p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col gap-5 p-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-800">Add Payment Method</h3>
-              <button onClick={() => setShowAddMethod(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+              <h3 className="text-base font-semibold text-[#18181B]">{editingMethodId ? 'Edit Payment Method' : 'Add Payment Method'}</h3>
+              <button onClick={() => { setShowAddMethod(false); setEditingMethodId(null); }} className="text-[#71717A] hover:text-[#18181B] transition-colors"><X size={18} /></button>
             </div>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600">Name <span className="text-red-400">*</span></label>
+                <label className="text-xs font-semibold text-[#18181B]">Name <span className="text-red-400">*</span></label>
                 <input value={newMethod.name} onChange={(e) => { setNewMethod((m) => ({ ...m, name: e.target.value })); setMethodErrors((e2) => ({ ...e2, name: false })); }} placeholder="e.g. Bank Transfer, E-wallet, Credit Card" className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors', methodErrors.name ? 'border-red-300' : 'border-slate-200 focus:border-violet-400'].join(' ')} />
                 {methodErrors.name && <p className="text-xs text-red-500">Name is required.</p>}
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600">Description <span className="text-red-400">*</span></label>
+                <label className="text-xs font-semibold text-[#18181B]">Description <span className="text-red-400">*</span></label>
                 <textarea value={newMethod.desc} onChange={(e) => { setNewMethod((m) => ({ ...m, desc: e.target.value })); setMethodErrors((e2) => ({ ...e2, desc: false })); }} placeholder="Shown to customers during checkout" rows={2} className={['w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none', methodErrors.desc ? 'border-red-300' : 'border-slate-200 focus:border-violet-400'].join(' ')} />
                 {methodErrors.desc && <p className="text-xs text-red-500">Description is required.</p>}
               </div>
               <div className="flex flex-col gap-2">
                 {([['requiresRemarks', 'Require customers to add remarks'], ['requiresProof', 'Require proof of payment upload'], ['internalOnly', 'For internal use only']] as [keyof typeof newMethod, string][]).map(([key, label]) => (
-                  <label key={key} className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
+                  <label key={key} className="flex items-start gap-2.5 text-sm text-[#18181B] cursor-pointer">
                     <input type="checkbox" checked={newMethod[key] as boolean} onChange={(e) => setNewMethod((m) => ({ ...m, [key]: e.target.checked }))} className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 accent-violet-600" />
                     <span>{label}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
-              <button onClick={() => setShowAddMethod(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={() => { const nameErr = !newMethod.name.trim(); const descErr = !newMethod.desc.trim(); if (nameErr || descErr) { setMethodErrors({ name: nameErr, desc: descErr }); return; } setCustomMethods((prev) => [...prev, { ...newMethod, id: `cm_${Date.now()}` }]); setShowAddMethod(false); }} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors">Save Method</button>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => { setShowAddMethod(false); setEditingMethodId(null); }} className="px-4 py-2 rounded-lg text-sm font-medium text-[#18181B] border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+              <button
+                onClick={() => {
+                  const nameErr = !newMethod.name.trim();
+                  const descErr = !newMethod.desc.trim();
+                  if (nameErr || descErr) { setMethodErrors({ name: nameErr, desc: descErr }); return; }
+                  if (editingMethodId) {
+                    setCustomMethods((prev) => prev.map((x) => x.id === editingMethodId ? { ...x, ...newMethod } : x));
+                  } else {
+                    setCustomMethods((prev) => [...prev, { ...newMethod, id: `cm_${Date.now()}`, enabled: true }]);
+                  }
+                  setShowAddMethod(false);
+                  setEditingMethodId(null);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors"
+              >
+                Save Method
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Payment Method confirmation modal */}
+      {deletingMethodId && (() => {
+        const target = customMethods.find((m) => m.id === deletingMethodId);
+        if (!target) return null;
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col gap-4 p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-[#18181B]">Delete {target.name}?</h3>
+                <button onClick={() => setDeletingMethodId(null)} className="text-[#71717A] hover:text-[#18181B] transition-colors"><X size={20} /></button>
+              </div>
+              <p className="text-sm text-[#71717A] leading-relaxed">
+                This will remove it from the portal. Customers won't be able to select it, but past payments made with it are unaffected.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => setDeletingMethodId(null)} className="px-4 py-2 rounded-lg text-sm font-medium text-[#18181B] border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button
+                  onClick={() => {
+                    setCustomMethods((prev) => prev.filter((x) => x.id !== deletingMethodId));
+                    setDeletingMethodId(null);
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {switchGatewayTarget && (() => {
         const targetName = switchGatewayTarget === 'paymongo' ? 'PayMongo' : 'Xendit';
         const activeName = switchGatewayTarget === 'paymongo' ? 'Xendit' : 'PayMongo';
         return (
           <div className="fixed inset-0 z-50 bg-slate-900/30 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col gap-4 p-6">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col gap-4 p-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-800">Switch active payment gateway?</h3>
-                <button onClick={() => setSwitchGatewayTarget(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+                <h3 className="text-base font-semibold text-[#18181B]">Switch active payment gateway?</h3>
+                <button onClick={() => setSwitchGatewayTarget(null)} className="text-[#71717A] hover:text-[#18181B] transition-colors"><X size={18} /></button>
               </div>
-              <div className="flex flex-col gap-2 text-sm text-slate-600 leading-relaxed">
+              <div className="flex flex-col gap-2 text-sm text-[#18181B] leading-relaxed">
                 <p>Only one payment gateway can be active at a time.</p>
-                <p>To activate <span className="font-semibold text-slate-800">{targetName}</span>, the currently active gateway (<span className="font-semibold text-slate-800">{activeName}</span>) will be automatically disabled.</p>
+                <p>To activate <span className="font-semibold text-[#18181B]">{targetName}</span>, the currently active gateway (<span className="font-semibold text-[#18181B]">{activeName}</span>) will be automatically disabled.</p>
                 <p>Do you want to continue?</p>
               </div>
-              <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
-                <button onClick={() => setSwitchGatewayTarget(null)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => setSwitchGatewayTarget(null)} className="px-4 py-2 rounded-lg text-sm font-medium text-[#18181B] border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
                 <button onClick={confirmSwitchGateway} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors">Switch to {targetName}</button>
               </div>
             </div>
@@ -1904,6 +2357,7 @@ function BillingCycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange
 
 function PlanCard({
   highlighted,
+  annualHighlight,
   badgeLabel,
   stripBadge,
   name,
@@ -1922,6 +2376,11 @@ function PlanCard({
   ctaVariant = 'primary',
 }: {
   highlighted?: boolean;
+  // Standard-plan-only: when Annual billing is selected, this card gets a
+  // stronger treatment than plain `highlighted` (light purple fill + a
+  // bolder border) so the annual price reads as the clear primary option,
+  // not just "the recommended plan" like it already does under Monthly.
+  annualHighlight?: boolean;
   badgeLabel?: string;
   stripBadge?: boolean;
   name: string;
@@ -1950,14 +2409,24 @@ function PlanCard({
 
   return (
     <div className={cn(
-      'flex flex-col rounded-2xl border bg-white overflow-hidden',
-      highlighted ? 'border-violet-200' : 'border-slate-200',
-    )}>
+      'flex flex-col rounded-2xl border overflow-hidden',
+      annualHighlight && 'border-2 border-[#D8C5FF]',
+      !annualHighlight && 'bg-white',
+      !annualHighlight && (highlighted ? 'border-violet-200' : 'border-slate-200'),
+    )} style={annualHighlight ? { backgroundColor: '#F8F5FF' } : undefined}>
       {stripBadge && badgeLabel && (
-        <div className={cn(
-          'px-4 py-2 text-center text-xs font-semibold border-b',
-          highlighted ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200',
-        )}>
+        <div
+          className={cn(
+            'px-4 py-2 text-center text-xs font-semibold border-b',
+            annualHighlight
+              ? 'text-violet-700 border-violet-100'
+              : highlighted ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200',
+          )}
+          // Same exact fill as the card body (no separate Tailwind shade) so
+          // the header reads as one continuous surface, not a distinct
+          // color block sitting on top of a slightly different background.
+          style={annualHighlight ? { backgroundColor: '#F8F5FF' } : undefined}
+        >
           {badgeLabel}
         </div>
       )}
@@ -2476,13 +2945,22 @@ function SubscriptionSettings() {
 
             <PlanCard
               highlighted
+              // Prominent purple background + stronger border — applies to
+              // the Standard card regardless of billing cycle, not just
+              // Annual, so the "recommended plan" treatment is consistent
+              // whichever cycle the merchant currently has selected.
+              annualHighlight
               stripBadge
               badgeLabel="Most Popular"
               name="Standard"
-              price={cycle === 'monthly' ? peso(MONTHLY_PRICE) : peso(ANNUAL_EFFECTIVE_MONTHLY)}
-              priceSuffix="per month"
-              originalPrice={cycle === 'annual' ? `${peso(MONTHLY_PRICE)}/mo` : undefined}
-              billingNote={cycle === 'annual' ? `${peso(ANNUAL_PRICE)} billed annually` : undefined}
+              // Annual flips the price hierarchy: the annual total becomes
+              // the primary, large price (with "billed annually" as its own
+              // suffix, same slot "per month" uses under Monthly), and the
+              // per-month equivalent drops down to the small, muted
+              // billingNote line instead of being the headline number.
+              price={cycle === 'monthly' ? peso(MONTHLY_PRICE) : peso(ANNUAL_PRICE)}
+              priceSuffix={cycle === 'monthly' ? 'per month' : 'billed annually'}
+              billingNote={cycle === 'annual' ? `${peso(ANNUAL_EFFECTIVE_MONTHLY)} per month` : undefined}
               savingsNote={cycle === 'annual' ? '2 months free' : undefined}
               featuresHeading="Everything in trial plus:"
               features={['Up to 1,000 invoices and customers per month']}

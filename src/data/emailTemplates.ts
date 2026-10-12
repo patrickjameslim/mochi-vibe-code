@@ -76,22 +76,48 @@ export interface PlaceholderDef {
 // out on more than one of these moments. Listed here in chronological
 // order (before the due date, through the due date, to after it).
 export type ReminderFrequencyPreset =
-  | '3-days-before'
   | '1-day-before'
-  | 'due-date'
-  | '3-days-after'
+  | '7-days-before'
+  | '14-days-before'
+  | '30-days-before'
+  | '1-day-after'
   | '7-days-after'
   | '14-days-after'
-  | 'custom';
+  | '30-days-after'
+  // Not a one-time reminder — once selected, the first reminder goes out
+  // 30 days after the due date, then again every 30 days after that until
+  // the invoice is paid/no longer overdue. See `recurring` on its option
+  // definition below, which the UI uses to surface that it repeats.
+  | 'every-30-days-after';
 
-export const REMINDER_FREQUENCY_OPTIONS: { value: ReminderFrequencyPreset; label: string }[] = [
-  { value: '3-days-before', label: '3 days before due date' },
-  { value: '1-day-before', label: '1 day before due date' },
-  { value: 'due-date', label: 'On the due date' },
-  { value: '3-days-after', label: '3 days after due date' },
-  { value: '7-days-after', label: '7 days after due date' },
-  { value: '14-days-after', label: '14 days after due date' },
-  { value: 'custom', label: 'Custom' },
+// `label` is the full phrase — used for the trigger field when exactly one
+// schedule is selected (e.g. "7 days before due date"). `shortLabel` is
+// what's shown inside the dropdown's Before/After tabs, where the active
+// tab already establishes "before due date"/"after due date", so repeating
+// that in every row would be redundant. `category` is which of the two
+// tabs a schedule belongs under.
+export const REMINDER_FREQUENCY_OPTIONS: {
+  value: ReminderFrequencyPreset;
+  label: string;
+  shortLabel: string;
+  category: 'before' | 'after';
+  recurring?: boolean;
+}[] = [
+  { value: '1-day-before', label: '1 day before due date', shortLabel: '1 day before', category: 'before' },
+  { value: '7-days-before', label: '7 days before due date', shortLabel: '7 days before', category: 'before' },
+  { value: '14-days-before', label: '14 days before due date', shortLabel: '14 days before', category: 'before' },
+  { value: '30-days-before', label: '30 days before due date', shortLabel: '30 days before', category: 'before' },
+  { value: '1-day-after', label: '1 day after due date', shortLabel: '1 day after', category: 'after' },
+  { value: '7-days-after', label: '7 days after due date', shortLabel: '7 days after', category: 'after' },
+  { value: '14-days-after', label: '14 days after due date', shortLabel: '14 days after', category: 'after' },
+  { value: '30-days-after', label: '30 days after due date', shortLabel: '30 days after', category: 'after' },
+  {
+    value: 'every-30-days-after',
+    label: 'Every 30 days after due date',
+    shortLabel: 'Every 30 days after due date',
+    category: 'after',
+    recurring: true,
+  },
 ];
 
 // The ordinary shape: a fixed Subject + Email content, no "when to send"
@@ -107,37 +133,14 @@ export interface StandardEmailTemplateContent {
   body: string;
 }
 
-// One direction from the invoice's own due date — Payment Reminder is a
-// single template shared across invoices with different due dates, so a
-// custom schedule is always defined RELATIVE to that date, never as a
-// fixed calendar date. 'on' (the due date itself) carries no amount —
-// it's ignored/hidden in the UI whenever it's used.
-export type ReminderOffsetDirection = 'before' | 'on' | 'after';
-
-// The unit the user's entered `amount` is expressed in. Kept separate from
-// `amount` (rather than always normalizing to days) so the field the user
-// typed is exactly what's shown back to them — e.g. "2 Weeks" stays
-// "2 Weeks", not a normalized "14 Days".
-export type ReminderOffsetUnit = 'days' | 'weeks';
-
-export interface ReminderCustomOffset {
-  id: string;
-  amount: number;
-  unit: ReminderOffsetUnit;
-  direction: ReminderOffsetDirection;
-}
-
 // Payment Reminder's shape: still just ONE Subject + Email content (never
 // a separate copy per schedule), plus one or more selected send schedules.
 export interface ReminderEmailTemplateContent {
   kind: 'reminder';
   // One or more selected schedules — always non-empty once saved (the UI
-  // prevents saving with nothing selected).
+  // prevents saving with nothing selected). May include the recurring
+  // 'every-30-days-after' preset alongside any of the one-time ones.
   frequencies: ReminderFrequencyPreset[];
-  // Only meaningful when 'custom' is among frequencies — one or more
-  // additional schedules defined relative to the invoice's own due date
-  // (e.g. "10 days before", "20 days after"), not fixed calendar dates.
-  customOffsets?: ReminderCustomOffset[];
   subject: string;
   body: string;
 }
@@ -156,14 +159,6 @@ export const ALL_PLACEHOLDERS: PlaceholderDef[] = [
   { key: '[Invoice Number]', label: 'Invoice Number', category: 'Billing' },
   { key: '[Order Number]', label: 'Order Number', category: 'Billing' },
   { key: '[Due Date]', label: 'Due Date', category: 'Billing' },
-  // Renamed from "Time Period by Due Date" / "Payment Period by Due Date" —
-  // same underlying concepts, clearer terms.
-  { key: '[Due In]', label: 'Due In', category: 'Billing' },
-  { key: '[Overdue Period]', label: 'Overdue Period', category: 'Billing' },
-  // Available as an option wherever offered, but not inserted into any
-  // template's default copy — just the raw day count (e.g. "5"), distinct
-  // from [Overdue Period]'s full phrase (e.g. "3 days overdue").
-  { key: '[Days Outstanding]', label: 'Days Outstanding', category: 'Billing' },
   { key: '[Total Unsettled Invoices]', label: 'Total Unsettled Invoices', category: 'Billing' },
   { key: '[Invoice Total Amount]', label: 'Invoice Total Amount', category: 'Billing' },
 ];
@@ -173,11 +168,11 @@ export const ALL_PLACEHOLDERS: PlaceholderDef[] = [
 export const TEMPLATE_PLACEHOLDER_KEYS: Record<EmailTemplateId, string[]> = {
   'billing-notice': [
     '[Organization Name]', '[Tags]', '[Invoice Number]', '[Customer Contact Name]',
-    '[Due In]', '[Due Date]', '[Invoice Total Amount]',
+    '[Due Date]', '[Invoice Total Amount]',
   ],
   'payment-reminder': [
     '[Organization Name]', '[Tags]', '[Invoice Number]', '[Customer Contact Name]',
-    '[Due Date]', '[Due In]', '[Overdue Period]', '[Days Outstanding]', '[Invoice Total Amount]',
+    '[Due Date]', '[Invoice Total Amount]',
   ],
   'payment-overdue': [
     '[Organization Name]', '[Tags]', '[Invoice Number]', '[Customer Contact Name]',
@@ -242,14 +237,8 @@ function defaultPaymentReminder(): ReminderEmailTemplateContent {
     subject: `🔔 Don't miss your payment with ${chip('[Organization Name]')} - ${chip('[Invoice Number]')}`,
     body:
       `Dear ${chip('[Customer Contact Name]')},<br><br>` +
-      `This is a quick reminder that payment for ${chip('[Invoice Number]')} is due on ${chip('[Due Date]')}.<br><br>` +
-      `<b>Current Balance</b>: ${chip('[Invoice Total Amount]')}<br><br>` +
-      'Please settle your outstanding balance at your earliest convenience.<br><br>' +
-      '<b>Paying via PDC?</b> If you have already provided a post-dated check for this invoice, please ensure your bank account is sufficiently funded prior to the due date to avoid bouncing fees or late penalties.<br><br>' +
-      "<b>Already paid online?</b> If you've already sent your payment, please disregard this reminder.<br><br>" +
-      'Thank you for your prompt attention to this.<br><br>' +
-      'Best Regards,<br>' +
-      `${chip('[Organization Name]')}`,
+      `You have a pending bill due on ${chip('[Due Date]')}.<br>` +
+      'Please settle the amount on or before the due date.',
   };
 }
 

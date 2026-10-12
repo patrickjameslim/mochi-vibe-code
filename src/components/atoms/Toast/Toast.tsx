@@ -11,6 +11,7 @@ const Toast = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       className="toaster group"
+      richColors
       toastOptions={{
         actionButtonStyle: {
           background: 'var(--primary)',
@@ -30,6 +31,9 @@ const Toast = ({ ...props }: ToasterProps) => {
           '--normal-bg': 'var(--popover)',
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'var(--border)',
+          '--error-bg': 'var(--color-red-50)',
+          '--error-text': 'var(--color-red-700)',
+          '--error-border': 'var(--color-red-200)',
           '--border-radius': 'var(--radius)',
         } as React.CSSProperties
       }

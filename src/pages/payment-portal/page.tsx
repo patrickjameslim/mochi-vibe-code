@@ -94,6 +94,8 @@ interface Customer {
   tin: string;
   primaryContact?: ContactPerson;
   otherContacts?: ContactPerson[];
+  /** Organization's uploaded logo for the customer payment portal. Falls back to the Mochi logo when absent. */
+  logoUrl?: string;
 }
 
 interface FilterState {
@@ -185,6 +187,7 @@ const CUSTOMER: Customer = {
   type: 'organization',
   id: '#CST-2025-0001',
   name: 'Metroview Commercial Inc.',
+  logoUrl: '/metroview-logo.jpeg',
   email: 'accounts@metroview.com',
   phone: '09123456789',
   address: 'Unit 4B, Metroview Tower, EDSA, Mandaluyong City, Metro Manila, Philippines 1550',
@@ -1303,22 +1306,54 @@ const AUTH_SLIDES = [
   },
 ];
 
+// Simple outline-only person icon on a pale violet circle — a plain,
+// standard account icon rather than a custom two-tone illustration. Same
+// palette as the OTP screen's envelope icon, and sized so the glyph fills
+// its 64px box with a similar visual weight/height to that envelope image
+// rather than looking small inside a lot of empty circle padding.
+function WelcomeShieldIcon() {
+  return (
+    <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EBEAFD' }}>
+      <User size={40} weight="regular" style={{ color: '#5C39BC' }} />
+    </div>
+  );
+}
+
+// Organization branding shown above the auth card on both the Sign In and OTP
+// screens — logo stacked above the name, centered, sitting directly on the
+// purple background (no pill/card/shadow around the block). Handles orgs with
+// no logo, no name, long names, or wide logos gracefully.
+function OrgBranding() {
+  const customer = getActiveCustomer();
+  const logoUrl = customer.logoUrl;
+  const name = customer.name;
+
+  if (!logoUrl && !name) return null;
+
+  return (
+    <div className="relative z-10 flex flex-col items-center gap-2.5 mb-7">
+      {logoUrl && (
+        <div className="h-16 w-16 shrink-0 flex items-center justify-center bg-white rounded-full p-1">
+          <img src={logoUrl} alt={name || 'Organization logo'} className="w-full h-full rounded-full object-cover" />
+        </div>
+      )}
+      {name && (
+        <span className="text-base font-semibold text-white text-center leading-snug max-w-[320px] break-words">{name}</span>
+      )}
+    </div>
+  );
+}
+
 function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess: () => void }) {
   const [stage, setStage] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [slide, setSlide] = useState(0);
 
   // OTP state
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState('');
   const [resendTimer, setResendTimer] = useState(60);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  useEffect(() => {
-    const id = setInterval(() => setSlide((s) => (s + 1) % AUTH_SLIDES.length), 4500);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     if (stage !== 'otp' || resendTimer <= 0) return;
@@ -1380,18 +1415,16 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
           style={{ backgroundColor: '#C35CFF', opacity: 0.45 }}
         />
 
-        <div className="relative z-10 flex items-center gap-2 mb-6">
-          <img src={mochiLogoWhite} alt="Mochi" className="h-14 w-auto" />
-        </div>
+        <OrgBranding />
 
-        <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl p-7 flex flex-col items-center">
-          <h1 className="text-lg font-bold text-slate-900 text-center">Verify your identity</h1>
-
-          <div className="w-16 h-16 flex items-center justify-center my-4">
+        <div className="relative z-10 w-full max-w-lg min-h-[458.5px] bg-white rounded-2xl shadow-2xl p-7 flex flex-col items-center">
+          <div className="w-16 h-16 flex items-center justify-center mb-2">
             <img src={envelopeOtpIcon} alt="Verify identity" className="w-full h-full object-contain" />
           </div>
 
-          <p className="w-full max-w-[400px] text-sm text-slate-600 text-center leading-relaxed">
+          <h1 className="text-2xl font-bold text-slate-900 text-center">Verify your identity</h1>
+
+          <p className="w-full max-w-[400px] text-sm text-slate-600 text-center leading-relaxed mt-2">
             We've sent a 6-digit OTP to <span className="font-semibold text-slate-800">{maskEmail(email)}</span>. Please check your email and enter it below.
           </p>
 
@@ -1446,94 +1479,75 @@ function PinAuthModal({ currentPin, onSuccess }: { currentPin: string; onSuccess
             </p>
           </div>
         </div>
+
+        <div className="relative z-10 flex items-center gap-1.5 mt-6">
+          <span className="text-xs text-violet-200">Powered by</span>
+          <img src={mochiLogoWhite} alt="Mochi" className="h-4 w-auto opacity-90" />
+        </div>
       </div>
     );
   }
 
-  // ── Email screen ──
+  // ── Email / Sign In screen — same purple gradient + dotted background, centered white card ──
   return (
-    <div className="fixed inset-0 z-50 bg-white flex">
-      {/* ── Left: email form ── */}
-      <div className="flex-1 flex items-center justify-center p-8 lg:p-16">
-        <div className="w-full max-w-sm flex flex-col">
-          <img src={mochiLogo} alt="Mochi" className="h-10 w-auto mb-10 self-center" />
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6 overflow-hidden" style={{ backgroundColor: '#32215F' }}>
+      <div
+        className="absolute inset-0 opacity-[0.15] pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
+      />
+      <div
+        className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[120%] h-80 rounded-[100%] blur-3xl pointer-events-none"
+        style={{ backgroundColor: '#C35CFF', opacity: 0.45 }}
+      />
 
-          <h1 className="text-3xl font-bold text-slate-900 text-center">Welcome</h1>
-          <p className="text-sm text-slate-500 mt-2 text-center">Enter your registered email address to securely access your payment portal.</p>
+      <OrgBranding />
 
-          <form onSubmit={handleEmailSubmit} className="mt-8 w-full flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-slate-700">Email Address</label>
-              <div className="relative">
-                <EnvelopeSimple size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
-                  className={[
-                    'w-full border rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 transition-colors',
-                    emailError ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
-                  ].join(' ')}
-                />
-              </div>
-              {emailError && (
-                <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                  <Warning size={13} weight="fill" /> {emailError}
-                </p>
-              )}
-            </div>
-            <button
-              type="submit"
-              disabled={!isValidEmail(email)}
-              className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Continue
-            </button>
-          </form>
+      <div className="relative z-10 w-full max-w-lg min-h-[458.5px] bg-white rounded-2xl shadow-2xl p-7 pb-8 flex flex-col items-center justify-center">
+        <div className="w-16 h-16 flex items-center justify-center mb-2">
+          <WelcomeShieldIcon />
         </div>
+
+        <h1 className="text-3xl font-bold text-slate-900 text-center">Welcome</h1>
+
+        <p className="w-full max-w-[400px] text-sm text-slate-600 text-center leading-relaxed mt-2">
+          Enter your registered email address to securely access your payment portal.
+        </p>
+
+        <form onSubmit={handleEmailSubmit} className="w-full max-w-[400px] flex flex-col gap-4 mt-5">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-slate-700 text-left">Email Address</label>
+            <div className="relative">
+              <EnvelopeSimple size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="email"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                className={[
+                  'w-full border rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 transition-colors',
+                  emailError ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-slate-300 focus:ring-violet-200',
+                ].join(' ')}
+              />
+            </div>
+            {emailError && (
+              <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                <Warning size={13} weight="fill" /> {emailError}
+              </p>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={!isValidEmail(email)}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Continue
+          </button>
+        </form>
       </div>
 
-      {/* ── Right: digital-payments showcase hero (carousel) ── */}
-      <div className="hidden lg:flex flex-1 relative overflow-hidden text-white flex-col items-center justify-between py-12 px-10" style={{ backgroundColor: '#32215F' }}>
-        {/* dotted texture */}
-        <div
-          className="absolute inset-0 opacity-[0.15] pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
-        />
-        {/* bottom glow graphic */}
-        <div
-          className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[120%] h-80 rounded-[100%] blur-3xl pointer-events-none"
-          style={{ backgroundColor: '#C35CFF', opacity: 0.45 }}
-        />
-
-        {/* logo (white, directly on the dark hero) */}
-        <div className="relative z-10">
-          <img src={mochiLogoWhite} alt="Mochi" className="h-9 w-auto" />
-        </div>
-
-        {/* slide illustration */}
-        <div className="relative z-10 my-6 flex items-center justify-center w-full max-w-[660px]" style={{ minHeight: 360 }}>
-          <AuthIllustration slideKey={AUTH_SLIDES[slide].key} />
-        </div>
-
-        {/* carousel */}
-        <div className="relative z-10 flex flex-col items-center gap-6 max-w-md">
-          <div className="flex items-center gap-2">
-            {AUTH_SLIDES.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setSlide(i)}
-                aria-label={`Go to slide ${i + 1}`}
-                className={['h-1.5 rounded-full transition-all', i === slide ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/60'].join(' ')}
-              />
-            ))}
-          </div>
-          <div className="text-center min-h-[140px]">
-            <h2 className="text-2xl font-bold leading-tight">{AUTH_SLIDES[slide].title}</h2>
-            <p className="text-sm text-violet-100 mt-3 leading-relaxed">{AUTH_SLIDES[slide].desc}</p>
-          </div>
-        </div>
+      <div className="relative z-10 flex items-center gap-1.5 mt-6">
+        <span className="text-xs text-violet-200">Powered by</span>
+        <img src={mochiLogoWhite} alt="Mochi" className="h-4 w-auto opacity-90" />
       </div>
     </div>
   );
