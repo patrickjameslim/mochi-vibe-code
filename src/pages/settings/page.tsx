@@ -49,6 +49,7 @@ import {
   Spinner,
   Eye,
   EyeSlash,
+  Sliders,
 } from '@phosphor-icons/react';
 import { AppSidebar } from '#/pages/shared/AppSidebar';
 import { UpgradeModal } from '#/components/organisms/UpgradeModal';
@@ -2292,13 +2293,38 @@ function addCycle(date: Date, cycle: BillingCycle) {
 }
 
 /** Prototype-only: lets stakeholders flip between the trial and subscribed views without running the full upgrade flow. */
-function DemoPlanToggle({ subscribed, onChange }: { subscribed: boolean; onChange: (next: boolean) => void }) {
+/** Prototype-only: Trial/Standard switch which view renders. "Error" is a momentary action (not a persisted state) that simulates a genuinely unexpected upgrade/checkout failure — it fires the "Upgrade not completed" toast without changing the current plan, so it's never shown as "selected" the way Trial/Standard are. */
+function DemoPlanToggle({ currentPlan, onSelect }: { currentPlan: 'trial' | 'standard'; onSelect: (next: 'trial' | 'standard' | 'error') => void }) {
   return (
     <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-md pl-3.5 pr-2.5 py-2 text-xs text-slate-400">
       <span className="font-medium tracking-wide uppercase">Preview</span>
-      <span className={cn('font-medium', !subscribed ? 'text-slate-700' : 'text-slate-300')}>Trial</span>
-      <Switch checked={subscribed} onCheckedChange={onChange} checkedBg="primary" />
-      <span className={cn('font-medium', subscribed ? 'text-slate-700' : 'text-slate-300')}>Standard</span>
+      <button
+        type="button"
+        onClick={() => onSelect('trial')}
+        className={cn(
+          'font-medium px-2 py-1 rounded-full transition-colors',
+          currentPlan === 'trial' ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:text-slate-600',
+        )}
+      >
+        Trial
+      </button>
+      <button
+        type="button"
+        onClick={() => onSelect('standard')}
+        className={cn(
+          'font-medium px-2 py-1 rounded-full transition-colors',
+          currentPlan === 'standard' ? 'bg-violet-50 text-violet-700' : 'text-slate-400 hover:text-slate-600',
+        )}
+      >
+        Standard
+      </button>
+      <button
+        type="button"
+        onClick={() => onSelect('error')}
+        className="font-medium px-2 py-1 rounded-full text-slate-400 hover:text-red-600 transition-colors"
+      >
+        Error
+      </button>
     </div>
   );
 }
@@ -2315,6 +2341,35 @@ function DemoPaymentOutcomeToggle({ simulateFailure, onChange }: { simulateFailu
         className="data-[state=checked]:bg-red-500"
       />
       <span className={cn('font-medium', simulateFailure ? 'text-red-600' : 'text-slate-300')}>Failed</span>
+    </div>
+  );
+}
+
+/** Prototype-only: directly previews the two usage-limit toasts on demand, since no counter in this prototype actually reaches its limit on its own. The two states are mutually exclusive — selecting one never shows the other. */
+function DemoUsageToggle({ state, onSelect }: { state: 'nearing' | 'reached' | null; onSelect: (next: 'nearing' | 'reached') => void }) {
+  return (
+    <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-md pl-3.5 pr-2.5 py-2 text-xs text-slate-400">
+      <span className="font-medium tracking-wide uppercase">Usage Tracking</span>
+      <button
+        type="button"
+        onClick={() => onSelect('nearing')}
+        className={cn(
+          'font-medium px-2 py-1 rounded-full transition-colors',
+          state === 'nearing' ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:text-slate-700',
+        )}
+      >
+        Nearing limit
+      </button>
+      <button
+        type="button"
+        onClick={() => onSelect('reached')}
+        className={cn(
+          'font-medium px-2 py-1 rounded-full transition-colors',
+          state === 'reached' ? 'bg-red-50 text-red-700' : 'text-slate-500 hover:text-slate-700',
+        )}
+      >
+        Limit reached
+      </button>
     </div>
   );
 }
@@ -2417,15 +2472,14 @@ function PlanCard({
       {stripBadge && badgeLabel && (
         <div
           className={cn(
-            'px-4 py-2 text-center text-xs font-semibold border-b',
-            annualHighlight
-              ? 'text-violet-700 border-violet-100'
-              : highlighted ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200',
+            'px-4 py-2 text-center text-xs font-semibold',
+            !annualHighlight && 'border-b',
+            !annualHighlight && (highlighted ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200'),
           )}
-          // Same exact fill as the card body (no separate Tailwind shade) so
-          // the header reads as one continuous surface, not a distinct
-          // color block sitting on top of a slightly different background.
-          style={annualHighlight ? { backgroundColor: '#F8F5FF' } : undefined}
+          // Same exact fill as the card body — no separate shade and no
+          // divider — so the header reads as part of one continuous
+          // surface rather than a distinct block sitting on top of it.
+          style={annualHighlight ? { backgroundColor: '#F8F5FF', color: '#7C2DFA' } : undefined}
         >
           {badgeLabel}
         </div>
@@ -2454,12 +2508,12 @@ function PlanCard({
 
         <div>
           <p className="text-3xl font-extrabold text-slate-900">{price}</p>
-          <p className="text-sm mt-0.5 text-slate-500">{priceSuffix}</p>
+          <p className="text-sm mt-0.5 text-slate-900">{priceSuffix}</p>
           {originalPrice && (
             <p className="text-sm text-slate-400 line-through mt-1">{originalPrice}</p>
           )}
           {billingNote && (
-            <p className="text-xs mt-1.5 text-slate-500">{billingNote}</p>
+            <p className="text-xs mt-1.5" style={{ color: '#4C1D95' }}>{billingNote}</p>
           )}
         </div>
 
@@ -2471,7 +2525,7 @@ function PlanCard({
             {features.map(item => (
               <li key={item} className="flex items-start gap-2">
                 <Check size={14} weight="bold" className="shrink-0 mt-0.5 text-violet-500" />
-                <span className="text-sm text-slate-600">{item}</span>
+                <span className="text-sm text-slate-900">{item}</span>
               </li>
             ))}
           </ul>
@@ -2534,11 +2588,13 @@ function MetricCard({
 function CurrentPlanPanel({
   cycle,
   nextBillingDate,
+  price,
   onCancelClick,
   onUpdateCardClick,
 }: {
   cycle: BillingCycle;
   nextBillingDate: Date | null;
+  price: string;
   onCancelClick: () => void;
   onUpdateCardClick: () => void;
 }) {
@@ -2549,6 +2605,7 @@ function CurrentPlanPanel({
           <h2 className="text-lg font-bold text-slate-900">Standard</h2>
           <Badge colorScheme="violet" className="border-violet-700">Active</Badge>
         </div>
+        <p className="text-xl font-extrabold text-slate-900 mt-1">{price}<span className="text-sm font-medium text-slate-400 ml-1">/ {cycle === 'monthly' ? 'month' : 'year'}</span></p>
         <p className="text-sm text-slate-500 mt-1">
           {cycle === 'monthly' ? 'Billed monthly' : 'Billed annually'}
           {nextBillingDate && <> · Next billing date: <span className="font-medium text-slate-700">{formatDate(nextBillingDate)}</span></>}
@@ -2571,13 +2628,13 @@ function CurrentPlanPanel({
 }
 
 const CANCEL_REASONS = [
-  'Too expensive for what I need',
-  'Missing features I was looking for',
-  'Switching to a different tool',
-  'Not using it enough right now',
-  'Found it difficult to use',
-  'Ran into bugs or technical issues',
-  'Just taking a temporary break',
+  'The subscription is too expensive for my needs',
+  'The features I need are not available',
+  "I'm switching to another billing platform",
+  "I don't use Mochi often enough",
+  'The platform is difficult to use',
+  "I'm experiencing bugs or technical issues",
+  'I only need the subscription temporarily',
   'Other',
 ];
 
@@ -2629,11 +2686,11 @@ function CancelSubscriptionModal({
 
         <div className="px-6 py-5 flex-1 overflow-y-auto flex flex-col gap-5">
           <p className="text-sm text-slate-500 leading-relaxed">
-            By cancelling your subscription, you'll lose access to Standard features, and your invoice and customer limits will revert to the free trial plan.
+            By cancelling your subscription, you'll lose access to Standard features, and your bill and customer limits will revert to the free trial plan.
           </p>
 
           <div className="flex flex-col gap-2.5">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Why are you canceling?</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Why are you cancelling?</p>
             <div className="flex flex-col gap-2">
               {CANCEL_REASONS.map(reason => (
                 <label key={reason} className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -2684,7 +2741,7 @@ function generateBillingHistory(nextBillingDate: Date, cycle: BillingCycle, coun
     const year = cursor.getFullYear();
     rows.push({
       id: `INV-${year}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
-      label: `Invoice_${monthName}_${year}`,
+      label: `Bill_${monthName}_${year}`,
       billingDate: new Date(cursor),
       amount: cycle === 'monthly' ? MONTHLY_PRICE : ANNUAL_PRICE,
     });
@@ -2694,7 +2751,7 @@ function generateBillingHistory(nextBillingDate: Date, cycle: BillingCycle, coun
 
 const HISTORY_PAGE_SIZE = 7;
 
-function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle; nextBillingDate: Date | null }) {
+function BillingHistorySection({ cycle, nextBillingDate, simulateFailure }: { cycle: BillingCycle; nextBillingDate: Date | null; simulateFailure: boolean }) {
   const [query, setQuery] = useState('');
   const allRows = nextBillingDate ? generateBillingHistory(nextBillingDate, cycle) : [];
   const filtered = query.trim()
@@ -2709,7 +2766,7 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
   return (
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
       <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap border-b border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-800">Billing History</h2>
+        <h2 className="text-sm font-semibold text-slate-800">Subscription History</h2>
         <div className="flex items-center gap-2">
           <div className="relative">
             <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -2720,7 +2777,19 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
               className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 w-40"
             />
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              toast.info('Preparing your bills', { description: 'Your download will start shortly.' });
+              window.setTimeout(() => {
+                if (simulateFailure) {
+                  toast.error('Download failed', { description: 'We could not download your bill. Please try again.' });
+                }
+              }, 1200);
+            }}
+          >
             <DownloadSimple size={14} />
             Download all
           </Button>
@@ -2730,7 +2799,7 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100">
-            <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Invoice</th>
+            <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Bill</th>
             <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Billing date</th>
             <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Plan</th>
             <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Amount</th>
@@ -2741,7 +2810,7 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
           {pageRows.length === 0 && (
             <tr>
               <td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">
-                No billing history yet.
+                No subscription history yet.
               </td>
             </tr>
           )}
@@ -2766,13 +2835,29 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem>
                       <Receipt size={14} className="text-slate-400" />
-                      View invoice
+                      View bill
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (simulateFailure) {
+                          toast.error('Download failed', { description: 'We could not download your bill. Please try again.' });
+                        } else {
+                          toast.info('Download started', { description: `Downloading ${row.label}.` });
+                        }
+                      }}
+                    >
                       <DownloadSimple size={14} className="text-slate-400" />
                       Download CSV
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (simulateFailure) {
+                          toast.error('Download failed', { description: 'We could not download your bill. Please try again.' });
+                        } else {
+                          toast.info('Download started', { description: `Downloading ${row.label}.` });
+                        }
+                      }}
+                    >
                       <FilePdf size={14} className="text-slate-400" />
                       Download PDF
                     </DropdownMenuItem>
@@ -2787,7 +2872,7 @@ function BillingHistorySection({ cycle, nextBillingDate }: { cycle: BillingCycle
       {filtered.length > 0 && (
         <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between gap-4">
           <p className="text-xs text-slate-400 shrink-0">
-            {filtered.length} invoice{filtered.length !== 1 ? 's' : ''}
+            {filtered.length} bill{filtered.length !== 1 ? 's' : ''}
           </p>
           {totalPages > 1 && (
             <div>
@@ -2805,6 +2890,9 @@ function SubscribedOverview({
   nextBillingDate,
   billingAddress,
   simulatePaymentFailure,
+  subscriptionRestricted,
+  onRestored,
+  usagePreview,
   onCancelSubscription,
   onCardUpdated,
 }: {
@@ -2812,28 +2900,38 @@ function SubscribedOverview({
   nextBillingDate: Date | null;
   billingAddress: BillingAddress;
   simulatePaymentFailure: boolean;
+  subscriptionRestricted: boolean;
+  onRestored: () => void;
+  usagePreview: 'nearing' | 'reached' | null;
   onCancelSubscription: () => void;
   onCardUpdated: (billingAddress: BillingAddress) => void;
 }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showUpdateCard, setShowUpdateCard] = useState(false);
-  const invoicesUsed = BILLS.length;
+  // The USAGE TRACKING preview control overrides the real bill count so
+  // the "Bills this month" card visibly reflects whichever scenario is
+  // selected, in addition to firing the matching toast — "reached" shows the
+  // card at its limit, "nearing" shows it just under, and with no scenario
+  // selected the card shows the actual mock data as before.
+  const invoicesUsed =
+    usagePreview === 'reached' ? INVOICE_LIMIT : usagePreview === 'nearing' ? 950 : BILLS.length;
 
   return (
     <>
       <CurrentPlanPanel
         cycle={cycle}
         nextBillingDate={nextBillingDate}
+        price={cycle === 'monthly' ? peso(MONTHLY_PRICE) : peso(ANNUAL_PRICE)}
         onCancelClick={() => setShowCancelConfirm(true)}
         onUpdateCardClick={() => setShowUpdateCard(true)}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <MetricCard icon={Receipt} label="Invoices this month" used={invoicesUsed} limit={INVOICE_LIMIT} unit="invoices" />
+        <MetricCard icon={Receipt} label="Bills this month" used={invoicesUsed} limit={INVOICE_LIMIT} unit="bills" />
         <MetricCard icon={User} label="User accounts" used={USER_ACCOUNTS_USED} limit={USER_ACCOUNTS_LIMIT} unit="accounts" />
       </div>
 
-      <BillingHistorySection cycle={cycle} nextBillingDate={nextBillingDate} />
+      <BillingHistorySection cycle={cycle} nextBillingDate={nextBillingDate} simulateFailure={simulatePaymentFailure} />
 
       <CancelSubscriptionModal
         open={showCancelConfirm}
@@ -2848,6 +2946,9 @@ function SubscribedOverview({
           nextBillingDate={nextBillingDate}
           billingAddress={billingAddress}
           simulateFailure={simulatePaymentFailure}
+          restricted={subscriptionRestricted}
+          onRestored={onRestored}
+          price={cycle === 'monthly' ? peso(MONTHLY_PRICE) : peso(ANNUAL_PRICE)}
           onClose={() => setShowUpdateCard(false)}
           onUpdated={onCardUpdated}
         />
@@ -2873,22 +2974,105 @@ function SubscriptionSettings() {
   const [billingAddress, setBillingAddress] = useState<BillingAddress>(EMPTY_BILLING_ADDRESS);
   const [simulatePaymentFailure, setSimulatePaymentFailure] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  // Prototype-only: represents an existing Standard subscriber whose
+  // simulated recurring charge just failed (see handlePaymentOutcomeToggle
+  // below). While true, successfully saving new payment info in
+  // UpdateCardModal shows "Subscription restored" instead of the normal
+  // "Payment information updated" toast, and clears this flag.
+  const [subscriptionRestricted, setSubscriptionRestricted] = useState(false);
+  // Prototype-only: manual preview for the two usage-limit toasts. Unlike the
+  // other toggles, there's no live usage counter in this prototype that
+  // actually nears its limit, so this directly simulates "Nearing limit" vs
+  // "Limit reached" on demand — the two states are mutually exclusive by
+  // construction (a single variable can only hold one value at a time), and
+  // selecting one never shows the other's toast.
+  const [usagePreview, setUsagePreview] = useState<'nearing' | 'reached' | null>(null);
+  // Prototype-only: the demo preview controls (Usage Tracking, Payments,
+  // Preview) are collapsed into a single small toggle by default so they
+  // don't sit on top of real page content (e.g. the Subscription History
+  // table) — expand on demand instead of always floating three stacked
+  // pills over whatever happens to be scrolled underneath them.
+  const [demoControlsOpen, setDemoControlsOpen] = useState(false);
   const trialDaysLeft = daysLeftInTrial(TRIAL_START_DATE, TRIAL_DAYS);
 
-  function handleDemoToggle(subscribed: boolean) {
-    if (subscribed) {
-      setCurrentPlan('standard');
-      setNextBillingDate(addCycle(new Date(), cycle));
+  function handleUsagePreview(next: 'nearing' | 'reached') {
+    setUsagePreview(next);
+    if (next === 'reached') {
+      toast.warning('Plan limit reached', { description: 'You have reached your limit for bills this cycle.' });
     } else {
+      toast.warning('Nearing your plan limit', { description: 'You have used 950 of 1,000 bills this billing cycle.' });
+    }
+  }
+
+  // The "PAYMENTS Success / Failed" preview toggle is the single prototype
+  // trigger standing in for real payment-gateway outcomes on this page. It
+  // never gates on a prior click — flipping it directly fires the matching
+  // outcome for whatever context currently applies:
+  //  - Trial, flipped to Failed: the in-flight upgrade attempt is declined.
+  //  - Standard, flipped to Failed: simulates a recurring charge failing,
+  //    which restricts the account until payment info is updated.
+  // Flipping to Success never shows a toast on its own here — activation is
+  // driven by the "PREVIEW Trial/Standard/Error" control instead (handlePreviewSelect).
+  function handlePaymentOutcomeToggle(nextSimulateFailure: boolean) {
+    setSimulatePaymentFailure(nextSimulateFailure);
+    if (!nextSimulateFailure) return;
+    if (currentPlan === 'standard') {
+      setSubscriptionRestricted(true);
+    } else {
+      toast.error('Payment unsuccessful', { description: 'Your card was declined by your bank. Please check your card details or use another card.' });
+    }
+  }
+
+  // The "PREVIEW Trial/Standard/Error" control is the trigger for all three
+  // upgrade outcomes:
+  //  - Trial: reverts to the trial/compare-plans view.
+  //  - Standard: activates the plan and shows the Monthly/Annual "Subscription
+  //    active" toast for whichever billing cycle is currently selected (the
+  //    try/catch is a defensive fallback for a genuinely unexpected error in
+  //    this process — it should never actually throw in normal operation).
+  //  - Error: explicitly simulates that genuinely-unexpected upgrade/checkout
+  //    failure on demand — fires "Upgrade not completed" without touching
+  //    the current plan or billing date. This is deliberately NOT the same
+  //    thing as an ordinary payment decline (that's the PAYMENTS toggle's
+  //    "Payment unsuccessful" above) — it represents the process itself
+  //    breaking, not a card being declined.
+  function handlePreviewSelect(next: 'trial' | 'standard' | 'error') {
+    if (next === 'trial') {
       setCurrentPlan('trial');
       setNextBillingDate(null);
+    } else if (next === 'standard') {
+      try {
+        const activatedDate = addCycle(new Date(), cycle);
+        setCurrentPlan('standard');
+        setNextBillingDate(activatedDate);
+        toast.success('Subscription active', {
+          description: cycle === 'monthly'
+            ? `You are now on Mochi Standard (Monthly). Your next payment of ${peso(MONTHLY_PRICE)} is on ${formatDate(activatedDate)}.`
+            : `You are now on Mochi Standard (Annual). Your plan renews on ${formatDate(activatedDate)} for ${peso(ANNUAL_PRICE)}.`,
+        });
+      } catch {
+        toast.error('Upgrade not completed', { description: 'Something went wrong. Please try again.' });
+      }
+    } else {
+      toast.error('Upgrade not completed', { description: 'Something went wrong. Please try again.' });
     }
   }
 
   function handleCancelSubscription() {
+    // Reuses the PAYMENTS toggle a second way: if it's currently set to
+    // Failed, treat this specific cancellation attempt as having failed
+    // server-side, rather than assuming every click succeeds.
+    if (simulatePaymentFailure) {
+      toast.error('Cancellation not completed', { description: 'Something went wrong. Please try again.' });
+      return;
+    }
+    const accessEndDate = nextBillingDate;
     setCurrentPlan('trial');
     setNextBillingDate(null);
     setBanner('Your subscription has been cancelled successfully.');
+    toast.success('Subscription cancelled', {
+      description: `You may use Standard features until ${accessEndDate ? formatDate(accessEndDate) : 'the end of your billing period'}.`,
+    });
   }
 
   return (
@@ -2902,7 +3086,7 @@ function SubscriptionSettings() {
           <h1 className="text-xl font-bold text-slate-800">Subscription</h1>
           <p className="text-sm text-slate-500 mt-1">
             {currentPlan === 'standard'
-              ? 'Manage your plan, usage, and billing history.'
+              ? 'Manage your plan, usage, and subscription history.'
               : 'Compare plans and choose the billing cycle that works best for you.'}
           </p>
         </div>
@@ -2913,6 +3097,9 @@ function SubscriptionSettings() {
             nextBillingDate={nextBillingDate}
             billingAddress={billingAddress}
             simulatePaymentFailure={simulatePaymentFailure}
+            subscriptionRestricted={subscriptionRestricted}
+            onRestored={() => setSubscriptionRestricted(false)}
+            usagePreview={usagePreview}
             onCancelSubscription={handleCancelSubscription}
             onCardUpdated={setBillingAddress}
           />
@@ -2932,7 +3119,7 @@ function SubscriptionSettings() {
               featuresHeading="Free trial includes:"
               features={[
                 'Up to 5 user accounts',
-                'Unlimited invoices for 60 days',
+                'Unlimited bills for 60 days',
                 'Payment links',
                 'Payment reminders',
                 'Customer management',
@@ -2963,9 +3150,15 @@ function SubscriptionSettings() {
               billingNote={cycle === 'annual' ? `${peso(ANNUAL_EFFECTIVE_MONTHLY)} per month` : undefined}
               savingsNote={cycle === 'annual' ? '2 months free' : undefined}
               featuresHeading="Everything in trial plus:"
-              features={['Up to 1,000 invoices and customers per month']}
+              features={['Up to 1,000 bills and customers per month']}
               ctaLabel="Upgrade to Standard"
-              ctaOnClick={() => setUpgradeOpen(true)}
+              // Opens PayMongo's checkout in a new tab, same "real external
+              // provider page" placeholder convention used by the gateway
+              // Register buttons above. Opening the tab does NOT activate the
+              // plan or show any toast — the outcome is demonstrated via the
+              // PAYMENTS (decline) and PREVIEW Trial/Standard (activation)
+              // toggles below.
+              ctaOnClick={() => window.open('about:blank', '_blank', 'noopener,noreferrer')}
             />
 
             <PlanCard
@@ -2975,7 +3168,7 @@ function SubscriptionSettings() {
               featuresHeading="Everything in standard plus:"
               features={[
                 'As many user accounts as you want',
-                'As many invoices as you need',
+                'As many bills as you need',
                 'Integration with own accounting systems',
                 'Added security features',
               ]}
@@ -2997,12 +3190,31 @@ function SubscriptionSettings() {
           setCurrentPlan('standard');
           setNextBillingDate(details.nextBillingDate);
           setBillingAddress(details.billingAddress);
+          toast.success('Subscription active', {
+            description: cycle === 'monthly'
+              ? `You are now on Mochi Standard (Monthly). Your next payment of ${peso(MONTHLY_PRICE)} is on ${formatDate(details.nextBillingDate)}.`
+              : `You are now on Mochi Standard (Annual). Your plan renews on ${formatDate(details.nextBillingDate)} for ${peso(ANNUAL_PRICE)}.`,
+          });
         }}
       />
 
       <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2.5">
-        <DemoPaymentOutcomeToggle simulateFailure={simulatePaymentFailure} onChange={setSimulatePaymentFailure} />
-        <DemoPlanToggle subscribed={currentPlan === 'standard'} onChange={handleDemoToggle} />
+        {demoControlsOpen && (
+          <>
+            <DemoUsageToggle state={usagePreview} onSelect={handleUsagePreview} />
+            <DemoPaymentOutcomeToggle simulateFailure={simulatePaymentFailure} onChange={handlePaymentOutcomeToggle} />
+            <DemoPlanToggle currentPlan={currentPlan} onSelect={handlePreviewSelect} />
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => setDemoControlsOpen(prev => !prev)}
+          className="flex items-center gap-2 bg-slate-900/90 backdrop-blur text-white rounded-full shadow-lg px-4 py-2.5 text-xs font-medium hover:bg-slate-900 transition-colors"
+        >
+          <Sliders size={14} />
+          Preview Controls
+          <CaretDown size={12} className={cn('transition-transform', demoControlsOpen && 'rotate-180')} />
+        </button>
       </div>
     </div>
   );
