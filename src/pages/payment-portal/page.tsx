@@ -36,8 +36,11 @@ import {
   IdentificationCard,
   Percent,
   Headset,
+  XCircle,
+  ArrowCounterClockwise,
   CheckCircle as CheckCircleSolid,
 } from '@phosphor-icons/react';
+import { Switch } from '#/components/atoms/Switch';
 import mochiLogo from '#/assets/mochi-logo.svg';
 import mochiLogoWhite from '#/assets/mochi-logo-white.svg';
 import envelopeOtpIcon from '#/assets/envelope-otp-icon.png';
@@ -47,6 +50,16 @@ import envelopeOtpIcon from '#/assets/envelope-otp-icon.png';
 type AppState = 'setupPin' | 'login' | 'portal';
 type Step = 1 | 2 | 3;
 type PaymentMethod = 'card' | 'gcash' | 'maya' | 'bank' | 'qrph' | 'upload';
+
+/** Captured the moment an online payment attempt is confirmed failed (not
+ * pending/uncertain) — enough detail to render the Failed Payment page
+ * without re-deriving state, and without exposing raw technical errors. */
+interface PaymentFailureDetails {
+  billIds: string[];
+  amount: number;
+  method: PaymentMethod;
+  reference?: string;
+}
 type BillStatus = 'paid' | 'unpaid' | 'pending' | 'overdue';
 type BillType = 'one-time' | 'recurring' | 'installment';
 type CustomerType = 'organization' | 'individual';
@@ -2946,6 +2959,101 @@ function Step3({ selected, subtotal, gatewayFee, total, method, onBackToPortal, 
   );
 }
 
+// ─── Failed Payment ───────────────────────────────────────────────────────────
+// Shown only once an online payment attempt is confirmed failed/declined by
+// the payment gateway — never while the outcome is still processing or
+// unverifiable (that case should instead show a pending/status-checking
+// state, kept separate from this screen). Mirrors Step3's card/illustration
+// layout so the flow still feels like one consistent design system, just
+// re-skinned with the existing red/error palette used elsewhere in this file.
+function StepFailed({ failure, onTryAgain, onBackToBills }: {
+  failure: PaymentFailureDetails;
+  onTryAgain: () => void;
+  onBackToBills: () => void;
+}) {
+  const failedBills = getActiveBills().filter((b) => failure.billIds.includes(b.id));
+  const billLabel = failedBills.length === 1
+    ? `#${failedBills[0].id}`
+    : failedBills.length > 1
+      ? `${failedBills.length} bills (${failedBills.map((b) => `#${b.id}`).join(', ')})`
+      : '—';
+
+  return (
+    <div className="flex-1 overflow-auto p-8">
+      <div className="max-w-lg mx-auto flex flex-col gap-6 py-6">
+        {/* Failure illustration */}
+        <div className="text-center flex flex-col items-center gap-4">
+          <div className="w-20 h-20 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+            <XCircle size={48} className="text-red-500" weight="fill" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Payment Failed</h1>
+            <p className="text-sm text-slate-500 mt-2">
+              We couldn't complete your payment. You can try again or choose another payment method.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+            <XCircle size={12} weight="fill" /> Not Paid
+          </span>
+        </div>
+
+        {/* Transaction details — solid white card, subtle neutral border.
+            No raw gateway errors, only safe summary fields. */}
+        <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col gap-4">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Transaction details</p>
+          <div className="flex justify-between gap-3 text-sm items-baseline">
+            <span className="text-slate-500 shrink-0">Bill / Invoice No.</span>
+            <span className="font-semibold text-slate-800 text-right truncate">{billLabel}</span>
+          </div>
+          <div className="flex justify-between gap-3 text-sm items-baseline">
+            <span className="text-slate-500 shrink-0">Amount Attempted</span>
+            <span className="font-bold text-slate-900 whitespace-nowrap">{fmt(failure.amount)}</span>
+          </div>
+          <div className="flex justify-between gap-3 text-sm items-baseline">
+            <span className="text-slate-500 shrink-0">Payment Method</span>
+            <span className="font-medium text-slate-800">{methodLabel(failure.method)}</span>
+          </div>
+          {failure.reference && (
+            <div className="flex justify-between gap-3 text-sm items-baseline border-t border-slate-100 pt-4">
+              <span className="text-slate-500 shrink-0 min-w-0">Transaction Reference</span>
+              <span className="font-medium text-slate-800 text-right break-all">{failure.reference}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Safety banner — clearly visible, not an error, guides the
+            customer to confirm status before retrying so they don't risk
+            paying twice while an outcome is still uncertain. */}
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3.5">
+          <Info size={18} weight="fill" className="shrink-0 mt-0.5 text-blue-500" />
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm font-semibold text-blue-900">Check Your Payment Status</p>
+            <p className="text-sm text-blue-800 leading-relaxed">
+              If money was deducted but your bill still shows as unpaid, contact your bank or e-wallet provider before trying again to avoid duplicate payments.
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onTryAgain}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <ArrowCounterClockwise size={16} weight="bold" /> Try Again
+          </button>
+          <button
+            onClick={onBackToBills}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            Back to My Bills
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PayMongo Hosted Checkout ─────────────────────────────────────────────────
 
 function genReference() {
@@ -3231,13 +3339,16 @@ function PayMongoCardForm({ form, onChange }: { form: CardForm; onChange: (k: ke
   );
 }
 
-function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, onPay, onBack }: {
+function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, onPay, onFail, onBack }: {
   method: PaymentMethod;
   selectedBills: Bill[];
   subtotal: number;
   gatewayFee: number;
   total: number;
   onPay: () => void;
+  /** Called only once the gateway confirms the attempt failed/declined — never
+   * for an uncertain/still-processing outcome. */
+  onFail: (reference: string) => void;
   onBack: () => void;
 }) {
   type Stage = 'method' | 'mobile' | 'otp' | 'bankauth' | 'qrconfirm' | 'success';
@@ -3252,12 +3363,25 @@ function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, 
   const [otp, setOtp] = useState('');
   const [processing, setProcessing] = useState(false);
   const [paidAt, setPaidAt] = useState('');
+  // Prototype-only testing control (see toggle rendered at the bottom-right
+  // of this screen) — standing in for a real gateway decline/failure
+  // webhook. Does not affect the flow at all until the customer actually
+  // finishes entering their payment info and the attempt would otherwise
+  // resolve: it only changes what happens at that resolution point below.
+  const [simulateFail, setSimulateFail] = useState(false);
 
   const ewalletLabel = method === 'bank' ? 'Online Banking' : 'E-Wallets';
   const optionLabel = method === 'gcash' ? 'GCash' : method === 'maya' ? 'Maya' : method === 'bank' ? 'BPI Online' : '';
 
   const inputCls = 'w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100';
 
+  // This is the single point where PayMongo's result would actually come
+  // back after the customer finishes entering their payment info (card OTP,
+  // e-wallet auth, bank login, or QR scan). The result screen itself reads
+  // the "Simulate Failed Payment" toggle live (see `failed` below) so this
+  // single result view always reflects the gateway's actual simulated
+  // outcome — never earlier (e.g. not from the reference number, not before
+  // the customer reaches this result step).
   function goSuccess() {
     setProcessing(false);
     setPaidAt(new Date().toLocaleString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
@@ -3292,14 +3416,29 @@ function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, 
       </div>
 
       {stage === 'success' ? (
-        /* ── Hosted Payment Success ── */
+        /* ── Hosted Payment Result: Success or Failed ──
+           Reads the "Simulate Failed Payment" toggle live, right here, so
+           this is the single source of truth for what result is shown —
+           flipping the toggle while this screen is up immediately switches
+           between the two outcomes, since this IS the screen that shows
+           whether the payment succeeded or failed. */
         <div className="max-w-md mx-auto px-6 py-16 flex flex-col items-center text-center gap-5">
-          <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-            <CheckCircle size={48} className="text-emerald-500" weight="fill" />
-          </div>
+          {!simulateFail ? (
+            <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+              <CheckCircle size={48} className="text-emerald-500" weight="fill" />
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+              <XCircle size={48} className="text-red-500" weight="fill" />
+            </div>
+          )}
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Payment Successful</h1>
-            <p className="text-sm text-slate-500 mt-2">Your payment has been received and confirmed.</p>
+            <h1 className="text-2xl font-bold text-slate-900">{!simulateFail ? 'Payment Successful' : 'Payment Failed'}</h1>
+            <p className="text-sm text-slate-500 mt-2">
+              {!simulateFail
+                ? 'Your payment has been received and confirmed.'
+                : "We couldn't process your payment. Please try again or use a different payment method."}
+            </p>
           </div>
           <div className="w-full border border-slate-200 rounded-xl p-5 flex flex-col gap-3 text-left">
             <div className="flex justify-between gap-3 text-sm">
@@ -3307,7 +3446,7 @@ function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, 
               <span className="font-medium text-slate-800 text-right break-all">{reference}</span>
             </div>
             <div className="flex justify-between gap-3 text-sm">
-              <span className="text-slate-500">Amount Paid</span>
+              <span className="text-slate-500">{!simulateFail ? 'Amount Paid' : 'Amount Attempted'}</span>
               <span className="font-bold text-slate-900 whitespace-nowrap">{fmt(total)}</span>
             </div>
             <div className="flex justify-between gap-3 text-sm">
@@ -3316,15 +3455,27 @@ function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, 
             </div>
             <div className="flex justify-between gap-3 text-sm items-center">
               <span className="text-slate-500">Status</span>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <Check size={12} weight="bold" /> Paid
-              </span>
+              {!simulateFail ? (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <Check size={12} weight="bold" /> Paid
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                  <XCircle size={12} weight="fill" /> Failed
+                </span>
+              )}
             </div>
           </div>
           <div className="w-full flex flex-col gap-3">
-            <button onClick={onPay} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">
-              Return to Billing Portal
-            </button>
+            {!simulateFail ? (
+              <button onClick={onPay} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">
+                Return to Billing Portal
+              </button>
+            ) : (
+              <button onClick={() => onFail(reference)} className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors">
+                Return to Mochi
+              </button>
+            )}
           </div>
           <p className="flex items-center justify-center gap-1.5 text-sm text-slate-400 mt-2">
             Powered by <span className="font-bold text-slate-600">paymongo</span>
@@ -3583,6 +3734,16 @@ function PayMongoCheckout({ method, selectedBills, subtotal, gatewayFee, total, 
           </div>
         </div>
       )}
+
+      {/* Prototype/testing-only control — visually separate from the actual
+          payment UI, never a customer-facing payment option. Stays fully
+          live the whole time, including on the result screen above: that
+          screen reads this same state directly, so toggling it switches the
+          displayed (and "actual", for this prototype) outcome immediately. */}
+      <div className="fixed bottom-4 right-4 z-[60] flex items-center gap-2.5 bg-white border border-slate-200 rounded-lg shadow-sm px-3 py-2">
+        <span className="text-[11px] font-medium text-slate-400">Simulate Failed Payment</span>
+        <Switch checked={simulateFail} onCheckedChange={setSimulateFail} checkedBg="primary" />
+      </div>
     </div>
   );
 }
@@ -3758,6 +3919,11 @@ export default function CustomerPaymentPortalPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [method, setMethod] = useState<PaymentMethod>('card');
   const [gatewayStage, setGatewayStage] = useState<'idle' | 'checkout'>('idle');
+  // Only set once an online payment attempt is confirmed failed by the
+  // gateway (never for a pending/uncertain outcome). step stays at 2 the
+  // whole time so clearing this simply reveals the existing Step2 confirm
+  // page again — same selected bill(s), same method — with no re-charge.
+  const [paymentFailure, setPaymentFailure] = useState<PaymentFailureDetails | null>(null);
   const [showStep1Error, setShowStep1Error] = useState(false);
   const [portalView, setPortalView] = useState<'flow' | 'settings'>('flow');
   const [showPinSuccessBanner, setShowPinSuccessBanner] = useState(false);
@@ -3798,6 +3964,7 @@ export default function CustomerPaymentPortalPage() {
     setSelected(new Set());
     setMethod('card');
     setGatewayStage('idle');
+    setPaymentFailure(null);
     setStep(1);
   }
 
@@ -3841,7 +4008,14 @@ export default function CustomerPaymentPortalPage() {
       <div className="flex flex-1 overflow-hidden">
         {locked && <RestrictedPortalView />}
         {!locked && portalView === 'flow' && step === 1 && <Step1 selected={selected} onToggle={toggle} showError={showStep1Error} onContinue={handleStep1Continue} showSummary={previewShowSummary} showCustomerInfo={previewShowCustomerInfo} visibleFields={previewVisibleFields} step={step} />}
-        {!locked && portalView === 'flow' && step === 2 && (
+        {!locked && portalView === 'flow' && step === 2 && paymentFailure && (
+          <StepFailed
+            failure={paymentFailure}
+            onTryAgain={() => setPaymentFailure(null)}
+            onBackToBills={() => { setPaymentFailure(null); setStep(1); }}
+          />
+        )}
+        {!locked && portalView === 'flow' && step === 2 && !paymentFailure && (
           <Step2
             selected={selected}
             method={method}
@@ -3871,6 +4045,10 @@ export default function CustomerPaymentPortalPage() {
           gatewayFee={gatewayFee}
           total={total}
           onPay={() => { setGatewayStage('idle'); setStep(3); }}
+          onFail={(reference) => {
+            setGatewayStage('idle');
+            setPaymentFailure({ billIds: Array.from(selected), amount: total, method, reference });
+          }}
           onBack={() => setGatewayStage('idle')}
         />
       )}

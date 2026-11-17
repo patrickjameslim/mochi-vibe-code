@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, CreditCard, WarningCircle, CaretDown } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+import { X, CreditCard, WarningCircle, CaretDown, Check } from '@phosphor-icons/react';
 import { cn } from '#/components/utils';
 import { Button } from '#/components/atoms/Button';
 import {
@@ -50,19 +51,34 @@ type Stage = 'form' | 'success';
 interface UpdateCardModalProps {
   open: boolean;
   cycle: BillingCycle;
+  price: string;
   nextBillingDate: Date;
   billingAddress: BillingAddress;
   simulateFailure: boolean;
+  restricted: boolean;
+  onRestored: () => void;
   onClose: () => void;
   onUpdated: (billingAddress: BillingAddress) => void;
 }
 
+const PLAN_INCLUSIONS = [
+  'Up to 1,000 bills and customers per month',
+  'Payment links',
+  'Payment reminders',
+  'Customer management',
+  'Workflow automations',
+  'Billing and Collections report',
+];
+
 export function UpdateCardModal({
   open,
   cycle,
+  price,
   nextBillingDate,
   billingAddress,
   simulateFailure,
+  restricted,
+  onRestored,
   onClose,
   onUpdated,
 }: UpdateCardModalProps) {
@@ -71,6 +87,7 @@ export function UpdateCardModal({
   const [chargeError, setChargeError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [processing, setProcessing] = useState(false);
+  const [inclusionsOpen, setInclusionsOpen] = useState(false);
 
   if (!open) return null;
 
@@ -97,6 +114,7 @@ export function UpdateCardModal({
     if (Object.keys(errors).length > 0) return;
     setChargeError(null);
     setProcessing(true);
+    const last4 = form.cardNumber.replace(/\D/g, '').slice(-4);
     window.setTimeout(() => {
       setProcessing(false);
       const charge = simulateFailure
@@ -105,11 +123,18 @@ export function UpdateCardModal({
       if (!charge.ok) {
         setChargeError(charge.message);
         setForm(prev => ({ ...prev, cardNumber: '', expiry: '', cvv: '', nameOnCard: '' }));
+        toast.error('Card not saved', { description: `${charge.message} Please try another card.` });
         return;
       }
       const updatedAddress: BillingAddress = form;
       onUpdated(updatedAddress);
       setStage('success');
+      if (restricted) {
+        onRestored();
+        toast.success('Subscription restored', { description: 'Payment successful. You may now send and schedule bills again.' });
+      } else {
+        toast.success('Payment information updated', { description: `Your next payment will be charged to the card ending in ${last4}.` });
+      }
     }, 1000);
   }
 
@@ -144,15 +169,43 @@ export function UpdateCardModal({
               {/* Current plan (read-only) */}
               <div className="flex flex-col gap-3">
                 <p className={sectionTitleCls}>Current Plan</p>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 flex flex-col gap-2">
+                <div className="rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-4 flex flex-col gap-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Plan</span>
                     <span className="font-medium text-slate-800">Standard ({cycle === 'monthly' ? 'Monthly' : 'Annual'})</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Price</span>
+                    <span className="font-medium text-slate-800">{price} / {cycle === 'monthly' ? 'month' : 'year'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Next billing date</span>
                     <span className="font-medium text-slate-800">{formatDate(nextBillingDate)}</span>
                   </div>
+                </div>
+
+                {/* Standard Plan Inclusions (collapsible, collapsed by default) */}
+                <div className="rounded-[8px] border border-slate-200 bg-white overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setInclusionsOpen(prev => !prev)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-800"
+                  >
+                    <span>Standard Plan Inclusions</span>
+                    <CaretDown size={14} className={cn('transition-transform duration-200', inclusionsOpen && 'rotate-180')} />
+                  </button>
+                  {inclusionsOpen && (
+                    <div className="border-t border-slate-200 px-4 py-3 animate-in fade-in-0 duration-200">
+                      <ul className="max-h-48 overflow-y-auto flex flex-col gap-3">
+                        {PLAN_INCLUSIONS.map(item => (
+                          <li key={item} className="flex items-start gap-2.5">
+                            <Check size={14} weight="bold" className="shrink-0 mt-0.5 text-violet-500" />
+                            <span className="text-sm text-slate-700">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
 
